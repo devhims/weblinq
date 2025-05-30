@@ -1,10 +1,16 @@
 import { createAuthClient } from 'better-auth/react';
-import { getAuthUrl } from '@/config/env';
+import { getAuthUrl, getFrontendUrl } from '@/config/env';
 
 export const authClient = createAuthClient({
   baseURL: getAuthUrl(), // Better Auth standard endpoints
   fetchOptions: {
     credentials: 'include', // Include cookies for session management
+  },
+  // Ensure callbacks work properly
+  socialProviders: {
+    github: {
+      callbackURL: getFrontendUrl('/api/auth/callback/github'),
+    },
   },
 });
 
