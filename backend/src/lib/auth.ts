@@ -50,7 +50,7 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     advanced: {
       defaultCookieAttributes: {
         sameSite: 'none',
-        secure: true, // Set to true for production HTTPS
+        secure: true,
         partitioned: false,
         domain: params.baseURL?.includes('workers.dev') ? undefined : undefined, // Let browser handle domain
       },
