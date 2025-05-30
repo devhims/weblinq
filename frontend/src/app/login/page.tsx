@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SocialLogin } from '@/components/auth/SocialLogin';
-import { signIn } from '@/lib/auth-client';
+import { signIn, getSession } from '@/lib/auth-client';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -25,9 +25,19 @@ export default function LoginPage() {
       const result = await signIn.email(
         { email, password },
         {
-          onSuccess: (ctx) => {
+          onSuccess: async (ctx) => {
             console.log('Signin success:', ctx);
-            router.push('/dashboard');
+            // Manual session refresh to ensure dashboard has updated session
+            try {
+              await getSession();
+              // Small delay to ensure session is updated
+              setTimeout(() => {
+                router.push('/dashboard');
+              }, 100);
+            } catch (err) {
+              console.error('Session refresh failed:', err);
+              router.push('/dashboard'); // Try anyway
+            }
           },
           onError: (ctx) => {
             console.log('Signin error:', ctx);
@@ -40,10 +50,18 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError(result.error.message || 'Sign in failed');
-      } else {
-        // Manual redirect as backup
+      } else if (result?.data?.user) {
+        // Manual redirect as backup with session refresh
         console.log('Manual redirect to dashboard');
-        router.push('/dashboard');
+        try {
+          await getSession();
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 100);
+        } catch (err) {
+          console.error('Session refresh failed in backup:', err);
+          router.push('/dashboard');
+        }
       }
     } catch (err) {
       console.error('Signin exception:', err);

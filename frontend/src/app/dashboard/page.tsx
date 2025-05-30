@@ -15,8 +15,14 @@ export default function DashboardPage() {
   useEffect(() => {
     console.log('Dashboard effect:', { isPending, user: session?.user });
     if (!isPending && !session?.user) {
-      console.log('Redirecting to login - no user');
-      router.push('/login');
+      console.log('No user found, waiting a bit before redirect...');
+      // Add a small delay to give session time to load
+      const timeout = setTimeout(() => {
+        console.log('Redirecting to login - no user after timeout');
+        router.push('/login');
+      }, 1000); // 1 second delay
+
+      return () => clearTimeout(timeout);
     }
   }, [session?.user, isPending, router]);
 
