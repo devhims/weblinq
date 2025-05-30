@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "weblinq-backend",
+  "name": "weblinq-production",
   "main": "src/app.ts",
   "compatibility_date": "2025-04-24",
   "compatibility_flags": ["nodejs_compat"],
