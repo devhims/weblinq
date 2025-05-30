@@ -1,0 +1,58 @@
+# Global node_modules and logs (covers both frontend and backend)
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+**/dist/
+**/build/
+**/.turbo/
+**/.next/
+**/.vercel/
+**/.wrangler/
+**/.cache/
+**/.env
+**/.env.*
+**/.DS_Store
+
+# misc
+.DS_Store
+*.pem
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+
+frontend/.pnp
+frontend/.pnp.*
+
+# testing
+/coverage
+
+# next.js
+frontend/.next/
+frontend/out/
+
+# production
+frontend/build
+
+
+# env files (can opt-in for committing if needed)
+frontend/.env*
+frontend/.env
+
+# vercel
+frontend.vercel
+
+# typescript
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+
+backend/dist
+backend/node_modules
+backend/.env
+backend/.dev.vars
+backend/.wrangler
+backend/project_docs

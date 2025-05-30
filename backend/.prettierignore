@@ -1,0 +1,9 @@
+# Let ESLint handle TypeScript formatting
+src/**/*.ts
+src/**/*.tsx
+
+# Keep Prettier for other files
+!**/*.json
+!**/*.md
+!**/*.yml
+!**/*.yaml 

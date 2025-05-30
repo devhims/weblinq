@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1748287239757,
+      "tag": "0000_glamorous_night_nurse",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1748350599659,
+      "tag": "0001_closed_iron_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1748401638742,
+      "tag": "0002_even_leech",
+      "breakpoints": true
+    }
+  ]
+}

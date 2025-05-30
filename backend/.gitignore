@@ -1,0 +1,15 @@
+node_modules
+dist
+
+.env
+.env.test
+
+.dev.vars
+
+dev.db
+dev.db-shm
+dev.db-wal
+
+.wrangler
+
+project_docs
