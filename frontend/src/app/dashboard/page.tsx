@@ -9,9 +9,13 @@ export default function DashboardPage() {
   const { data: session, isPending, error } = useSession();
   const router = useRouter();
 
+  console.log('Dashboard render:', { session, isPending, error });
+
   // Handle redirect to login if not authenticated
   useEffect(() => {
+    console.log('Dashboard effect:', { isPending, user: session?.user });
     if (!isPending && !session?.user) {
+      console.log('Redirecting to login - no user');
       router.push('/login');
     }
   }, [session?.user, isPending, router]);

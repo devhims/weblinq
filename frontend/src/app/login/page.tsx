@@ -21,22 +21,32 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { error } = await signIn.email(
+      console.log('Attempting signin...');
+      const result = await signIn.email(
         { email, password },
         {
-          onSuccess: () => {
+          onSuccess: (ctx) => {
+            console.log('Signin success:', ctx);
             router.push('/dashboard');
           },
           onError: (ctx) => {
+            console.log('Signin error:', ctx);
             setError(ctx.error.message || 'Sign in failed');
           },
         }
       );
 
-      if (error) {
-        setError(error.message || 'Sign in failed');
+      console.log('Signin result:', result);
+
+      if (result?.error) {
+        setError(result.error.message || 'Sign in failed');
+      } else {
+        // Manual redirect as backup
+        console.log('Manual redirect to dashboard');
+        router.push('/dashboard');
       }
     } catch (err) {
+      console.error('Signin exception:', err);
       setError(err instanceof Error ? err.message : 'Sign in failed');
     } finally {
       setIsLoading(false);

@@ -15,5 +15,8 @@
       "database_id": "5b3d4cf4-802c-4486-a413-4e94e59175a6",
       "preview_database_id": "f588bfb9-729c-4fdf-ab68-a07ad0822c09"
     }
-  ]
+  ],
+  "observability": {
+    "enabled": true
+  }
 }

@@ -23,13 +23,19 @@ export const config = {
 
 // Helper functions
 export function getBackendUrl(path: string = ''): string {
-  return `${config.backendUrl}${path}`;
+  const baseUrl = config.backendUrl.replace(/\/$/, ''); // Remove trailing slash
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}${cleanPath}`;
 }
 
 export function getFrontendUrl(path: string = ''): string {
-  return `${config.frontendUrl}${path}`;
+  const baseUrl = config.frontendUrl.replace(/\/$/, ''); // Remove trailing slash
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}${cleanPath}`;
 }
 
 export function getAuthUrl(path: string = ''): string {
-  return `${config.auth.baseUrl}/api/auth${path}`;
+  const baseUrl = config.auth.baseUrl.replace(/\/$/, ''); // Remove trailing slash
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}/api/auth${cleanPath}`;
 }
