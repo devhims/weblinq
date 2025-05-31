@@ -9,40 +9,57 @@ const app = new Hono().basePath('/api');
 // Catch-all route that proxies to backend
 app.all('*', async (c) => {
   try {
-    const path = c.req.path;
+    // Get the original path without the /api prefix since backend expects /api/...
+    const path = c.req.path; // This already includes /api from basePath
     const url = new URL(c.req.url);
     const backendUrl = `${config.backendUrl}${path}${url.search}`;
 
-    // Forward headers
-    const headers = new Headers();
-    for (const [key, value] of Object.entries(c.req.header())) {
+    // Get headers from the request
+    const requestHeaders: Record<string, string> = {};
+    c.req.header(); // This returns all headers as an object
+    Object.entries(c.req.header()).forEach(([key, value]) => {
       if (typeof value === 'string') {
-        headers.set(key, value);
+        requestHeaders[key] = value;
       }
-    }
+    });
 
-    // Handle request body
-    let body = null;
-    if (!['GET', 'HEAD'].includes(c.req.method)) {
-      body = await c.req.arrayBuffer();
-    }
-
-    // Make the request
+    // Forward the request to the backend
     const response = await fetch(backendUrl, {
       method: c.req.method,
-      headers,
-      body,
-      redirect: 'manual',
+      headers: {
+        ...requestHeaders,
+        // Add forwarding headers
+        'x-forwarded-host': c.req.header('host') || '',
+        'x-forwarded-proto': c.req.header('x-forwarded-proto') || 'http',
+      },
+      body: ['GET', 'HEAD'].includes(c.req.method)
+        ? null
+        : await c.req.arrayBuffer(),
     });
 
-    // Simply return the response directly without modification
-    return response;
-  } catch (error) {
-    console.error('Proxy error:', error);
-    return new Response(JSON.stringify({ error: 'Proxy error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
+    // Forward the response
+    const responseBody = await response.arrayBuffer();
+
+    // Set response headers, filtering out problematic ones
+    const headers: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      if (
+        !['connection', 'transfer-encoding', 'content-encoding'].includes(
+          key.toLowerCase()
+        )
+      ) {
+        headers[key] = value;
+      }
     });
+
+    return new Response(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  } catch (error) {
+    console.error('Error forwarding request to backend:', error);
+    return c.json({ error: 'Internal server error' }, 500);
   }
 });
 
