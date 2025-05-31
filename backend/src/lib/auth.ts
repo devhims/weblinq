@@ -43,6 +43,8 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       github: {
         clientId: params.githubClientId,
         clientSecret: params.githubClientSecret,
+        // OAuth-specific configuration for incognito mode
+        redirectURI: `${params.baseURL}/api/auth/callback/github`,
       },
     },
     database: params.database,
@@ -57,6 +59,32 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
         domain: undefined,
         // Add httpOnly for security
         httpOnly: true,
+      },
+      // OAuth-specific cookie configuration
+      cookies: {
+        // Configure the OAuth state cookie specifically for incognito mode
+        'oauth-state': {
+          name: 'better-auth.oauth-state',
+          attributes: {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            partitioned: true,
+            // Shorter maxAge for OAuth state (5 minutes)
+            maxAge: 300,
+          },
+        },
+        // Configure PKCE cookies for OAuth flow
+        'pkce-code-verifier': {
+          name: 'better-auth.pkce-code-verifier',
+          attributes: {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            partitioned: true,
+            maxAge: 300,
+          },
+        },
       },
     },
     plugins: [
