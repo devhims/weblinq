@@ -29,23 +29,7 @@ interface AuthConfigParams {
 }
 
 export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
-  console.log('Creating auth config with params:', {
-    frontendUrl: params.frontendUrl,
-    baseURL: params.baseURL,
-    // Don't log secrets
-    hasGithubClientId: !!params.githubClientId,
-    hasGithubClientSecret: !!params.githubClientSecret,
-  });
-
-  const trustedOrigins = params.frontendUrl
-    ? [
-        params.frontendUrl,
-        'https://weblinq.vercel.app',
-        'http://localhost:3000',
-      ]
-    : ['https://weblinq.vercel.app', 'http://localhost:3000'];
-
-  console.log('Auth trusted origins:', trustedOrigins);
+  const trustedOrigins = [params.frontendUrl!, 'http://localhost:3000'];
 
   return {
     secret: params.secret,
@@ -59,9 +43,6 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       github: {
         clientId: params.githubClientId,
         clientSecret: params.githubClientSecret,
-        redirectURI: params.frontendUrl
-          ? `${params.frontendUrl}/api/auth/callback/github`
-          : 'https://weblinq.vercel.app/api/auth/callback/github',
       },
     },
     database: params.database,

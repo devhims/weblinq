@@ -12,32 +12,24 @@ interface SocialLoginProps {
 
 export function SocialLogin({ callbackURL, className }: SocialLoginProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleGitHubSignIn = async () => {
     try {
       setIsLoading(true);
-      setError(null);
 
+      // Better Auth handles the OAuth flow and redirect automatically
       await signIn.social({
         provider: 'github',
         callbackURL: callbackURL || getCallbackURL('/dashboard'),
       });
     } catch (err) {
       console.error('GitHub sign-in error:', err);
-      setError('Failed to sign in with GitHub. Please try again.');
       setIsLoading(false);
     }
   };
 
   return (
     <div className={className}>
-      {error && (
-        <div className='mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md'>
-          {error}
-        </div>
-      )}
-
       <Button
         onClick={handleGitHubSignIn}
         disabled={isLoading}

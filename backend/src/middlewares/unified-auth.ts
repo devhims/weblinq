@@ -31,8 +31,7 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
     // Authentication successful - could be either cookie or API key
     c.set('user', session.user);
     c.set('session', session.session);
-  }
-  else {
+  } else {
     c.set('user', null);
     c.set('session', null);
   }
@@ -59,9 +58,13 @@ export const requireAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
 
   // User must be authenticated (session will be present for both cookie and API key auth)
   if (!user || !session) {
-    return c.json({
-      error: 'Authentication required. Please provide a valid session cookie or API key.',
-    }, 401);
+    return c.json(
+      {
+        error:
+          'Authentication required. Please provide a valid session cookie or API key.',
+      },
+      401,
+    );
   }
 
   await next();
