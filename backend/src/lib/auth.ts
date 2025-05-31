@@ -51,8 +51,12 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       defaultCookieAttributes: {
         sameSite: 'none',
         secure: true,
-        partitioned: false,
-        domain: params.baseURL?.includes('workers.dev') ? undefined : undefined, // Let browser handle domain
+        // Enable partitioning for incognito mode compatibility
+        partitioned: true,
+        // Let browser handle domain for better compatibility
+        domain: undefined,
+        // Add httpOnly for security
+        httpOnly: true,
       },
     },
     plugins: [
