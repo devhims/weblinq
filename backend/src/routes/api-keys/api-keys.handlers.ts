@@ -3,7 +3,12 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { AppRouteHandler } from '@/lib/types';
 
-import type { CreateApiKeyRoute, DeleteApiKeyRoute, GetApiKeyRoute, ListApiKeysRoute } from './api-keys.routes';
+import type {
+  CreateApiKeyRoute,
+  DeleteApiKeyRoute,
+  GetApiKeyRoute,
+  ListApiKeysRoute,
+} from './api-keys.routes';
 
 export const createApiKey: AppRouteHandler<CreateApiKeyRoute> = async (c) => {
   try {
@@ -23,8 +28,7 @@ export const createApiKey: AppRouteHandler<CreateApiKeyRoute> = async (c) => {
     });
 
     return c.json(result, HttpStatusCodes.CREATED);
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Create API key error:', error);
     throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
       message: 'Failed to create API key',
@@ -40,9 +44,18 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
       headers: c.req.header(),
     });
 
-    return c.json(result, HttpStatusCodes.OK);
-  }
-  catch (error) {
+    // Ensure we return the expected format for the frontend
+    // Better Auth returns the raw array, we need to wrap it in the expected structure
+    const apiKeys = Array.isArray(result) ? result : [];
+
+    return c.json(
+      {
+        apiKeys,
+        total: apiKeys.length,
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
     console.error('List API keys error:', error);
     throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
       message: 'Failed to list API keys',
@@ -64,8 +77,7 @@ export const getApiKey: AppRouteHandler<GetApiKeyRoute> = async (c) => {
     });
 
     return c.json(result, HttpStatusCodes.OK);
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Get API key error:', error);
     throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
       message: 'Failed to get API key',
@@ -85,12 +97,14 @@ export const deleteApiKey: AppRouteHandler<DeleteApiKeyRoute> = async (c) => {
       headers: c.req.header(),
     });
 
-    return c.json({
-      success: true,
-      message: 'API key deleted successfully',
-    }, HttpStatusCodes.OK);
-  }
-  catch (error) {
+    return c.json(
+      {
+        success: true,
+        message: 'API key deleted successfully',
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
     console.error('Delete API key error:', error);
     throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
       message: 'Failed to delete API key',

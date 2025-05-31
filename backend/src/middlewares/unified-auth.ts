@@ -19,19 +19,36 @@ import type { AppBindings } from '@/lib/types';
 export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const auth = c.get('auth');
 
-  // Better Auth automatically checks:
-  // 1. Session cookies first
-  // 2. Then Authorization: Bearer header (if customAPIKeyGetter is configured)
-  // 3. When an API key is valid, creates a mock session linked to the key's owner
-  const session = await auth.api.getSession({
-    headers: c.req.raw.headers,
-  });
+  try {
+    // Better Auth automatically checks:
+    // 1. Session cookies first
+    // 2. Then Authorization: Bearer header (if customAPIKeyGetter is configured)
+    // 3. When an API key is valid, creates a mock session linked to the key's owner
+    const session = await auth.api.getSession({
+      headers: c.req.raw.headers,
+    });
 
-  if (session) {
-    // Authentication successful - could be either cookie or API key
-    c.set('user', session.user);
-    c.set('session', session.session);
-  } else {
+    console.log('UnifiedAuth debug:', {
+      hasAuth: !!auth,
+      hasSession: !!session,
+      headers: Object.fromEntries(c.req.raw.headers.entries()),
+      cookies: c.req.header('cookie'),
+      userAgent: c.req.header('user-agent'),
+      origin: c.req.header('origin'),
+    });
+
+    if (session) {
+      // Authentication successful - could be either cookie or API key
+      c.set('user', session.user);
+      c.set('session', session.session);
+      console.log('Auth successful for user:', session.user.email);
+    } else {
+      c.set('user', null);
+      c.set('session', null);
+      console.log('No valid session found');
+    }
+  } catch (error) {
+    console.error('UnifiedAuth error:', error);
     c.set('user', null);
     c.set('session', null);
   }
@@ -56,8 +73,15 @@ export const requireAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const user = c.get('user');
   const session = c.get('session');
 
+  console.log('RequireAuth debug:', {
+    hasUser: !!user,
+    hasSession: !!session,
+    userId: user?.id,
+  });
+
   // User must be authenticated (session will be present for both cookie and API key auth)
   if (!user || !session) {
+    console.log('Authentication required - rejecting request');
     return c.json(
       {
         error:
@@ -67,6 +91,7 @@ export const requireAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
     );
   }
 
+  console.log('Authentication check passed for user:', user.email);
   await next();
 };
 

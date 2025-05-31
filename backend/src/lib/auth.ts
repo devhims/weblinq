@@ -31,6 +31,11 @@ interface AuthConfigParams {
 export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
   const trustedOrigins = [params.frontendUrl!, 'http://localhost:3000'];
 
+  // Detect if we're running in local development
+  const isLocalDevelopment =
+    params.baseURL?.includes('localhost') ||
+    params.baseURL?.includes('127.0.0.1');
+
   return {
     secret: params.secret,
     baseURL: params.baseURL,
@@ -49,10 +54,12 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     // Configure cookies for cross-domain requests
     advanced: {
       defaultCookieAttributes: {
-        sameSite: 'none',
-        secure: true,
+        sameSite: isLocalDevelopment ? 'lax' : 'none',
+        secure: !isLocalDevelopment, // Only secure in production
         partitioned: false,
-        domain: params.baseURL?.includes('workers.dev') ? undefined : undefined, // Let browser handle domain
+        domain: isLocalDevelopment ? undefined : undefined, // Let browser handle domain
+        httpOnly: true,
+        path: '/',
       },
     },
     plugins: [

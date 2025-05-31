@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from '@/lib/auth-client';
 import { Button } from '@/components/ui/Button';
+import { ApiKeyManager } from '@/components/dashboard/ApiKeyManager';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
@@ -65,6 +66,7 @@ export default function DashboardPage() {
 
   return (
     <div className='min-h-screen bg-gray-50'>
+      {/* Header */}
       <div className='bg-white shadow'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='flex justify-between items-center py-6'>
@@ -81,36 +83,112 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Main Content */}
       <div className='max-w-7xl mx-auto py-6 sm:px-6 lg:px-8'>
-        <div className='px-4 py-6 sm:px-0'>
-          <div className='border-4 border-dashed border-gray-200 rounded-lg h-96 p-8'>
+        <div className='px-4 sm:px-0'>
+          <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+            {/* User Account Info */}
+            <div className='lg:col-span-1'>
+              <div className='bg-white rounded-lg shadow p-6'>
+                <h3 className='text-lg font-semibold text-gray-900 mb-4'>
+                  Account Information
+                </h3>
+                <div className='space-y-3'>
+                  <div>
+                    <span className='text-sm font-medium text-gray-500'>
+                      Email
+                    </span>
+                    <p className='text-gray-900'>{user.email}</p>
+                  </div>
+                  {user.name && (
+                    <div>
+                      <span className='text-sm font-medium text-gray-500'>
+                        Name
+                      </span>
+                      <p className='text-gray-900'>{user.name}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span className='text-sm font-medium text-gray-500'>
+                      User ID
+                    </span>
+                    <p className='text-gray-900 font-mono text-sm'>{user.id}</p>
+                  </div>
+                  <div>
+                    <span className='text-sm font-medium text-gray-500'>
+                      Email Verified
+                    </span>
+                    <p className='text-gray-900'>
+                      {user.emailVerified ? (
+                        <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800'>
+                          ✅ Verified
+                        </span>
+                      ) : (
+                        <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800'>
+                          ⚠️ Unverified
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* API Usage Overview (placeholder for future) */}
+              <div className='mt-6 bg-white rounded-lg shadow p-6'>
+                <h3 className='text-lg font-semibold text-gray-900 mb-4'>
+                  API Usage Overview
+                </h3>
+                <div className='space-y-3 text-sm text-gray-600'>
+                  <p>📊 Your API usage statistics will appear here</p>
+                  <p>🔄 Request monitoring coming soon</p>
+                  <p>📈 Rate limit information will be displayed</p>
+                </div>
+              </div>
+            </div>
+
+            {/* API Key Management */}
+            <div className='lg:col-span-2'>
+              <ApiKeyManager />
+            </div>
+          </div>
+
+          {/* Welcome Message (if no API keys exist, this could be shown) */}
+          <div className='mt-8 bg-white rounded-lg shadow p-6'>
             <div className='text-center'>
-              <h2 className='text-3xl font-bold text-gray-900 mb-4'>
+              <h2 className='text-2xl font-bold text-gray-900 mb-4'>
                 🎉 Welcome to your Dashboard!
               </h2>
-              <p className='text-gray-600 mb-6'>
-                You have successfully signed in to your account.
+              <p className='text-gray-600 mb-6 max-w-2xl mx-auto'>
+                You have successfully signed in to your account. Use the API key
+                management section above to create and manage your API keys.
+                These keys will allow you to access our API programmatically.
               </p>
-
-              <div className='bg-white rounded-lg shadow p-6 max-w-md mx-auto'>
-                <h3 className='text-lg font-semibold mb-4'>
-                  Your Account Info
-                </h3>
-                <div className='space-y-2 text-left'>
-                  <p>
-                    <strong>Email:</strong> {user.email}
+              <div className='grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto'>
+                <div className='text-center p-4 bg-blue-50 rounded-lg'>
+                  <div className='text-2xl mb-2'>🔑</div>
+                  <h3 className='font-semibold text-blue-900'>
+                    Create API Keys
+                  </h3>
+                  <p className='text-sm text-blue-700'>
+                    Generate secure API keys for your applications
                   </p>
-                  {user.name && (
-                    <p>
-                      <strong>Name:</strong> {user.name}
-                    </p>
-                  )}
-                  <p>
-                    <strong>User ID:</strong> {user.id}
+                </div>
+                <div className='text-center p-4 bg-green-50 rounded-lg'>
+                  <div className='text-2xl mb-2'>📊</div>
+                  <h3 className='font-semibold text-green-900'>
+                    Monitor Usage
+                  </h3>
+                  <p className='text-sm text-green-700'>
+                    Track your API requests and rate limits
                   </p>
-                  <p>
-                    <strong>Email Verified:</strong>{' '}
-                    {user.emailVerified ? '✅ Yes' : '⚠️ No'}
+                </div>
+                <div className='text-center p-4 bg-purple-50 rounded-lg'>
+                  <div className='text-2xl mb-2'>⚡</div>
+                  <h3 className='font-semibold text-purple-900'>
+                    Fast & Secure
+                  </h3>
+                  <p className='text-sm text-purple-700'>
+                    Built with security and performance in mind
                   </p>
                 </div>
               </div>
