@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SocialLogin } from '@/components/auth/SocialLogin';
-import { signIn, getSession, useSession } from '@/lib/auth-client';
+import { signIn, useSession } from '@/lib/auth-client';
 
 function LoginContent() {
   const [email, setEmail] = useState('');
@@ -45,26 +45,10 @@ function LoginContent() {
       const result = await signIn.email(
         { email, password },
         {
-          onSuccess: async (ctx) => {
+          onSuccess: (ctx) => {
             console.log('Signin success:', ctx);
-            // Force a session refresh and wait for it to complete
-            try {
-              // Wait a bit for the session to be established
-              await new Promise((resolve) => setTimeout(resolve, 500));
-
-              // Force refresh the session
-              await getSession();
-
-              // Another small delay to ensure session is fully loaded
-              await new Promise((resolve) => setTimeout(resolve, 200));
-
-              console.log('Session established, redirecting to dashboard');
-              router.push('/dashboard');
-            } catch (err) {
-              console.error('Session refresh failed:', err);
-              // Try anyway, dashboard will handle the retry
-              router.push('/dashboard');
-            }
+            // Simple redirect without complex session management
+            router.push('/dashboard');
           },
           onError: (ctx) => {
             console.log('Signin error:', ctx);
@@ -78,23 +62,9 @@ function LoginContent() {
       if (result?.error) {
         setError(result.error.message || 'Sign in failed');
       } else if (result?.data?.user) {
-        // Manual redirect as backup with session refresh
+        // Backup redirect
         console.log('Manual redirect to dashboard');
-        try {
-          // Wait a bit for the session to be established
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          // Force refresh the session
-          await getSession();
-
-          // Another small delay
-          await new Promise((resolve) => setTimeout(resolve, 200));
-
-          router.push('/dashboard');
-        } catch (err) {
-          console.error('Session refresh failed in backup:', err);
-          router.push('/dashboard');
-        }
+        router.push('/dashboard');
       }
     } catch (err) {
       console.error('Signin exception:', err);

@@ -30,6 +30,7 @@ interface AuthConfigParams {
 
 export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
   const trustedOrigins = [params.frontendUrl!, 'http://localhost:3000'];
+  const isProduction = params.baseURL?.includes('https') || false;
 
   return {
     secret: params.secret,
@@ -48,23 +49,32 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     database: params.database,
     // Configure cookies for cross-domain requests
     advanced: {
+      // Force secure cookies in production, allow non-secure in development
+      useSecureCookies: isProduction,
       defaultCookieAttributes: {
-        sameSite: 'lax', // Changed from 'none' to 'lax' for better compatibility
-        secure: !!params.baseURL?.includes('https'), // Only secure on HTTPS
-        partitioned: false,
+        sameSite: 'lax', // Better compatibility than 'none'
+        secure: isProduction, // Only secure on HTTPS
         httpOnly: true,
-        domain: undefined, // Let browser handle domain automatically
+        // Don't set domain, let browser handle it automatically
+        domain: undefined,
+        path: '/',
       },
-      // Ensure cross-origin redirects work properly
+      // Configure cross-subdomain cookies for cross-origin scenarios
       crossSubDomainCookies: {
         enabled: true,
-        domain: undefined, // Auto-detect domain
+        // Don't set a specific domain, let Better Auth handle it
+        domain: undefined,
       },
     },
-    // Add session configuration
+    // Add session configuration with better defaults
     session: {
       expiresIn: 60 * 60 * 24 * 7, // 7 days
       updateAge: 60 * 60 * 24, // Update every 24 hours
+      // Enable cookie caching for better performance
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60, // 5 minutes cache
+      },
     },
     plugins: [
       // API Key plugin - supports ONLY Authorization: Bearer headers
