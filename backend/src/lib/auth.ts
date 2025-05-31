@@ -49,11 +49,22 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     // Configure cookies for cross-domain requests
     advanced: {
       defaultCookieAttributes: {
-        sameSite: 'none',
-        secure: true,
+        sameSite: 'lax', // Changed from 'none' to 'lax' for better compatibility
+        secure: !!params.baseURL?.includes('https'), // Only secure on HTTPS
         partitioned: false,
-        domain: params.baseURL?.includes('workers.dev') ? undefined : undefined, // Let browser handle domain
+        httpOnly: true,
+        domain: undefined, // Let browser handle domain automatically
       },
+      // Ensure cross-origin redirects work properly
+      crossSubDomainCookies: {
+        enabled: true,
+        domain: undefined, // Auto-detect domain
+      },
+    },
+    // Add session configuration
+    session: {
+      expiresIn: 60 * 60 * 24 * 7, // 7 days
+      updateAge: 60 * 60 * 24, // Update every 24 hours
     },
     plugins: [
       // API Key plugin - supports ONLY Authorization: Bearer headers

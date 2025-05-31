@@ -1,30 +1,86 @@
 'use client';
 
-import { useSession, signOut } from '@/lib/auth-client';
+import { useSession, signOut, getSession } from '@/lib/auth-client';
 import { Button } from '@/components/ui/Button';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
   const { data: session, isPending, error } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [redirectDelay, setRedirectDelay] = useState(1000);
+  const [retryCount, setRetryCount] = useState(0);
 
-  console.log('Dashboard render:', { session, isPending, error });
+  // If this is an OAuth success, give more time for session to establish
+  useEffect(() => {
+    const isOAuthSuccess = searchParams.get('oauth') === 'success';
+    if (isOAuthSuccess) {
+      console.log('OAuth success detected, extending session load time');
+      setRedirectDelay(3000); // 3 seconds for OAuth flows
+
+      // Manually refresh session after OAuth
+      const refreshSession = async () => {
+        try {
+          console.log('Manually refreshing session after OAuth...');
+          await getSession();
+        } catch (err) {
+          console.error('Failed to refresh session:', err);
+        }
+      };
+
+      refreshSession();
+    }
+  }, [searchParams]);
+
+  console.log('Dashboard render:', {
+    session,
+    isPending,
+    error,
+    redirectDelay,
+    retryCount,
+  });
 
   // Handle redirect to login if not authenticated
   useEffect(() => {
     console.log('Dashboard effect:', { isPending, user: session?.user });
     if (!isPending && !session?.user) {
-      console.log('No user found, waiting a bit before redirect...');
-      // Add a small delay to give session time to load
+      console.log(
+        `No user found, waiting ${redirectDelay}ms before redirect...`
+      );
+
+      // For OAuth flows, try refreshing session a few times before giving up
+      const isOAuthSuccess = searchParams.get('oauth') === 'success';
+      if (isOAuthSuccess && retryCount < 3) {
+        const timeout = setTimeout(async () => {
+          console.log(`Retry ${retryCount + 1}: Refreshing session...`);
+          setRetryCount((prev) => prev + 1);
+          try {
+            await getSession();
+          } catch (err) {
+            console.error('Session refresh failed:', err);
+          }
+        }, 1000);
+
+        return () => clearTimeout(timeout);
+      }
+
+      // Final redirect after retries or non-OAuth flows
       const timeout = setTimeout(() => {
         console.log('Redirecting to login - no user after timeout');
         router.push('/login');
-      }, 1000); // 1 second delay
+      }, redirectDelay);
 
       return () => clearTimeout(timeout);
     }
-  }, [session?.user, isPending, router]);
+  }, [
+    session?.user,
+    isPending,
+    router,
+    redirectDelay,
+    searchParams,
+    retryCount,
+  ]);
 
   const handleSignOut = async () => {
     await signOut({
@@ -39,7 +95,15 @@ export default function DashboardPage() {
   if (isPending) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
-        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600'></div>
+        <div className='text-center'>
+          <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
+          <p className='mt-4 text-gray-600'>Loading your session...</p>
+          {searchParams.get('oauth') === 'success' && (
+            <p className='mt-2 text-sm text-blue-600'>
+              Completing GitHub authentication...
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -56,7 +120,15 @@ export default function DashboardPage() {
   if (!session?.user) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
-        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600'></div>
+        <div className='text-center'>
+          <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
+          <p className='mt-4 text-gray-600'>Completing authentication...</p>
+          {retryCount > 0 && (
+            <p className='mt-2 text-sm text-gray-500'>
+              Retry attempt {retryCount}...
+            </p>
+          )}
+        </div>
       </div>
     );
   }

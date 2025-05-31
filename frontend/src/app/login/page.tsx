@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,7 +14,18 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
+
+  // Check for OAuth errors in URL params
+  useEffect(() => {
+    const urlError = searchParams.get('error');
+    if (urlError) {
+      setError(decodeURIComponent(urlError));
+      // Clear the error from URL
+      router.replace('/login', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
