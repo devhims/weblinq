@@ -1,12 +1,6 @@
 import { createAuthClient } from 'better-auth/react';
-import { getAuthUrl } from '@/config/env';
 
-export const authClient = createAuthClient({
-  baseURL: getAuthUrl(), // Better Auth standard endpoints
-  fetchOptions: {
-    credentials: 'include', // Include cookies for session management
-  },
-});
+export const authClient = createAuthClient({});
 
 // Export the hooks and methods from Better Auth
 export const { useSession, signIn, signUp, signOut, getSession, $Infer } =

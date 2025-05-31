@@ -11,6 +11,7 @@
   "dependencies": {
     "better-auth": "^1.2.8",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.44.1",
     "hono": "^4.7.10",
     "next": "15.3.2",
     "react": "^19.0.0",
@@ -23,6 +24,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4",
