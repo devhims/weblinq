@@ -47,16 +47,23 @@ function LoginContent() {
         {
           onSuccess: async (ctx) => {
             console.log('Signin success:', ctx);
-            // Manual session refresh to ensure dashboard has updated session
+            // Force a session refresh and wait for it to complete
             try {
+              // Wait a bit for the session to be established
+              await new Promise((resolve) => setTimeout(resolve, 500));
+
+              // Force refresh the session
               await getSession();
-              // Small delay to ensure session is updated
-              setTimeout(() => {
-                router.push('/dashboard');
-              }, 100);
+
+              // Another small delay to ensure session is fully loaded
+              await new Promise((resolve) => setTimeout(resolve, 200));
+
+              console.log('Session established, redirecting to dashboard');
+              router.push('/dashboard');
             } catch (err) {
               console.error('Session refresh failed:', err);
-              router.push('/dashboard'); // Try anyway
+              // Try anyway, dashboard will handle the retry
+              router.push('/dashboard');
             }
           },
           onError: (ctx) => {
@@ -74,10 +81,16 @@ function LoginContent() {
         // Manual redirect as backup with session refresh
         console.log('Manual redirect to dashboard');
         try {
+          // Wait a bit for the session to be established
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Force refresh the session
           await getSession();
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 100);
+
+          // Another small delay
+          await new Promise((resolve) => setTimeout(resolve, 200));
+
+          router.push('/dashboard');
         } catch (err) {
           console.error('Session refresh failed in backup:', err);
           router.push('/dashboard');

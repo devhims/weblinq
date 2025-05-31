@@ -6,32 +6,57 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 
 function DashboardContent() {
-  const { data: session, isPending, error } = useSession();
+  const { data: session, isPending, error, refetch } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [redirectDelay, setRedirectDelay] = useState(1000);
+  const [redirectDelay, setRedirectDelay] = useState(2000); // Increased default delay
   const [retryCount, setRetryCount] = useState(0);
+  const [isManuallyRefreshing, setIsManuallyRefreshing] = useState(false);
 
   // If this is an OAuth success, give more time for session to establish
   useEffect(() => {
     const isOAuthSuccess = searchParams.get('oauth') === 'success';
     if (isOAuthSuccess) {
       console.log('OAuth success detected, extending session load time');
-      setRedirectDelay(3000); // 3 seconds for OAuth flows
+      setRedirectDelay(5000); // 5 seconds for OAuth flows
 
       // Manually refresh session after OAuth
       const refreshSession = async () => {
+        setIsManuallyRefreshing(true);
         try {
           console.log('Manually refreshing session after OAuth...');
+          await refetch();
           await getSession();
         } catch (err) {
           console.error('Failed to refresh session:', err);
+        } finally {
+          setIsManuallyRefreshing(false);
         }
       };
 
       refreshSession();
     }
-  }, [searchParams]);
+  }, [searchParams, refetch]);
+
+  // Also try to refresh session on mount if we don't have one
+  useEffect(() => {
+    if (!isPending && !session?.user && retryCount === 0) {
+      console.log('No session on mount, attempting refresh...');
+      const refreshSession = async () => {
+        setIsManuallyRefreshing(true);
+        try {
+          await refetch();
+          await getSession();
+        } catch (err) {
+          console.error('Mount session refresh failed:', err);
+        } finally {
+          setIsManuallyRefreshing(false);
+        }
+      };
+
+      refreshSession();
+    }
+  }, [isPending, session?.user, retryCount, refetch]);
 
   console.log('Dashboard render:', {
     session,
@@ -39,35 +64,52 @@ function DashboardContent() {
     error,
     redirectDelay,
     retryCount,
+    isManuallyRefreshing,
+    hasUser: !!session?.user,
   });
 
   // Handle redirect to login if not authenticated
   useEffect(() => {
-    console.log('Dashboard effect:', { isPending, user: session?.user });
-    if (!isPending && !session?.user) {
+    console.log('Dashboard effect:', {
+      isPending,
+      user: session?.user,
+      isManuallyRefreshing,
+    });
+
+    // Don't redirect if we're still loading or manually refreshing
+    if (isPending || isManuallyRefreshing) {
+      return;
+    }
+
+    if (!session?.user) {
       console.log(
         `No user found, waiting ${redirectDelay}ms before redirect...`
       );
 
       // For OAuth flows, try refreshing session a few times before giving up
       const isOAuthSuccess = searchParams.get('oauth') === 'success';
-      if (isOAuthSuccess && retryCount < 3) {
+      if ((isOAuthSuccess || retryCount === 0) && retryCount < 5) {
+        // Increased retry limit
         const timeout = setTimeout(async () => {
           console.log(`Retry ${retryCount + 1}: Refreshing session...`);
           setRetryCount((prev) => prev + 1);
+          setIsManuallyRefreshing(true);
           try {
+            await refetch();
             await getSession();
           } catch (err) {
             console.error('Session refresh failed:', err);
+          } finally {
+            setIsManuallyRefreshing(false);
           }
         }, 1000);
 
         return () => clearTimeout(timeout);
       }
 
-      // Final redirect after retries or non-OAuth flows
+      // Final redirect after retries
       const timeout = setTimeout(() => {
-        console.log('Redirecting to login - no user after timeout');
+        console.log('Redirecting to login - no user after timeout and retries');
         router.push('/login');
       }, redirectDelay);
 
@@ -80,6 +122,8 @@ function DashboardContent() {
     redirectDelay,
     searchParams,
     retryCount,
+    isManuallyRefreshing,
+    refetch,
   ]);
 
   const handleSignOut = async () => {
@@ -92,15 +136,24 @@ function DashboardContent() {
     });
   };
 
-  if (isPending) {
+  if (isPending || isManuallyRefreshing) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
         <div className='text-center'>
           <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
-          <p className='mt-4 text-gray-600'>Loading your session...</p>
+          <p className='mt-4 text-gray-600'>
+            {isManuallyRefreshing
+              ? 'Refreshing your session...'
+              : 'Loading your session...'}
+          </p>
           {searchParams.get('oauth') === 'success' && (
             <p className='mt-2 text-sm text-blue-600'>
               Completing GitHub authentication...
+            </p>
+          )}
+          {retryCount > 0 && (
+            <p className='mt-2 text-sm text-gray-500'>
+              Attempt {retryCount + 1}...
             </p>
           )}
         </div>
@@ -116,7 +169,7 @@ function DashboardContent() {
     );
   }
 
-  // Show loading state while redirecting
+  // Show loading state while redirecting if no user
   if (!session?.user) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
@@ -124,9 +177,7 @@ function DashboardContent() {
           <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
           <p className='mt-4 text-gray-600'>Completing authentication...</p>
           {retryCount > 0 && (
-            <p className='mt-2 text-sm text-gray-500'>
-              Retry attempt {retryCount}...
-            </p>
+            <p className='mt-2 text-gray-500'>Retry attempt {retryCount}...</p>
           )}
         </div>
       </div>

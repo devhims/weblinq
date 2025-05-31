@@ -6,20 +6,24 @@ export const authClient = createAuthClient({
   fetchOptions: {
     credentials: 'include', // Include cookies for session management
   },
-  // Add retry logic for session detection after OAuth
-  session: {
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60 * 1000, // 5 minutes
-    },
-    freshTokenOnFocus: true, // Refresh session when window gets focus
-    freshTokenOnWindowFocus: true,
-  },
 });
 
 // Export the hooks and methods from Better Auth
 export const { useSession, signIn, signUp, signOut, getSession, $Infer } =
   authClient;
+
+// Custom session refresh function that can be called manually
+export async function refreshSession() {
+  try {
+    console.log('Manually refreshing session...');
+    const session = await getSession();
+    console.log('Session refresh result:', session);
+    return session;
+  } catch (error) {
+    console.error('Session refresh failed:', error);
+    throw error;
+  }
+}
 
 // Export types for TypeScript support
 export type Session = typeof authClient.$Infer.Session;
