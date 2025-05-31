@@ -1,31 +1,20 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SocialLogin } from '@/components/auth/SocialLogin';
-import { signIn, useSession } from '@/lib/auth-client';
+import { signIn, getSession, useSession } from '@/lib/auth-client';
 
-function LoginContent() {
+export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { data: session } = useSession();
-
-  // Check for OAuth errors in URL params
-  useEffect(() => {
-    const urlError = searchParams.get('error');
-    if (urlError) {
-      setError(decodeURIComponent(urlError));
-      // Clear the error from URL
-      router.replace('/login', { scroll: false });
-    }
-  }, [searchParams, router]);
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
@@ -45,10 +34,19 @@ function LoginContent() {
       const result = await signIn.email(
         { email, password },
         {
-          onSuccess: (ctx) => {
+          onSuccess: async (ctx) => {
             console.log('Signin success:', ctx);
-            // Simple redirect without complex session management
-            router.push('/dashboard');
+            // Manual session refresh to ensure dashboard has updated session
+            try {
+              await getSession();
+              // Small delay to ensure session is updated
+              setTimeout(() => {
+                router.push('/dashboard');
+              }, 100);
+            } catch (err) {
+              console.error('Session refresh failed:', err);
+              router.push('/dashboard'); // Try anyway
+            }
           },
           onError: (ctx) => {
             console.log('Signin error:', ctx);
@@ -62,9 +60,17 @@ function LoginContent() {
       if (result?.error) {
         setError(result.error.message || 'Sign in failed');
       } else if (result?.data?.user) {
-        // Backup redirect
+        // Manual redirect as backup with session refresh
         console.log('Manual redirect to dashboard');
-        router.push('/dashboard');
+        try {
+          await getSession();
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 100);
+        } catch (err) {
+          console.error('Session refresh failed in backup:', err);
+          router.push('/dashboard');
+        }
       }
     } catch (err) {
       console.error('Signin exception:', err);
@@ -150,24 +156,5 @@ function LoginContent() {
         </form>
       </div>
     </div>
-  );
-}
-
-function LoginFallback() {
-  return (
-    <div className='min-h-screen flex items-center justify-center bg-gray-50'>
-      <div className='text-center'>
-        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
-        <p className='mt-4 text-gray-600'>Loading login page...</p>
-      </div>
-    </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<LoginFallback />}>
-      <LoginContent />
-    </Suspense>
   );
 }

@@ -2,47 +2,29 @@
 
 import { useSession, signOut } from '@/lib/auth-client';
 import { Button } from '@/components/ui/Button';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
-function DashboardContent() {
+export default function DashboardPage() {
   const { data: session, isPending, error } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [redirectDelay, setRedirectDelay] = useState(2000);
 
-  // If this is an OAuth success, give more time for session to establish
-  useEffect(() => {
-    const isOAuthSuccess = searchParams.get('oauth') === 'success';
-    if (isOAuthSuccess) {
-      console.log('OAuth success detected, extending session load time');
-      setRedirectDelay(5000); // 5 seconds for OAuth flows
-    }
-  }, [searchParams]);
-
-  console.log('Dashboard render:', {
-    session,
-    isPending,
-    error,
-    redirectDelay,
-    hasUser: !!session?.user,
-  });
+  console.log('Dashboard render:', { session, isPending, error });
 
   // Handle redirect to login if not authenticated
   useEffect(() => {
+    console.log('Dashboard effect:', { isPending, user: session?.user });
     if (!isPending && !session?.user) {
-      console.log(
-        `No user found, waiting ${redirectDelay}ms before redirect...`
-      );
-
+      console.log('No user found, waiting a bit before redirect...');
+      // Add a small delay to give session time to load
       const timeout = setTimeout(() => {
         console.log('Redirecting to login - no user after timeout');
         router.push('/login');
-      }, redirectDelay);
+      }, 1000); // 1 second delay
 
       return () => clearTimeout(timeout);
     }
-  }, [session?.user, isPending, router, redirectDelay]);
+  }, [session?.user, isPending, router]);
 
   const handleSignOut = async () => {
     await signOut({
@@ -57,15 +39,7 @@ function DashboardContent() {
   if (isPending) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
-        <div className='text-center'>
-          <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
-          <p className='mt-4 text-gray-600'>Loading your session...</p>
-          {searchParams.get('oauth') === 'success' && (
-            <p className='mt-2 text-sm text-blue-600'>
-              Completing GitHub authentication...
-            </p>
-          )}
-        </div>
+        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600'></div>
       </div>
     );
   }
@@ -78,14 +52,11 @@ function DashboardContent() {
     );
   }
 
-  // Show loading state while redirecting if no user
+  // Show loading state while redirecting
   if (!session?.user) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
-        <div className='text-center'>
-          <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
-          <p className='mt-4 text-gray-600'>Completing authentication...</p>
-        </div>
+        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600'></div>
       </div>
     );
   }
@@ -148,24 +119,5 @@ function DashboardContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-function DashboardFallback() {
-  return (
-    <div className='min-h-screen flex items-center justify-center'>
-      <div className='text-center'>
-        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
-        <p className='mt-4 text-gray-600'>Loading dashboard...</p>
-      </div>
-    </div>
-  );
-}
-
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={<DashboardFallback />}>
-      <DashboardContent />
-    </Suspense>
   );
 }
