@@ -14,7 +14,7 @@ import type { BetterAuthOptions } from 'better-auth';
 
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { apiKey, oAuthProxy } from 'better-auth/plugins';
+import { apiKey } from 'better-auth/plugins';
 
 import { createDb } from '@/db';
 import * as schema from '@/db/schema';
@@ -95,13 +95,6 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       },
     },
     plugins: [
-      // OAuth Proxy plugin - handles OAuth flows in incognito mode
-      // This plugin automatically handles cookie sharing through encrypted URL parameters
-      // when normal cookies can't be reliably set (like in incognito mode)
-      oAuthProxy({
-        // Let Better Auth auto-detect the current URL
-        // It will check request URL, then hosting provider URLs, then fall back to baseURL
-      }),
       // API Key plugin - supports ONLY Authorization: Bearer headers
       apiKey({
         enableMetadata: true,
