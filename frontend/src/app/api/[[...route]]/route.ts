@@ -14,14 +14,21 @@ app.all('*', async (c) => {
     const url = new URL(c.req.url);
     const backendUrl = `${config.backendUrl}${path}${url.search}`;
 
-    // Get headers from the request
+    // Get headers from the request, properly handling cookies
     const requestHeaders: Record<string, string> = {};
-    c.req.header(); // This returns all headers as an object
-    Object.entries(c.req.header()).forEach(([key, value]) => {
+
+    // Get all headers from the original request
+    for (const [key, value] of Object.entries(c.req.header())) {
       if (typeof value === 'string') {
         requestHeaders[key] = value;
       }
-    });
+    }
+
+    // Ensure cookies are properly forwarded
+    const cookies = c.req.header('cookie');
+    if (cookies) {
+      requestHeaders['cookie'] = cookies;
+    }
 
     // Forward the request to the backend
     const response = await fetch(backendUrl, {
@@ -30,32 +37,64 @@ app.all('*', async (c) => {
         ...requestHeaders,
         // Add forwarding headers
         'x-forwarded-host': c.req.header('host') || '',
-        'x-forwarded-proto': c.req.header('x-forwarded-proto') || 'http',
+        'x-forwarded-proto': c.req.header('x-forwarded-proto') || 'https',
+        'x-forwarded-for':
+          c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || '',
+        // Ensure proper origin headers for CORS
+        origin: `https://${c.req.header('host')}`,
       },
+      // Handle request body properly
       body: ['GET', 'HEAD'].includes(c.req.method)
         ? null
         : await c.req.arrayBuffer(),
+      // Important: Don't follow redirects to preserve original response
+      redirect: 'manual',
     });
 
-    // Forward the response
-    const responseBody = await response.arrayBuffer();
+    // Handle different response types properly
+    let responseBody: ArrayBuffer | string;
+    const contentType = response.headers.get('content-type') || '';
 
-    // Set response headers, filtering out problematic ones
-    const headers: Record<string, string> = {};
+    if (
+      contentType.includes('application/json') ||
+      contentType.includes('text/')
+    ) {
+      // For JSON and text responses, handle as text to avoid corruption
+      responseBody = await response.text();
+    } else {
+      // For binary responses, handle as ArrayBuffer
+      responseBody = await response.arrayBuffer();
+    }
+
+    // Properly forward response headers, especially cookies
+    const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
+      const lowerKey = key.toLowerCase();
       if (
-        !['connection', 'transfer-encoding', 'content-encoding'].includes(
-          key.toLowerCase()
-        )
+        ![
+          'connection',
+          'transfer-encoding',
+          'content-encoding',
+          'content-length',
+        ].includes(lowerKey)
       ) {
-        headers[key] = value;
+        responseHeaders[key] = value;
       }
     });
+
+    // Special handling for Set-Cookie headers (can be multiple)
+    const setCookieHeaders = response.headers.getSetCookie?.() || [];
+    if (setCookieHeaders.length > 0) {
+      // Hono handles multiple Set-Cookie headers automatically
+      setCookieHeaders.forEach((cookie) => {
+        responseHeaders['set-cookie'] = cookie;
+      });
+    }
 
     return new Response(responseBody, {
       status: response.status,
       statusText: response.statusText,
-      headers,
+      headers: responseHeaders,
     });
   } catch (error) {
     console.error('Error forwarding request to backend:', error);
