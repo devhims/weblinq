@@ -14,7 +14,7 @@ import type { BetterAuthOptions } from 'better-auth';
 
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { apiKey } from 'better-auth/plugins';
+import { apiKey, oAuthProxy } from 'better-auth/plugins';
 
 import { createDb } from '@/db';
 import * as schema from '@/db/schema';
@@ -60,34 +60,48 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
         // Add httpOnly for security
         httpOnly: true,
       },
-      // OAuth-specific cookie configuration
+      // Configure all Better Auth cookies for incognito mode
       cookies: {
-        // Configure the OAuth state cookie specifically for incognito mode
-        'oauth-state': {
-          name: 'better-auth.oauth-state',
+        // Main session token cookie
+        session_token: {
+          name: 'better-auth.session_token',
           attributes: {
             httpOnly: true,
             secure: true,
             sameSite: 'none',
             partitioned: true,
-            // Shorter maxAge for OAuth state (5 minutes)
-            maxAge: 300,
           },
         },
-        // Configure PKCE cookies for OAuth flow
-        'pkce-code-verifier': {
-          name: 'better-auth.pkce-code-verifier',
+        // Session data cookie (if cookie cache is enabled)
+        session_data: {
+          name: 'better-auth.session_data',
           attributes: {
             httpOnly: true,
             secure: true,
             sameSite: 'none',
             partitioned: true,
-            maxAge: 300,
+          },
+        },
+        // Remember me cookie
+        dont_remember: {
+          name: 'better-auth.dont_remember',
+          attributes: {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            partitioned: true,
           },
         },
       },
     },
     plugins: [
+      // OAuth Proxy plugin - handles OAuth flows in incognito mode
+      // This plugin automatically handles cookie sharing through encrypted URL parameters
+      // when normal cookies can't be reliably set (like in incognito mode)
+      oAuthProxy({
+        // Let Better Auth auto-detect the current URL
+        // It will check request URL, then hosting provider URLs, then fall back to baseURL
+      }),
       // API Key plugin - supports ONLY Authorization: Bearer headers
       apiKey({
         enableMetadata: true,
