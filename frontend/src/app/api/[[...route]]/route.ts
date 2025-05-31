@@ -9,96 +9,40 @@ const app = new Hono().basePath('/api');
 // Catch-all route that proxies to backend
 app.all('*', async (c) => {
   try {
-    // Get the original path without the /api prefix since backend expects /api/...
-    const path = c.req.path; // This already includes /api from basePath
+    const path = c.req.path;
     const url = new URL(c.req.url);
     const backendUrl = `${config.backendUrl}${path}${url.search}`;
 
-    // Get headers from the request, properly handling cookies
-    const requestHeaders: Record<string, string> = {};
-
-    // Get all headers from the original request
+    // Forward headers
+    const headers = new Headers();
     for (const [key, value] of Object.entries(c.req.header())) {
       if (typeof value === 'string') {
-        requestHeaders[key] = value;
+        headers.set(key, value);
       }
     }
 
-    // Ensure cookies are properly forwarded
-    const cookies = c.req.header('cookie');
-    if (cookies) {
-      requestHeaders['cookie'] = cookies;
+    // Handle request body
+    let body = null;
+    if (!['GET', 'HEAD'].includes(c.req.method)) {
+      body = await c.req.arrayBuffer();
     }
 
-    // Forward the request to the backend
+    // Make the request
     const response = await fetch(backendUrl, {
       method: c.req.method,
-      headers: {
-        ...requestHeaders,
-        // Add forwarding headers
-        'x-forwarded-host': c.req.header('host') || '',
-        'x-forwarded-proto': c.req.header('x-forwarded-proto') || 'https',
-        'x-forwarded-for':
-          c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || '',
-        // Ensure proper origin headers for CORS
-        origin: `https://${c.req.header('host')}`,
-      },
-      // Handle request body properly
-      body: ['GET', 'HEAD'].includes(c.req.method)
-        ? null
-        : await c.req.arrayBuffer(),
-      // Important: Don't follow redirects to preserve original response
+      headers,
+      body,
       redirect: 'manual',
     });
 
-    // Handle different response types properly
-    let responseBody: ArrayBuffer | string;
-    const contentType = response.headers.get('content-type') || '';
-
-    if (
-      contentType.includes('application/json') ||
-      contentType.includes('text/')
-    ) {
-      // For JSON and text responses, handle as text to avoid corruption
-      responseBody = await response.text();
-    } else {
-      // For binary responses, handle as ArrayBuffer
-      responseBody = await response.arrayBuffer();
-    }
-
-    // Properly forward response headers, especially cookies
-    const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      const lowerKey = key.toLowerCase();
-      if (
-        ![
-          'connection',
-          'transfer-encoding',
-          'content-encoding',
-          'content-length',
-        ].includes(lowerKey)
-      ) {
-        responseHeaders[key] = value;
-      }
-    });
-
-    // Special handling for Set-Cookie headers (can be multiple)
-    const setCookieHeaders = response.headers.getSetCookie?.() || [];
-    if (setCookieHeaders.length > 0) {
-      // Hono handles multiple Set-Cookie headers automatically
-      setCookieHeaders.forEach((cookie) => {
-        responseHeaders['set-cookie'] = cookie;
-      });
-    }
-
-    return new Response(responseBody, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders,
-    });
+    // Simply return the response directly without modification
+    return response;
   } catch (error) {
-    console.error('Error forwarding request to backend:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    console.error('Proxy error:', error);
+    return new Response(JSON.stringify({ error: 'Proxy error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 });
 
