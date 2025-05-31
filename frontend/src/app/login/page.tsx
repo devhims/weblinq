@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { SocialLogin } from '@/components/auth/SocialLogin';
 import { signIn, getSession, useSession } from '@/lib/auth-client';
 
-export default function LoginPage() {
+function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -167,5 +167,24 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className='min-h-screen flex items-center justify-center bg-gray-50'>
+      <div className='text-center'>
+        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
+        <p className='mt-4 text-gray-600'>Loading login page...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginContent />
+    </Suspense>
   );
 }

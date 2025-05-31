@@ -3,9 +3,9 @@
 import { useSession, signOut, getSession } from '@/lib/auth-client';
 import { Button } from '@/components/ui/Button';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { data: session, isPending, error } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -191,5 +191,24 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function DashboardFallback() {
+  return (
+    <div className='min-h-screen flex items-center justify-center'>
+      <div className='text-center'>
+        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
+        <p className='mt-4 text-gray-600'>Loading dashboard...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardFallback />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
