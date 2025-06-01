@@ -7,18 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function DashboardPage() {
-  const { data: session, isPending, error } = useSession();
+  const { data: session, isPending } = useSession();
   const router = useRouter();
-
-  console.log('Dashboard session check:', { session, isPending, error });
-
-  // Debug: Check cookies manually
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      console.log('🍪 Current cookies:', document.cookie);
-      console.log('🔧 Current URL:', window.location.href);
-    }
-  }, []);
 
   useEffect(() => {
     if (!isPending && !session) {

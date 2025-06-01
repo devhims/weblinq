@@ -1,9 +1,8 @@
 import { createAuthClient } from 'better-auth/react';
-import { config } from '@/config/env';
 
-console.log('🔧 Auth client setup:', {
-  backendUrl: config.backendUrl,
+console.log('🔧 Auth client setup (local Next.js auth):', {
   environment: process.env.NODE_ENV,
+  frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL,
 });
 
 // Add minimal fetch debugging to see what's happening
@@ -47,9 +46,10 @@ globalThis.fetch = async (input, init) => {
 };
 
 export const authClient = createAuthClient({
-  baseURL: config.backendUrl, // Better Auth client will automatically append /api/auth/* endpoints
+  // Use local Next.js auth endpoints (same domain - no CORS issues!)
+  baseURL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
   fetchOptions: {
-    credentials: 'include', // Required for sending cookies cross-origin
+    credentials: 'include', // Include cookies for session management
   },
 });
 

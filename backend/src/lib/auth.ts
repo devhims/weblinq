@@ -14,7 +14,7 @@ import type { BetterAuthOptions } from 'better-auth';
 
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { apiKey } from 'better-auth/plugins';
+import { apiKey, oAuthProxy } from 'better-auth/plugins';
 
 import { createDb } from '@/db';
 import * as schema from '@/db/schema';
@@ -43,31 +43,23 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
   let isDifferentDomain = false;
   let cookieDomain: string | undefined;
 
-  if (!isLocalDevelopment && params.frontendUrl && params.baseURL) {
+  if (isProduction && params.frontendUrl && params.baseURL) {
     try {
       const frontendUrl = new URL(params.frontendUrl);
       const backendUrl = new URL(params.baseURL);
 
-      // Extract root domain (e.g., "example.com" from "app.example.com")
-      const frontendDomain = frontendUrl.hostname
-        .split('.')
-        .slice(-2)
-        .join('.');
-      const backendDomain = backendUrl.hostname.split('.').slice(-2).join('.');
+      // Check if they're completely different domains (not just subdomains)
+      isDifferentDomain = frontendUrl.hostname !== backendUrl.hostname;
 
-      // Check if they're completely different domains
-      isDifferentDomain = frontendDomain !== backendDomain;
-
-      // Only set cookieDomain if they share the same root domain (subdomain case)
+      // For cross-domain, don't set a cookie domain (let browser handle it)
+      // For same domain, we can set a specific domain
       if (!isDifferentDomain) {
-        cookieDomain = `.${frontendDomain}`;
+        cookieDomain = frontendUrl.hostname;
       }
 
       console.warn('🔧 Domain analysis:', {
         frontend: frontendUrl.hostname,
         backend: backendUrl.hostname,
-        frontendDomain,
-        backendDomain,
         isDifferentDomain,
         cookieDomain,
         isProduction,
@@ -92,6 +84,13 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
   };
 
   console.warn('🍪 Cookie configuration:', cookieConfig);
+  console.warn('🌐 Production cross-domain setup:', {
+    isProduction,
+    isDifferentDomain,
+    cookieDomain,
+    frontendUrl: params.frontendUrl,
+    backendUrl: params.baseURL,
+  });
 
   return {
     secret: params.secret,
@@ -105,14 +104,15 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       github: {
         clientId: params.githubClientId,
         clientSecret: params.githubClientSecret,
-        redirectURI: `${params.baseURL}/api/auth/callback/github`,
+        redirectURI: `${params.frontendUrl}/api/auth/callback/github`,
       },
     },
     database: params.database,
     // Enable cookie cache for better performance and disable in debug if needed
     session: {
       cookieCache: {
-        enabled: true,
+        // Disable in production cross-domain to avoid cache issues
+        enabled: !isProduction || !isDifferentDomain,
         maxAge: 5 * 60, // 5 minutes
       },
       // ✅ CRITICAL: Disable freshness check for cross-domain
@@ -121,31 +121,32 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     // ✅ CRITICAL: Backend cookie config must support cross-domain cookies
     advanced: {
       defaultCookieAttributes: {
-        // ✅ CRITICAL: For cross-domain (different domains), always use 'none'
-        // For same domain/subdomain, use 'lax'
+        // ✅ CRITICAL: For cross-domain, must use 'none' with secure=true
         sameSite: isProduction && isDifferentDomain ? 'none' : 'lax',
         // ✅ CRITICAL: Must be secure for SameSite=none and production
         secure: isProduction,
-        // ✅ CRITICAL: Enable partitioned cookies for cross-domain requests
-        partitioned: isProduction && isDifferentDomain,
-        // Only set domain for subdomain sharing, not cross-domain
+        // ✅ CRITICAL: Don't use partitioned cookies for now (can cause issues)
+        partitioned: false,
+        // ✅ CRITICAL: Don't set domain for cross-domain (undefined = current domain)
         domain: cookieDomain,
         httpOnly: true,
         path: '/',
-        // ✅ CRITICAL: Same maxAge as frontend for session consistency
         maxAge: 60 * 60 * 24 * 7, // 7 days
       },
       // Force secure cookies in production
       useSecureCookies: isProduction,
-      // ✅ CRITICAL: Only enable cross-subdomain for same root domain
-      crossSubDomainCookies: cookieDomain
-        ? {
-            enabled: true,
-            domain: cookieDomain,
-          }
-        : undefined,
+      // ✅ CRITICAL: Disable cross-subdomain cookies for cross-domain scenarios
+      crossSubDomainCookies: undefined,
     },
     plugins: [
+      // OAuth Proxy plugin - handles cross-domain OAuth redirects
+      // MUST be first plugin to intercept OAuth flows properly
+      oAuthProxy({
+        // Production URL that matches the GitHub OAuth app configuration
+        productionURL: params.frontendUrl,
+        // Current URL will be auto-detected, but we can specify if needed
+        currentURL: params.baseURL,
+      }),
       // API Key plugin - supports ONLY Authorization: Bearer headers
       apiKey({
         enableMetadata: true,
