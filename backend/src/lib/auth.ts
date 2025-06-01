@@ -29,10 +29,7 @@ interface AuthConfigParams {
 }
 
 export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
-  const trustedOrigins = [
-    'https://weblinq.vercel.app/',
-    'http://localhost:3000',
-  ];
+  const trustedOrigins = [params.frontendUrl!, 'http://localhost:3000'];
 
   // Detect if we're running in local development
   const isLocalDevelopment =
@@ -71,7 +68,7 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     secret: params.secret,
     baseURL: params.baseURL,
     // Allow requests from the frontend - use environment variable
-    trustedOrigins: ['https://weblinq.vercel.app', 'http://localhost:3000'],
+    trustedOrigins,
     emailAndPassword: {
       enabled: true,
     },
@@ -82,21 +79,30 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       },
     },
     database: params.database,
+    // Enable cookie cache for better performance
+    session: {
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60, // 5 minutes
+      },
+    },
     // ✅ CRITICAL: Backend cookie config must match frontend for proper session sharing
     advanced: {
       defaultCookieAttributes: {
-        // MUST match frontend: Use 'lax' for same-domain compatibility
+        // MUST match frontend: Use 'lax' for same-domain compatibility, 'none' for cross-domain
         sameSite: isLocalDevelopment ? 'lax' : 'none',
         // MUST match frontend: Only secure in production
         secure: isProduction,
-        // Enable partitioned cookies for production cross-site requests
-        partitioned: !isLocalDevelopment,
+        // Enable partitioned cookies for production cross-site requests only if cross-domain
+        partitioned: !isLocalDevelopment && !cookieDomain,
         domain: cookieDomain,
         httpOnly: true,
         path: '/',
         // MUST match frontend: Same maxAge for session consistency
         maxAge: 60 * 60 * 24 * 7, // 7 days
       },
+      // Force secure cookies in production
+      useSecureCookies: isProduction,
     },
     plugins: [
       // API Key plugin - supports ONLY Authorization: Bearer headers

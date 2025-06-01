@@ -14,18 +14,46 @@ import type { AppBindings } from '@/lib/types';
 export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const auth = c.get('auth');
 
-  // Better Auth handles both cookies AND API keys automatically
-  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  try {
+    // Better Auth handles both cookies AND API keys automatically
+    const session = await auth.api.getSession({
+      headers: c.req.raw.headers,
+      // Disable cookie cache for debugging in production if needed
+      query: {
+        // disableCookieCache: true
+      },
+    });
 
-  if (!session) {
+    if (!session) {
+      // Log for debugging in development
+      const isDev =
+        c.env.NODE_ENV === 'development' || c.env.NODE_ENV === 'preview';
+      if (isDev) {
+        const cookies = c.req.raw.headers.get('cookie');
+        const authorization = c.req.raw.headers.get('authorization');
+        console.log('🔍 No session found:', {
+          hasCookies: !!cookies,
+          hasAuthorization: !!authorization,
+          cookiePreview: cookies?.substring(0, 100),
+          authPreview: authorization?.substring(0, 50),
+        });
+      }
+
+      c.set('user', null);
+      c.set('session', null);
+      return next();
+    }
+
+    c.set('user', session.user);
+    c.set('session', session.session);
+    return next();
+  } catch (error) {
+    // Log auth errors for debugging
+    console.error('❌ Auth middleware error:', error);
     c.set('user', null);
     c.set('session', null);
     return next();
   }
-
-  c.set('user', session.user);
-  c.set('session', session.session);
-  return next();
 };
 
 /**
@@ -47,10 +75,21 @@ export const requireAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const session = c.get('session');
 
   if (!user || !session) {
+    // Enhanced error response for debugging
+    const isDev =
+      c.env.NODE_ENV === 'development' || c.env.NODE_ENV === 'preview';
     return c.json(
       {
         error: 'Authentication required',
         message: 'Valid session or API key required',
+        ...(isDev && {
+          debug: {
+            hasUser: !!user,
+            hasSession: !!session,
+            path: c.req.path,
+            method: c.req.method,
+          },
+        }),
       },
       401,
     );
