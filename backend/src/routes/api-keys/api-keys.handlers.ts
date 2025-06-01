@@ -39,10 +39,18 @@ export const createApiKey: AppRouteHandler<CreateApiKeyRoute> = async (c) => {
 export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
   try {
     const auth = c.get('auth');
+    const user = c.get('user');
+
+    console.log('ListApiKeys - User ID:', user?.id);
 
     const result = await (auth.api as any).listApiKeys({
       headers: c.req.header(),
     });
+
+    console.log(
+      'ListApiKeys - Success, result length:',
+      Array.isArray(result) ? result.length : 'not-array',
+    );
 
     // Ensure we return the expected format for the frontend
     // Better Auth returns the raw array, we need to wrap it in the expected structure
@@ -57,6 +65,8 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
     );
   } catch (error) {
     console.error('List API keys error:', error);
+    console.error('Error type:', typeof error);
+    console.error('Error constructor:', error?.constructor?.name);
     throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
       message: 'Failed to list API keys',
     });
