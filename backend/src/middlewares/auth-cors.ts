@@ -20,46 +20,81 @@ export default function createAuthCors(c: Context<AppBindings>) {
   // Create array of allowed origins - include both development and production
   const allowedOrigins = [
     'http://localhost:3000', // Always allow localhost for development
-    frontendUrl, // Production frontend URL
+    'https://weblinq.vercel.app', // Production frontend
+    frontendUrl, // Environment-specific frontend
   ];
 
-  // Remove duplicates and filter out empty values
+  // Remove duplicates and filter out invalid URLs
   const uniqueOrigins = [...new Set(allowedOrigins)].filter(Boolean);
+
+  const requestOrigin = c.req.header('origin');
+  const requestMethod = c.req.method;
+
+  console.log('🌐 CORS configuration:', {
+    isDevelopment,
+    frontendUrl,
+    allowedOrigins: uniqueOrigins,
+    requestOrigin,
+    requestMethod,
+    isPreflightRequest: requestMethod === 'OPTIONS',
+  });
 
   return cors({
     origin: (origin) => {
       // Allow requests without origin (e.g., mobile apps, server-to-server)
       if (!origin) {
-        return origin;
+        console.log('📝 CORS: Allowing request without origin');
+        return origin; // Return undefined for no origin
       }
 
-      // Check if origin is in our allowed list and return it if valid
-      return uniqueOrigins.includes(origin) ? origin : null;
+      // Check if origin is in our allowed list
+      const isAllowed = uniqueOrigins.includes(origin);
+      console.log(
+        `📝 CORS: Origin ${origin} is ${isAllowed ? 'ALLOWED' : 'BLOCKED'}`,
+      );
+
+      return isAllowed ? origin : null; // Return origin if allowed, null if blocked
     },
+    // ✅ CRITICAL: Must be true for cross-domain cookies
+    credentials: true,
+    // ✅ CRITICAL: Allow all methods for Better Auth endpoints
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
+    // ✅ CRITICAL: Allow all headers needed for Better Auth + API keys + Safari compatibility
     allowHeaders: [
       'Content-Type',
       'Authorization',
       'X-Requested-With',
-      'Cookie', // CRITICAL: Allow session cookies from frontend
-      'Set-Cookie', // CRITICAL: Allow setting auth cookies
-      'X-Session-Token', // CRITICAL: Allow custom session token from frontend
       'Accept',
       'Origin',
       'User-Agent',
-      'Cache-Control',
-      'X-Captcha-Response', // For captcha support
-      'X-Captcha-User-Remote-IP', // For captcha support
+      'Cookie',
+      'Referer', // Safari sometimes requires this
+      'Accept-Language',
+      'Accept-Encoding',
+      'Connection',
+      'Host',
+      // Better Auth specific headers
+      'X-Better-Auth',
+      'X-Better-Auth-Return-To',
+      // Additional headers that Safari might send
+      'Sec-Fetch-Site',
+      'Sec-Fetch-Mode',
+      'Sec-Fetch-Dest',
     ],
-    allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE', 'PATCH', 'HEAD'],
+    // ✅ CRITICAL: Expose cookies in response for cross-domain
     exposeHeaders: [
       'Content-Length',
-      'Set-Cookie', // CRITICAL: Expose auth cookies to frontend
+      'Set-Cookie',
       'Access-Control-Allow-Origin',
       'Access-Control-Allow-Credentials',
-      'X-Retry-After', // For rate limiting
+      'Access-Control-Allow-Headers',
+      'Access-Control-Allow-Methods',
+      'X-Retry-After',
+      'Location', // For redirects
+      'Vary',
     ],
-    maxAge: 86400, // 24 hours - helps with preflight caching
-    credentials: true, // CRITICAL: Allow cookies for session authentication
+    // ✅ CRITICAL: Set max age for preflight caching (shorter for debugging)
+    maxAge: isDevelopment ? 60 : 86400, // 1 minute in dev, 24 hours in prod
   });
 }
 

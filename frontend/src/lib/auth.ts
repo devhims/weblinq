@@ -6,10 +6,24 @@ import { db } from '@/db'; // your drizzle instance
 // Detect environment for cookie configuration
 const isProduction = process.env.NODE_ENV === 'production';
 
+// ✅ CRITICAL: Backend URL for cross-domain requests
+const backendUrl = isProduction
+  ? 'https://weblinq-production.thinktank-himanshu.workers.dev'
+  : 'http://localhost:8787';
+
 export const auth = betterAuth({
-  // NO baseURL needed - uses current domain's /api/auth/* routes
+  // ✅ CRITICAL: Set baseURL to backend for cross-domain auth
+  baseURL: `${backendUrl}/api/auth`,
+
+  // ✅ CRITICAL: Set trusted origins for CSRF protection
+  trustedOrigins: [
+    'https://weblinq.vercel.app', // Production frontend
+    'http://localhost:3000', // Development frontend
+    backendUrl, // Backend URL
+  ],
+
   database: drizzleAdapter(db, {
-    provider: 'sqlite', // or "mysql", "sqlite"
+    provider: 'sqlite',
   }),
   emailAndPassword: {
     enabled: true,
@@ -21,18 +35,21 @@ export const auth = betterAuth({
     },
   },
 
-  // ✅ CRITICAL: Frontend auth cookie config for same-domain
+  // ✅ CRITICAL: Cross-domain cookie configuration
   advanced: {
     defaultCookieAttributes: {
-      // Use 'lax' for same-domain (works better than 'strict' for redirects)
-      sameSite: 'lax',
-      // Only secure in production (HTTPS required)
+      // MUST be 'none' for cross-domain requests in production
+      sameSite: isProduction ? 'none' : 'lax',
+      // MUST be true for production HTTPS cross-domain
       secure: isProduction,
       httpOnly: true,
       path: '/',
-      // Longer maxAge for better session persistence
+      // Enable partitioned cookies for cross-site requests
+      partitioned: isProduction,
       maxAge: 60 * 60 * 24 * 7, // 7 days
     },
+    // Force secure cookies in production
+    useSecureCookies: isProduction,
   },
 
   plugins: [

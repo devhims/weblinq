@@ -79,30 +79,39 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       },
     },
     database: params.database,
-    // Enable cookie cache for better performance
+    // Enable cookie cache for better performance and disable in debug if needed
     session: {
       cookieCache: {
         enabled: true,
         maxAge: 5 * 60, // 5 minutes
       },
+      // ✅ CRITICAL: Disable freshness check for cross-domain
+      freshAge: 0,
     },
-    // ✅ CRITICAL: Backend cookie config must match frontend for proper session sharing
+    // ✅ CRITICAL: Backend cookie config must support cross-domain cookies
     advanced: {
       defaultCookieAttributes: {
-        // MUST match frontend: Use 'lax' for same-domain compatibility, 'none' for cross-domain
-        sameSite: isLocalDevelopment ? 'lax' : 'none',
-        // MUST match frontend: Only secure in production
+        // ✅ CRITICAL: 'none' for cross-domain, 'lax' for same-domain
+        sameSite: isProduction && !cookieDomain ? 'none' : 'lax',
+        // ✅ CRITICAL: Must be secure for SameSite=none
         secure: isProduction,
-        // Enable partitioned cookies for production cross-site requests only if cross-domain
-        partitioned: !isLocalDevelopment && !cookieDomain,
+        // ✅ CRITICAL: Enable partitioned cookies for cross-site requests
+        partitioned: isProduction && !cookieDomain,
         domain: cookieDomain,
         httpOnly: true,
         path: '/',
-        // MUST match frontend: Same maxAge for session consistency
+        // ✅ CRITICAL: Same maxAge as frontend for session consistency
         maxAge: 60 * 60 * 24 * 7, // 7 days
       },
       // Force secure cookies in production
       useSecureCookies: isProduction,
+      // ✅ CRITICAL: Enable cross-domain cookie support
+      crossSubDomainCookies: cookieDomain
+        ? {
+            enabled: true,
+            domain: cookieDomain,
+          }
+        : undefined,
     },
     plugins: [
       // API Key plugin - supports ONLY Authorization: Bearer headers
