@@ -29,6 +29,11 @@ export default function createAuthCors(c: Context<AppBindings>) {
 
   return cors({
     origin: uniqueOrigins,
+    // allowHeaders: ['Content-Type', 'Authorization'],
+    // allowMethods: ['POST', 'GET', 'OPTIONS'],
+    // exposeHeaders: ['Content-Length'],
+    // maxAge: 600,
+    // credentials: true,
     allowHeaders: [
       'Content-Type',
       'Authorization',

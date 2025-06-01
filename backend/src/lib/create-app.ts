@@ -24,16 +24,21 @@ export default function createApp() {
   app.use(logger());
 
   // CORS middleware specifically for auth routes - now uses environment variables
-  app.use('/api/auth/*', (c, next) => {
+  // app.use('/api/auth/*', (c, next) => {
+  //   const authCors = createAuthCors(c);
+  //   return authCors(c, next);
+  // });
+
+  app.use('*', (c, next) => {
     const authCors = createAuthCors(c);
     return authCors(c, next);
   });
 
   // CORS middleware specifically for API key routes - essential for cookie transmission
-  app.use('/api-keys/*', (c, next) => {
-    const authCors = createAuthCors(c);
-    return authCors(c, next);
-  });
+  // app.use('/api-keys/*', (c, next) => {
+  //   const authCors = createAuthCors(c);
+  //   return authCors(c, next);
+  // });
 
   // Auth instance creation for all routes
   // In Cloudflare Workers, we need fresh DB connections per request
