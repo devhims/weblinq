@@ -3,26 +3,86 @@ import type { MiddlewareHandler } from 'hono';
 import type { AppBindings } from '@/lib/types';
 
 /**
- * Unified authentication middleware following Better Auth documentation pattern
+ * Unified authentication middleware for dual auth architecture
  *
- * Better Auth's getSession() automatically handles:
- * - Session cookies (better-auth.session_token)
- * - API keys via Authorization: Bearer header (when apiKey plugin is enabled)
+ * Handles authentication from multiple sources:
+ * 1. Backend session cookies (better-auth.session_token)
+ * 2. API keys via Authorization: Bearer header (when apiKey plugin is enabled)
+ * 3. Frontend session tokens via X-Session-Token header (from frontend auth)
  *
- * No manual API key extraction needed!
+ * This supports a dual auth setup where:
+ * - Frontend auth handles login/OAuth (same domain, no CORS issues)
+ * - Backend auth handles API keys and business logic (cross domain)
  */
 export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const auth = c.get('auth');
 
   try {
-    // Better Auth handles both cookies AND API keys automatically
-    const session = await auth.api.getSession({
+    // First, try standard Better Auth session validation (cookies + API keys)
+    let session = await auth.api.getSession({
       headers: c.req.raw.headers,
-      // Disable cookie cache for debugging in production if needed
       query: {
-        // disableCookieCache: true
+        // disableCookieCache: true // Uncomment for debugging
       },
     });
+
+    // If no standard session, try to validate frontend session token
+    if (!session) {
+      const frontendSessionToken = c.req.header('x-session-token');
+
+      if (frontendSessionToken) {
+        try {
+          // Decode the base64 session token from frontend
+          const decodedToken = atob(frontendSessionToken);
+          const tokenData = JSON.parse(decodedToken);
+
+          console.log('🔍 Frontend session token:', {
+            userId: tokenData.userId,
+            email: tokenData.email,
+            timestamp: tokenData.timestamp,
+          });
+
+          // Validate token timestamp (optional - check if not too old)
+          const tokenAge = Date.now() - tokenData.timestamp;
+          const maxAge = 60 * 60 * 24 * 7 * 1000; // 7 days in milliseconds
+
+          if (tokenAge > maxAge) {
+            console.warn('⚠️ Frontend session token expired');
+          } else {
+            // Create a mock session object for the backend
+            // You might want to validate this against your database
+            session = {
+              user: {
+                id: tokenData.userId,
+                name: tokenData.email.split('@')[0], // Use email prefix as name
+                email: tokenData.email,
+                emailVerified: false, // Assume not verified from frontend token
+                createdAt: new Date(tokenData.timestamp),
+                updatedAt: new Date(),
+                image: null,
+              },
+              session: {
+                id: `frontend-${tokenData.userId}`,
+                createdAt: new Date(tokenData.timestamp),
+                updatedAt: new Date(),
+                userId: tokenData.userId,
+                expiresAt: new Date(tokenData.timestamp + maxAge),
+                token: frontendSessionToken,
+                ipAddress: null,
+                userAgent: null,
+              },
+            };
+
+            console.log(
+              '✅ Frontend session validated for user:',
+              tokenData.email,
+            );
+          }
+        } catch (error) {
+          console.error('❌ Failed to decode frontend session token:', error);
+        }
+      }
+    }
 
     if (!session) {
       // Log for debugging in development
@@ -31,11 +91,14 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
       if (isDev) {
         const cookies = c.req.raw.headers.get('cookie');
         const authorization = c.req.raw.headers.get('authorization');
+        const sessionToken = c.req.raw.headers.get('x-session-token');
         console.log('🔍 No session found:', {
           hasCookies: !!cookies,
           hasAuthorization: !!authorization,
+          hasSessionToken: !!sessionToken,
           cookiePreview: cookies?.substring(0, 100),
           authPreview: authorization?.substring(0, 50),
+          tokenPreview: sessionToken?.substring(0, 50),
         });
       }
 

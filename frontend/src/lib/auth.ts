@@ -21,7 +21,7 @@ export const auth = betterAuth({
     },
   },
 
-  // ✅ CRITICAL: Even same-domain needs cookie config for Safari/incognito
+  // ✅ CRITICAL: Frontend auth cookie config for same-domain
   advanced: {
     defaultCookieAttributes: {
       // Use 'lax' for same-domain (works better than 'strict' for redirects)
@@ -61,3 +61,58 @@ export const auth = betterAuth({
     }),
   ],
 });
+
+// For frontend components, you'll need to create a client that connects to this auth server
+// The auth server handles requests at /api/auth/* routes
+
+/**
+ * Helper function to create a session token for backend API calls
+ * This encodes the current user session into a format the backend can validate
+ */
+export async function createSessionToken(): Promise<string | null> {
+  try {
+    // Get current session from frontend auth
+    const session = await auth.api.getSession({
+      headers: new Headers(), // Empty headers for client-side call
+    });
+
+    if (!session) {
+      return null;
+    }
+
+    // Create token payload
+    const tokenData = {
+      userId: session.user.id,
+      email: session.user.email,
+      timestamp: Date.now(),
+    };
+
+    // Encode as base64
+    return btoa(JSON.stringify(tokenData));
+  } catch (error) {
+    console.error('Failed to create session token:', error);
+    return null;
+  }
+}
+
+/**
+ * Helper function to make authenticated requests to the backend
+ * Automatically includes the session token header
+ */
+export async function makeAuthenticatedRequest(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const sessionToken = await createSessionToken();
+
+  const headers = new Headers(options.headers);
+  if (sessionToken) {
+    headers.set('X-Session-Token', sessionToken);
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include', // Also send any cookies
+  });
+}
