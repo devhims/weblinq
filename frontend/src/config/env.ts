@@ -36,6 +36,9 @@ export function getFrontendUrl(path: string = ''): string {
 
 export function getAuthUrl(path: string = ''): string {
   const baseUrl = config.auth.baseUrl.replace(/\/$/, ''); // Remove trailing slash
+  if (!path) {
+    return `${baseUrl}/api/auth`;
+  }
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}/api/auth${cleanPath}`;
 }

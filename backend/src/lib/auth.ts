@@ -70,6 +70,7 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
         backendDomain,
         isDifferentDomain,
         cookieDomain,
+        isProduction,
       });
     } catch (error) {
       console.warn(
@@ -78,6 +79,19 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       );
     }
   }
+
+  // Log the final cookie configuration
+  const cookieConfig = {
+    sameSite: isProduction && isDifferentDomain ? 'none' : 'lax',
+    secure: isProduction,
+    partitioned: isProduction && isDifferentDomain,
+    domain: cookieDomain,
+    httpOnly: true,
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  };
+
+  console.warn('🍪 Cookie configuration:', cookieConfig);
 
   return {
     secret: params.secret,

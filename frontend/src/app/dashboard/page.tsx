@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { ApiKeyManager } from '@/components/dashboard/ApiKeyManager';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { getAuthUrl } from '@/config/env';
+import { config } from '@/config/env';
 
 export default function DashboardPage() {
   const { data: session, isPending, error } = useSession();
@@ -16,10 +16,10 @@ export default function DashboardPage() {
   // Debug: Check cookies and make a manual session request
   useEffect(() => {
     console.log('🍪 Document cookies:', document.cookie);
-    console.log('🔧 Auth URL for requests:', getAuthUrl());
+    console.log('🔧 Backend URL for requests:', config.backendUrl);
 
     // Manual session check to debug the issue
-    fetch(`${getAuthUrl()}/session`, {
+    fetch(`${config.backendUrl}/api/auth/get-session`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -32,10 +32,16 @@ export default function DashboardPage() {
           response.status
         );
         console.log('🔍 Response headers:', [...response.headers.entries()]);
-        return response.json();
+        return response.text(); // Use text() first to see what we get
       })
-      .then((data) => {
-        console.log('🔍 Manual session check data:', data);
+      .then((text) => {
+        console.log('🔍 Manual session check raw response:', text);
+        try {
+          const data = JSON.parse(text);
+          console.log('🔍 Manual session check data:', data);
+        } catch {
+          console.log('🔍 Response is not JSON:', text);
+        }
       })
       .catch((error) => {
         console.error('❌ Manual session check failed:', error);

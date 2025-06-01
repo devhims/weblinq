@@ -30,13 +30,17 @@ export default function createAuthCors(c: Context<AppBindings>) {
   const requestOrigin = c.req.header('origin');
   const requestMethod = c.req.method;
 
-  console.log('🌐 CORS configuration:', {
+  console.log('�� CORS configuration (Hono official guide style):', {
     isDevelopment,
     frontendUrl,
     allowedOrigins: uniqueOrigins,
     requestOrigin,
     requestMethod,
     isPreflightRequest: requestMethod === 'OPTIONS',
+    // Additional debugging based on official guide
+    corsMatch: requestOrigin
+      ? uniqueOrigins.includes(requestOrigin)
+      : 'no-origin',
   });
 
   return cors({
