@@ -28,7 +28,8 @@ export const createApiKey: AppRouteHandler<CreateApiKeyRoute> = async (c) => {
     });
 
     return c.json(result, HttpStatusCodes.CREATED);
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Create API key error:', error);
     throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
       message: 'Failed to create API key',
@@ -63,7 +64,8 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
       },
       HttpStatusCodes.OK,
     );
-  } catch (error) {
+  }
+  catch (error) {
     console.error('List API keys error:', error);
     console.error('Error type:', typeof error);
     console.error('Error constructor:', error?.constructor?.name);
@@ -87,7 +89,8 @@ export const getApiKey: AppRouteHandler<GetApiKeyRoute> = async (c) => {
     });
 
     return c.json(result, HttpStatusCodes.OK);
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Get API key error:', error);
     throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
       message: 'Failed to get API key',
@@ -114,7 +117,8 @@ export const deleteApiKey: AppRouteHandler<DeleteApiKeyRoute> = async (c) => {
       },
       HttpStatusCodes.OK,
     );
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Delete API key error:', error);
     throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
       message: 'Failed to delete API key',

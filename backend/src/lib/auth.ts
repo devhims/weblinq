@@ -32,9 +32,9 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
   const trustedOrigins = [params.frontendUrl!, 'http://localhost:3000'];
 
   // Detect if we're running in local development
-  const isLocalDevelopment =
-    params.baseURL?.includes('localhost') ||
-    params.baseURL?.includes('127.0.0.1');
+  const isLocalDevelopment
+    = params.baseURL?.includes('localhost')
+      || params.baseURL?.includes('127.0.0.1');
 
   // Detect if we're in production environment
   const isProduction = !isLocalDevelopment;
@@ -56,7 +56,8 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       if (frontendDomain === backendDomain) {
         cookieDomain = `.${frontendDomain}`;
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.warn(
         'Could not parse frontend URL for domain extraction:',
         error,

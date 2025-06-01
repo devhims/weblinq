@@ -1,3 +1,4 @@
+/* eslint-disable style/operator-linebreak */
 import type { Context } from 'hono';
 
 import { cors } from 'hono/cors';
@@ -6,6 +7,7 @@ import type { AppBindings } from '@/lib/types';
 
 export default function createAuthCors(c: Context<AppBindings>) {
   // Check if we're in development environment
+
   const isDevelopment =
     c.env.NODE_ENV === 'development' ||
     c.env.NODE_ENV === 'preview' ||

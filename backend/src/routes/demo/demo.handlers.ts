@@ -1,5 +1,3 @@
-import * as HttpStatusCodes from 'stoker/http-status-codes';
-
 import type { AppRouteHandler } from '@/lib/types';
 
 import type { ApiKeyDemoRoute, AuthDemoRoute } from './demo.routes';

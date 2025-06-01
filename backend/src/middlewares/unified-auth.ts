@@ -32,7 +32,8 @@ function validateSessionToken(token: string) {
         expiresAt: new Date(tokenData.timestamp + maxAge),
       },
     };
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Invalid session token:', error);
     return null;
   }
@@ -71,7 +72,8 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
         session = validateSessionToken(sessionToken);
         sessionSource = session ? 'frontend-token' : 'none';
       }
-    } else {
+    }
+    else {
       sessionSource = 'backend';
     }
 
@@ -92,12 +94,14 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
       console.log(
         `Auth successful for user: ${session.user.email} (source: ${sessionSource})`,
       );
-    } else {
+    }
+    else {
       c.set('user', null);
       c.set('session', null);
       console.log('No valid session found from any source');
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('UnifiedAuth error:', error);
     c.set('user', null);
     c.set('session', null);

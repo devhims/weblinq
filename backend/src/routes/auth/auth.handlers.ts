@@ -32,10 +32,10 @@ export const githubSignIn: AppRouteHandler<GithubSignInRoute> = async (c) => {
 
     // The result should contain a redirect URL
     if (
-      result &&
-      typeof result === 'object' &&
-      'url' in result &&
-      typeof result.url === 'string'
+      result
+      && typeof result === 'object'
+      && 'url' in result
+      && typeof result.url === 'string'
     ) {
       return c.redirect(result.url);
     }
@@ -43,10 +43,11 @@ export const githubSignIn: AppRouteHandler<GithubSignInRoute> = async (c) => {
     // Fallback: redirect to Better Auth's social signin endpoint
     const baseUrl = c.env.BETTER_AUTH_URL || 'http://localhost:3000';
     return c.redirect(`${baseUrl}/api/auth/sign-in/social?provider=github`);
-  } catch (error) {
+  }
+  catch (error) {
     console.error('GitHub signin error:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage
+      = error instanceof Error ? error.message : 'Unknown error';
 
     return c.json(
       {
@@ -85,10 +86,11 @@ export const githubCallback: AppRouteHandler<GithubCallbackRoute> = async (
     }`;
 
     return c.redirect(redirectUrl);
-  } catch (error) {
+  }
+  catch (error) {
     console.error('GitHub callback error:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage
+      = error instanceof Error ? error.message : 'Unknown error';
 
     return c.json(
       {
@@ -146,12 +148,13 @@ export const emailSignIn: AppRouteHandler<EmailSignInRoute> = async (c) => {
     }
 
     return c.json({ error: 'Sign-in failed' }, HttpStatusCodes.BAD_REQUEST);
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Email signin error:', error);
 
     if (
-      error instanceof Error &&
-      error.message.includes('Invalid email or password')
+      error instanceof Error
+      && error.message.includes('Invalid email or password')
     ) {
       return c.json(
         { error: 'Invalid email or password' },
@@ -159,8 +162,8 @@ export const emailSignIn: AppRouteHandler<EmailSignInRoute> = async (c) => {
       );
     }
 
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage
+      = error instanceof Error ? error.message : 'Unknown error';
     return c.json(
       {
         error: 'Sign-in failed',
@@ -221,13 +224,14 @@ export const emailSignUp: AppRouteHandler<EmailSignUpRoute> = async (c) => {
       { error: 'Failed to create account' },
       HttpStatusCodes.BAD_REQUEST,
     );
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Email signup error:', error);
 
     if (error instanceof Error) {
-      const isDuplicateError =
-        error.message.includes('already exists') ||
-        error.message.includes('duplicate');
+      const isDuplicateError
+        = error.message.includes('already exists')
+          || error.message.includes('duplicate');
 
       if (isDuplicateError) {
         return c.json(
@@ -237,8 +241,8 @@ export const emailSignUp: AppRouteHandler<EmailSignUpRoute> = async (c) => {
       }
     }
 
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage
+      = error instanceof Error ? error.message : 'Unknown error';
     return c.json(
       {
         error: 'Sign-up failed',
@@ -278,10 +282,11 @@ export const signOut: AppRouteHandler<SignOutRoute> = async (c) => {
       },
       HttpStatusCodes.OK,
     );
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Sign-out error:', error);
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage
+      = error instanceof Error ? error.message : 'Unknown error';
 
     return c.json(
       {
