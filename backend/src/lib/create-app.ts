@@ -36,6 +36,7 @@ export default function createApp() {
   });
 
   // Auth instance creation for all routes
+  // In Cloudflare Workers, we need fresh DB connections per request
   app.use('*', (c, next) => {
     if (!c.get('auth')) {
       const auth = createAuth(c.env);

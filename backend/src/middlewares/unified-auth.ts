@@ -55,7 +55,7 @@ function normalizeCookiesForProduction(
   const normalizedCookies: string[] = [...cookies];
 
   // Look for secure-prefixed Better Auth session cookies and add standard versions
-  cookies.forEach((cookie) => {
+  for (const cookie of cookies) {
     if (cookie.startsWith('__Secure-better-auth.session_token=')) {
       // Add the standard cookie name version
       const value = cookie.replace('__Secure-better-auth.session_token=', '');
@@ -73,7 +73,7 @@ function normalizeCookiesForProduction(
         normalizedCookies.push(standardName);
       }
     }
-  });
+  }
 
   return normalizedCookies.join('; ');
 }
@@ -82,14 +82,13 @@ function normalizeCookiesForProduction(
  * Unified authentication middleware that supports both cookie sessions and API keys.
  *
  * This middleware leverages Better Auth's built-in unified session handling:
- * 1. Checks for a valid backend session cookie and API keys
+ * 1. Checks for a valid backend session cookie and API keys with normalized headers
  * 2. Handles secure-prefixed cookies in production (__Secure- prefix)
- * 3. If no backend session, tries to validate custom X-Session-Token header from frontend
- * 4. When an API key is valid, creates a mock session object linked to the key's owner
+ * 3. If Better Auth session fails, falls back to custom X-Session-Token validation
+ * 4. When an API key is valid, uses Better Auth's session object
  * 5. Returns the same session shape regardless of authentication method
  *
- * This means ONE middleware can protect routes from both browser users (cookies)
- * and machine clients (API keys) seamlessly.
+ * CRITICAL: API key operations require Better Auth's real session context, not custom sessions
  *
  * Note: This middleware expects the auth instance to be available in context (set by create-app.ts)
  */
@@ -113,23 +112,33 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
       normalizedHeaders.set('cookie', normalizedCookieHeader);
     }
 
-    // First, try backend session validation (for API keys and backend sessions)
+    // CRITICAL: Always try Better Auth session validation first
+    // This ensures API key operations have proper session context
     let session = await auth.api.getSession({
       headers: normalizedHeaders,
     });
 
     let sessionSource = 'none';
 
-    // If no backend session, try to validate custom session token from frontend
-    if (!session) {
+    if (session) {
+      sessionSource = 'backend';
+      console.log(
+        'UnifiedAuth: Using Better Auth session (required for API key operations)',
+      );
+    } else {
+      // Only fall back to custom token validation if Better Auth session completely fails
+      // Note: Custom sessions won't work with API key operations
       const sessionToken = c.req.header('X-Session-Token');
       if (sessionToken) {
-        console.log('Trying custom session token validation...');
+        console.log(
+          'UnifiedAuth: Better Auth session failed, trying custom session token...',
+        );
+        console.log(
+          'WARNING: Custom sessions do not support API key operations',
+        );
         session = validateSessionToken(sessionToken);
         sessionSource = session ? 'frontend-token' : 'none';
       }
-    } else {
-      sessionSource = 'backend';
     }
 
     console.log('UnifiedAuth debug:', {
@@ -151,6 +160,13 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
       console.log(
         `Auth successful for user: ${session.user.email} (source: ${sessionSource})`,
       );
+
+      // Warn if using custom session for API operations
+      if (sessionSource === 'frontend-token') {
+        console.log(
+          'WARNING: Using custom session - API key operations may fail',
+        );
+      }
     } else {
       c.set('user', null);
       c.set('session', null);
