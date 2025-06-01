@@ -1,29 +1,10 @@
 import { createAuthClient } from 'better-auth/react';
-
-// ✅ CRITICAL: Point to backend auth server for cross-domain setup
-const isProduction = process.env.NODE_ENV === 'production';
-const backendUrl = isProduction
-  ? 'https://weblinq-production.thinktank-himanshu.workers.dev'
-  : 'http://localhost:8787';
+import { getAuthUrl } from '@/config/env';
 
 export const authClient = createAuthClient({
-  // ✅ CRITICAL: Point to backend auth server, not current domain
-  baseURL: `${backendUrl}/api/auth`,
-
-  // ✅ CRITICAL: Configure for cross-domain authentication
+  baseURL: getAuthUrl(), // Better Auth standard endpoints
   fetchOptions: {
-    credentials: 'include', // Send cross-domain cookies
-    mode: 'cors', // Enable CORS
-  },
-
-  // ✅ Enhanced session management for cross-domain reliability
-  session: {
-    // Check session more frequently for cross-domain reliability
-    refetchInterval: 2 * 60 * 1000, // 2 minutes
-    refetchOnWindowFocus: true,
-    // Retry session checks if they fail (important for cross-domain)
-    retry: 3,
-    retryDelay: 1000, // 1 second between retries
+    credentials: 'include', // Include cookies for session management
   },
 });
 
