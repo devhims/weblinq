@@ -14,7 +14,7 @@ import type { BetterAuthOptions } from 'better-auth';
 
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { apiKey, bearer, oAuthProxy } from 'better-auth/plugins';
+import { apiKey, bearer } from 'better-auth/plugins';
 
 import { createDb } from '@/db';
 import * as schema from '@/db/schema';
@@ -29,104 +29,110 @@ interface AuthConfigParams {
 }
 
 export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
-  const trustedOrigins = [
-    params.frontendUrl!,
-    'http://localhost:3000',
-    'https://weblinq.vercel.app',
-    'https://weblinq-production.thinktank-himanshu.workers.dev',
-  ];
+  // const trustedOrigins = [
+  //   params.frontendUrl!,
+  //   'http://localhost:3000',
+  //   'https://weblinq.vercel.app',
+  //   'https://weblinq-production.thinktank-himanshu.workers.dev',
+  // ];
+
+  const trustedOrigins = [params.frontendUrl!];
+
+  const cookieBase = {
+    name: 'ba_session',
+    domain: '.weblinq.dev',
+    secure: true,
+    sameSite: 'lax' as const, // (use "none" only if you ever mix real 3rd-party contexts)
+    httpOnly: true,
+  };
+
+  const common = {
+    secret: params.secret, // same 32-byte string everywhere
+    advanced: {
+      crossSubDomainCookies: {
+        enabled: true,
+      },
+      defaultCookieAttributes: cookieBase,
+    },
+  };
 
   // Detect if we're running in local development
-  const isLocalDevelopment =
-    params.baseURL?.includes('localhost') ||
-    params.baseURL?.includes('127.0.0.1');
+  // const isLocalDevelopment =
+  //   params.baseURL?.includes('localhost') ||
+  //   params.baseURL?.includes('127.0.0.1');
 
   // Detect if we're in production environment
-  const isProduction = !isLocalDevelopment;
+  // const isProduction = !isLocalDevelopment;
 
-  console.warn('🔧 Auth configuration:', {
-    isProduction,
-    baseURL: params.baseURL,
-    frontendUrl: params.frontendUrl,
-    trustedOrigins,
-  });
+  // console.warn('🔧 Auth configuration:', {
+  //   isProduction,
+  //   baseURL: params.baseURL,
+  //   frontendUrl: params.frontendUrl,
+  //   trustedOrigins,
+  // });
 
   return {
-    secret: params.secret,
     baseURL: params.baseURL,
     // Allow requests from the frontend - use environment variable
     trustedOrigins,
 
-    emailAndPassword: {
-      enabled: true,
-    },
+    ...common,
 
-    socialProviders: {
-      github: {
-        clientId: params.githubClientId,
-        clientSecret: params.githubClientSecret,
-        redirectURI: `${params.frontendUrl}/api/auth/callback/github`,
-      },
-    },
+    // emailAndPassword: {
+    //   enabled: true,
+    // },
+
+    // socialProviders: {
+    //   github: {
+    //     clientId: params.githubClientId,
+    //     clientSecret: params.githubClientSecret,
+    //     redirectURI: `${params.frontendUrl}/api/auth/callback/github`,
+    //   },
+    // },
 
     database: params.database,
 
     // ✅ Session configuration that matches frontend for token compatibility
-    session: {
-      cookieCache: {
-        enabled: true, // Match frontend
-        maxAge: 5 * 60, // 5 minutes - match frontend
-      },
-      freshAge: 10 * 60, // 10 minutes - match frontend
-      expiresIn: 60 * 60 * 24 * 7, // 7 days - match frontend
-      updateAge: 60 * 60 * 24, // 1 day - match frontend
-    },
+    // session: {
+    //   cookieCache: {
+    //     enabled: true, // Match frontend
+    //     maxAge: 5 * 60, // 5 minutes - match frontend
+    //   },
+    //   freshAge: 10 * 60, // 10 minutes - match frontend
+    //   expiresIn: 60 * 60 * 24 * 7, // 7 days - match frontend
+    //   updateAge: 60 * 60 * 24, // 1 day - match frontend
+    // },
 
     // ✅ Standard cookie configuration (no cross-domain complexity needed with proxy)
-    advanced: {
-      defaultCookieAttributes: {
-        secure: isProduction,
-        httpOnly: true,
-        sameSite: 'lax', // Standard same-site setting
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      },
-      useSecureCookies: isProduction,
-    },
+    // advanced: {
+    //   defaultCookieAttributes: {
+    //     secure: isProduction,
+    //     httpOnly: true,
+    //     sameSite: 'lax', // Standard same-site setting
+    //     path: '/',
+    //     maxAge: 60 * 60 * 24 * 7, // 7 days
+    //   },
+    //   useSecureCookies: isProduction,
+    // },
 
     plugins: [
-      // Bearer plugin - enables session token via Authorization header (for cross-domain)
-      bearer(),
       // API Key plugin - supports ONLY Authorization: Bearer headers with API key format
       apiKey({
         enableMetadata: true,
-        // ✅ CRITICAL: Only extract API keys, not session tokens
-        // Better Auth bearer plugin handles session tokens automatically
+        // Extract API key from Authorization: Bearer header using the correct property
         customAPIKeyGetter(ctx) {
-          const authHeader = ctx.headers?.get('Authorization');
-          if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          const bearer_token = ctx.headers?.get('Authorization');
+          if (!bearer_token) {
             return null;
           }
-
-          const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-          // ✅ Only treat as API key if it matches our expected format
-          // API keys should have a prefix (like 'wq_') and be longer than session tokens
-          // Session tokens are typically shorter and don't have our prefix
-          if (
-            token.includes('wq_') ||
-            (token.length > 40 && token.includes('_'))
-          ) {
-            console.log(
-              '🔑 Treating as API key:',
-              `${token.substring(0, 10)}...`,
-            );
-            return token;
+          const token = bearer_token.split(' ');
+          if (token[0] !== 'Bearer') {
+            return null;
           }
-
-          // Let bearer plugin handle session tokens
-          console.log('🔓 Letting bearer plugin handle session token');
-          return null;
+          if (token.length !== 2) {
+            return null;
+          }
+          return token[1];
         },
         rateLimit: {
           enabled: true,

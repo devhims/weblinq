@@ -9,8 +9,8 @@
     "port": 8787
   },
   "vars": {
-    "FRONTEND_URL": "https://weblinq.vercel.app",
-    "BETTER_AUTH_URL": "https://weblinq-production.thinktank-himanshu.workers.dev"
+    "FRONTEND_URL": "https://www.weblinq.dev",
+    "BETTER_AUTH_URL": "https://api.weblinq.dev"
   },
   "d1_databases": [
     {

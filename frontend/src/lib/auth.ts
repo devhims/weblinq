@@ -4,6 +4,17 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer } from 'better-auth/plugins';
 import { db } from '@/db';
 
+// Detect environment
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Environment-specific URLs
+const frontendUrl =
+  process.env.NEXT_PUBLIC_FRONTEND_URL ||
+  (isProduction ? 'https://www.weblinq.dev' : 'http://localhost:3000');
+const backendUrl =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  (isProduction ? 'https://api.weblinq.dev' : 'http://localhost:8787');
+
 export const auth = betterAuth({
   // Simple database setup for frontend auth
   // In development, this creates a local SQLite file
@@ -16,28 +27,39 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET || 'your-secret-key-here',
 
   // Base URL for the frontend auth endpoints
-  baseURL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
+  baseURL: frontendUrl,
 
-  // ✅ Trust both frontend and backend for session verification
+  // ✅ Environment-specific trusted origins
   trustedOrigins: [
-    process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
-    process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787',
-    'https://weblinq.vercel.app',
-    'https://weblinq-production.thinktank-himanshu.workers.dev',
+    frontendUrl,
+    backendUrl,
+    // Always include localhost for development
     'http://localhost:3000',
     'http://localhost:8787',
+    // Production domains
+    'https://www.weblinq.dev',
+    'https://api.weblinq.dev',
   ],
 
-  // ✅ Same-domain cookies only - cross-domain won't work with different domains
+  // ✅ Environment-specific cookie configuration
   advanced: {
+    // Only enable cross-subdomain cookies in production
+    ...(isProduction && {
+      crossSubDomainCookies: {
+        enabled: true,
+      },
+    }),
     defaultCookieAttributes: {
-      secure: process.env.NODE_ENV === 'production',
+      // Only set domain in production for subdomain sharing
+      ...(isProduction && { domain: '.weblinq.dev' }),
+      // In development, don't set domain to work with localhost
+      secure: isProduction, // Only secure in production
       httpOnly: true,
-      sameSite: 'lax', // Use lax for same-domain
+      sameSite: 'lax', // Use 'lax' for both dev and prod
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
     },
-    useSecureCookies: process.env.NODE_ENV === 'production',
+    useSecureCookies: isProduction,
   },
 
   // GitHub OAuth configuration
@@ -45,10 +67,8 @@ export const auth = betterAuth({
     github: {
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      // Now this can be the frontend URL directly (same domain)
-      redirectURI: `${
-        process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000'
-      }/api/auth/callback/github`,
+      // Frontend handles the OAuth callback
+      redirectURI: `${frontendUrl}/api/auth/callback/github`,
     },
   },
 
@@ -57,7 +77,7 @@ export const auth = betterAuth({
     enabled: true,
   },
 
-  // Session configuration that matches backend
+  // Session configuration that supports both local dev and production
   session: {
     cookieCache: {
       enabled: true,
@@ -68,8 +88,8 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // 1 day
   },
 
-  // Use Next.js cookies plugin and bearer plugin for cross-domain support
-  plugins: [nextCookies(), bearer()],
+  // Use Next.js cookies plugin and bearer plugin
+  plugins: [bearer(), nextCookies()],
 });
 
 export const { handler, api } = auth;

@@ -1,9 +1,13 @@
 import { createAuthClient } from 'better-auth/react';
 
-console.log('🔧 Auth client setup (local Next.js auth):', {
-  environment: process.env.NODE_ENV,
-  frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL,
-});
+console.log(
+  '🔧 Auth client setup (frontend auth with subdomain cookie sharing):',
+  {
+    environment: process.env.NODE_ENV,
+    frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL,
+    backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
+  }
+);
 
 // Add minimal fetch debugging to see what's happening
 const originalFetch = globalThis.fetch;
@@ -46,7 +50,7 @@ globalThis.fetch = async (input, init) => {
 };
 
 export const authClient = createAuthClient({
-  // Use local Next.js auth endpoints (same domain - no CORS issues!)
+  // Use frontend auth endpoints for login/logout/session (subdomain cookies will be shared with backend)
   baseURL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
   fetchOptions: {
     credentials: 'include', // Include cookies for session management

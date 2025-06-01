@@ -32,15 +32,17 @@ export interface DeleteApiKeyResponse {
   success: boolean;
 }
 
-// ✅ BEST SOLUTION: Use Next.js API route proxy for same-domain requests
+// ✅ SUBDOMAIN SOLUTION: Direct backend API calls with cross-subdomain cookies
 async function makeAuthenticatedRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  // Use the Next.js proxy API route instead of direct backend calls
-  const proxyUrl = `/api/backend-proxy${endpoint}`;
+  // Call backend API directly - subdomain cookies will be shared automatically
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787';
+  const apiUrl = `${backendUrl}${endpoint}`;
 
-  console.log('🚀 Making request via Next.js proxy:', proxyUrl);
+  console.log('🚀 Making direct request to backend:', apiUrl);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -48,17 +50,17 @@ async function makeAuthenticatedRequest<T>(
   };
 
   try {
-    const response = await fetch(proxyUrl, {
+    const response = await fetch(apiUrl, {
       ...options,
       headers,
-      credentials: 'include', // Include same-domain session cookies
+      credentials: 'include', // Include cross-subdomain session cookies
     });
 
-    console.log('📊 Proxy response status:', response.status);
+    console.log('📊 Backend response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Proxy request failed:', {
+      console.error('❌ Backend request failed:', {
         status: response.status,
         statusText: response.statusText,
         body: errorText,
@@ -67,10 +69,10 @@ async function makeAuthenticatedRequest<T>(
     }
 
     const data = await response.json();
-    console.log('✅ Proxy request successful:', data);
+    console.log('✅ Backend request successful:', data);
     return data;
   } catch (error) {
-    console.error('🚨 Proxy request error:', error);
+    console.error('🚨 Backend request error:', error);
     throw error;
   }
 }
