@@ -5,24 +5,20 @@ import type { AppBindings } from '@/lib/types';
 /**
  * Unified authentication middleware for cross-domain architecture
  *
- * Better Auth handles cross-domain sessions automatically with proper config.
- * This middleware supports:
- * 1. Cross-domain session cookies (with SameSite=none, partitioned=true)
- * 2. API keys via Authorization: Bearer header (when apiKey plugin is enabled)
+ * This middleware supports multiple authentication methods:
+ * 1. Session tokens via Authorization: Bearer header (using bearer plugin)
+ * 2. Session cookies (same-domain fallback)
+ * 3. API keys via Authorization: Bearer header (when apiKey plugin is enabled)
  *
- * ✅ Updated: No custom session token handling - Better Auth handles it all!
+ * ✅ Updated: Properly use bearer plugin for cross-domain session validation
  */
 export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const auth = c.get('auth');
 
   try {
-    // ✅ Better Auth handles cross-domain cookies + API keys automatically
+    // Always try to get session - better-auth will handle both cookies and bearer tokens
     const session = await auth.api.getSession({
       headers: c.req.raw.headers,
-      query: {
-        // Uncomment for debugging cross-domain issues
-        // disableCookieCache: true
-      },
     });
 
     if (!session) {
@@ -62,10 +58,12 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
     const isDev =
       c.env.NODE_ENV === 'development' || c.env.NODE_ENV === 'preview';
     if (isDev) {
+      const authHeader = c.req.raw.headers.get('authorization');
       console.log('✅ Session validated successfully:', {
         userId: session.user.id,
         email: session.user.email,
         sessionId: session.session.id,
+        source: authHeader ? 'authorization-header' : 'cookies',
       });
     }
 

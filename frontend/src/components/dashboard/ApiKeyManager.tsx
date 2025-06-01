@@ -3,7 +3,13 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { apiKeyService, type ApiKey, type ApiKeyWithKey } from '@/lib/api-keys';
+import {
+  createApiKey,
+  listApiKeys,
+  deleteApiKey,
+  type ApiKey,
+  type ApiKeyWithKey,
+} from '@/lib/api-keys';
 import {
   formatApiKeyDisplay,
   validateApiKeyName,
@@ -37,7 +43,7 @@ export function ApiKeyManager({ className = '' }: ApiKeyManagerProps) {
     try {
       setIsLoading(true);
       setError('');
-      const response = await apiKeyService.listApiKeys();
+      const response = await listApiKeys();
 
       // Defensive programming: ensure apiKeys is always an array
       const apiKeys = Array.isArray(response?.apiKeys) ? response.apiKeys : [];
@@ -83,7 +89,7 @@ export function ApiKeyManager({ className = '' }: ApiKeyManagerProps) {
       setError('');
       setSuccess('');
 
-      const newApiKey = await apiKeyService.createApiKey({
+      const newApiKey = await createApiKey({
         name: newKeyName.trim(),
       });
       setCreatedKey(newApiKey);
@@ -116,7 +122,7 @@ export function ApiKeyManager({ className = '' }: ApiKeyManagerProps) {
       setDeletingIds((prev) => new Set(prev).add(id));
       setError('');
 
-      await apiKeyService.deleteApiKey(id);
+      await deleteApiKey(id);
       setSuccess(`API key "${keyName}" deleted successfully`);
 
       // Reload the API keys list

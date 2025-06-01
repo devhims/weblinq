@@ -1,5 +1,3 @@
-import { getBackendUrl } from '@/config/env';
-
 // Types based on the backend API schemas
 export interface CreateApiKeyRequest {
   name: string;
@@ -32,73 +30,66 @@ export interface ApiKeysListResponse {
 
 export interface DeleteApiKeyResponse {
   success: boolean;
-  message: string;
 }
 
-// ✅ Updated: Use Better Auth's native cross-domain authentication
-// No more custom session tokens needed!
+// ✅ BEST SOLUTION: Use Next.js API route proxy for same-domain requests
 async function makeAuthenticatedRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = getBackendUrl(endpoint);
+  // Use the Next.js proxy API route instead of direct backend calls
+  const proxyUrl = `/api/backend-proxy${endpoint}`;
+
+  console.log('🚀 Making request via Next.js proxy:', proxyUrl);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Accept: 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...((options.headers as Record<string, string>) || {}),
   };
 
-  // ✅ CRITICAL: Better Auth will handle cross-domain cookies automatically
-  const response = await fetch(url, {
-    ...options,
-    credentials: 'include', // Send cross-domain cookies
-    mode: 'cors', // Enable CORS
-    headers,
-  });
+  try {
+    const response = await fetch(proxyUrl, {
+      ...options,
+      headers,
+      credentials: 'include', // Include same-domain session cookies
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      errorData.error || `HTTP ${response.status}: ${response.statusText}`
-    );
+    console.log('📊 Proxy response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Proxy request failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Proxy request successful:', data);
+    return data;
+  } catch (error) {
+    console.error('🚨 Proxy request error:', error);
+    throw error;
   }
-
-  return response.json();
 }
 
-// API Key service functions
-export const apiKeyService = {
-  /**
-   * Create a new API key
-   */
-  async createApiKey(data: CreateApiKeyRequest): Promise<ApiKeyWithKey> {
-    return makeAuthenticatedRequest<ApiKeyWithKey>('/api-keys/create', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
+export async function createApiKey(
+  data: CreateApiKeyRequest
+): Promise<ApiKeyWithKey> {
+  return makeAuthenticatedRequest<ApiKeyWithKey>('/api-keys', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
 
-  /**
-   * List all API keys for the authenticated user
-   */
-  async listApiKeys(): Promise<ApiKeysListResponse> {
-    return makeAuthenticatedRequest<ApiKeysListResponse>('/api-keys/list');
-  },
+export async function listApiKeys(): Promise<ApiKeysListResponse> {
+  return makeAuthenticatedRequest<ApiKeysListResponse>('/api-keys/list');
+}
 
-  /**
-   * Get details of a specific API key
-   */
-  async getApiKey(id: string): Promise<ApiKey> {
-    return makeAuthenticatedRequest<ApiKey>(`/api-keys/${id}`);
-  },
-
-  /**
-   * Delete an API key
-   */
-  async deleteApiKey(id: string): Promise<DeleteApiKeyResponse> {
-    return makeAuthenticatedRequest<DeleteApiKeyResponse>(`/api-keys/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
+export async function deleteApiKey(id: string): Promise<DeleteApiKeyResponse> {
+  return makeAuthenticatedRequest<DeleteApiKeyResponse>(`/api-keys/${id}`, {
+    method: 'DELETE',
+  });
+}

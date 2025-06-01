@@ -4,7 +4,7 @@ import { defaultHook } from 'stoker/openapi';
 
 import type { AppBindings, AppOpenAPI } from '@/lib/types';
 
-import { createBackendAuth } from '@/lib/auth-api-only';
+import { createAuth } from '@/lib/auth';
 import { createAuthCors, unifiedAuth } from '@/middlewares';
 import { OpenAPIHono } from '@hono/zod-openapi';
 
@@ -15,7 +15,7 @@ export function createRouter() {
   });
 }
 
-export default function createApp() {
+export default function createApp(): AppOpenAPI {
   const app = createRouter();
 
   // Basic middlewares
@@ -32,7 +32,7 @@ export default function createApp() {
   // In Cloudflare Workers, we need fresh DB connections per request
   app.use('*', (c, next) => {
     if (!c.get('auth')) {
-      const auth = createBackendAuth(c.env);
+      const auth = createAuth(c.env);
       c.set('auth', auth);
     }
     return next();

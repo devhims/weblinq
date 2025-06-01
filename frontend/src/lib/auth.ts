@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { bearer } from 'better-auth/plugins';
 import { db } from '@/db';
 
 export const auth = betterAuth({
@@ -17,14 +18,26 @@ export const auth = betterAuth({
   // Base URL for the frontend auth endpoints
   baseURL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
 
-  // Trust origins (only frontend for now)
+  // ✅ Trust both frontend and backend for session verification
   trustedOrigins: [
     process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
+    process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787',
+    'https://weblinq.vercel.app',
+    'https://weblinq-production.thinktank-himanshu.workers.dev',
+    'http://localhost:3000',
+    'http://localhost:8787',
   ],
 
-  // Enable email/password authentication
-  emailAndPassword: {
-    enabled: true,
+  // ✅ Same-domain cookies only - cross-domain won't work with different domains
+  advanced: {
+    defaultCookieAttributes: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax', // Use lax for same-domain
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    },
+    useSecureCookies: process.env.NODE_ENV === 'production',
   },
 
   // GitHub OAuth configuration
@@ -39,27 +52,24 @@ export const auth = betterAuth({
     },
   },
 
-  // Session configuration optimized for frontend
+  // Email/password auth for development
+  emailAndPassword: {
+    enabled: true,
+  },
+
+  // Session configuration that matches backend
   session: {
     cookieCache: {
       enabled: true,
       maxAge: 5 * 60, // 5 minutes
     },
     freshAge: 10 * 60, // 10 minutes
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
+    updateAge: 60 * 60 * 24, // 1 day
   },
 
-  // Cookie configuration for same-domain (much simpler!)
-  advanced: {
-    defaultCookieAttributes: {
-      sameSite: 'lax', // Can use lax since it's same domain
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    },
-    useSecureCookies: process.env.NODE_ENV === 'production',
-  },
-
-  // Use Next.js cookies plugin for better integration
-  plugins: [nextCookies()],
+  // Use Next.js cookies plugin and bearer plugin for cross-domain support
+  plugins: [nextCookies(), bearer()],
 });
+
+export const { handler, api } = auth;

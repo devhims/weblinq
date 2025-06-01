@@ -14,7 +14,7 @@ import type { BetterAuthOptions } from 'better-auth';
 
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { apiKey, oAuthProxy } from 'better-auth/plugins';
+import { apiKey, bearer, oAuthProxy } from 'better-auth/plugins';
 
 import { createDb } from '@/db';
 import * as schema from '@/db/schema';
@@ -29,7 +29,12 @@ interface AuthConfigParams {
 }
 
 export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
-  const trustedOrigins = [params.frontendUrl!, 'http://localhost:3000'];
+  const trustedOrigins = [
+    params.frontendUrl!,
+    'http://localhost:3000',
+    'https://weblinq.vercel.app',
+    'https://weblinq-production.thinktank-himanshu.workers.dev',
+  ];
 
   // Detect if we're running in local development
   const isLocalDevelopment =
@@ -39,57 +44,11 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
   // Detect if we're in production environment
   const isProduction = !isLocalDevelopment;
 
-  // For production, check if frontend and backend are on different domains
-  let isDifferentDomain = false;
-  let cookieDomain: string | undefined;
-
-  if (isProduction && params.frontendUrl && params.baseURL) {
-    try {
-      const frontendUrl = new URL(params.frontendUrl);
-      const backendUrl = new URL(params.baseURL);
-
-      // Check if they're completely different domains (not just subdomains)
-      isDifferentDomain = frontendUrl.hostname !== backendUrl.hostname;
-
-      // For cross-domain, don't set a cookie domain (let browser handle it)
-      // For same domain, we can set a specific domain
-      if (!isDifferentDomain) {
-        cookieDomain = frontendUrl.hostname;
-      }
-
-      console.warn('🔧 Domain analysis:', {
-        frontend: frontendUrl.hostname,
-        backend: backendUrl.hostname,
-        isDifferentDomain,
-        cookieDomain,
-        isProduction,
-      });
-    } catch (error) {
-      console.warn(
-        'Could not parse frontend URL for domain extraction:',
-        error,
-      );
-    }
-  }
-
-  // Log the final cookie configuration
-  const cookieConfig = {
-    sameSite: isProduction && isDifferentDomain ? 'none' : 'lax',
-    secure: isProduction,
-    partitioned: isProduction && isDifferentDomain,
-    domain: cookieDomain,
-    httpOnly: true,
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  };
-
-  console.warn('🍪 Cookie configuration:', cookieConfig);
-  console.warn('🌐 Production cross-domain setup:', {
+  console.warn('🔧 Auth configuration:', {
     isProduction,
-    isDifferentDomain,
-    cookieDomain,
+    baseURL: params.baseURL,
     frontendUrl: params.frontendUrl,
-    backendUrl: params.baseURL,
+    trustedOrigins,
   });
 
   return {
@@ -97,9 +56,11 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     baseURL: params.baseURL,
     // Allow requests from the frontend - use environment variable
     trustedOrigins,
+
     emailAndPassword: {
       enabled: true,
     },
+
     socialProviders: {
       github: {
         clientId: params.githubClientId,
@@ -107,63 +68,65 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
         redirectURI: `${params.frontendUrl}/api/auth/callback/github`,
       },
     },
+
     database: params.database,
-    // Enable cookie cache for better performance and disable in debug if needed
+
+    // ✅ Session configuration that matches frontend for token compatibility
     session: {
       cookieCache: {
-        // Disable in production cross-domain to avoid cache issues
-        enabled: !isProduction || !isDifferentDomain,
-        maxAge: 5 * 60, // 5 minutes
+        enabled: true, // Match frontend
+        maxAge: 5 * 60, // 5 minutes - match frontend
       },
-      // ✅ CRITICAL: Disable freshness check for cross-domain
-      freshAge: 0,
+      freshAge: 10 * 60, // 10 minutes - match frontend
+      expiresIn: 60 * 60 * 24 * 7, // 7 days - match frontend
+      updateAge: 60 * 60 * 24, // 1 day - match frontend
     },
-    // ✅ CRITICAL: Backend cookie config must support cross-domain cookies
+
+    // ✅ Standard cookie configuration (no cross-domain complexity needed with proxy)
     advanced: {
       defaultCookieAttributes: {
-        // ✅ CRITICAL: For cross-domain, must use 'none' with secure=true
-        sameSite: isProduction && isDifferentDomain ? 'none' : 'lax',
-        // ✅ CRITICAL: Must be secure for SameSite=none and production
         secure: isProduction,
-        // ✅ CRITICAL: Don't use partitioned cookies for now (can cause issues)
-        partitioned: false,
-        // ✅ CRITICAL: Don't set domain for cross-domain (undefined = current domain)
-        domain: cookieDomain,
         httpOnly: true,
+        sameSite: 'lax', // Standard same-site setting
         path: '/',
         maxAge: 60 * 60 * 24 * 7, // 7 days
       },
-      // Force secure cookies in production
       useSecureCookies: isProduction,
-      // ✅ CRITICAL: Disable cross-subdomain cookies for cross-domain scenarios
-      crossSubDomainCookies: undefined,
     },
+
     plugins: [
-      // OAuth Proxy plugin - handles cross-domain OAuth redirects
-      // MUST be first plugin to intercept OAuth flows properly
-      oAuthProxy({
-        // Production URL that matches the GitHub OAuth app configuration
-        productionURL: params.frontendUrl,
-        // Current URL will be auto-detected, but we can specify if needed
-        currentURL: params.baseURL,
-      }),
-      // API Key plugin - supports ONLY Authorization: Bearer headers
+      // Bearer plugin - enables session token via Authorization header (for cross-domain)
+      bearer(),
+      // API Key plugin - supports ONLY Authorization: Bearer headers with API key format
       apiKey({
         enableMetadata: true,
-        // Extract API key from Authorization: Bearer header using the correct property
+        // ✅ CRITICAL: Only extract API keys, not session tokens
+        // Better Auth bearer plugin handles session tokens automatically
         customAPIKeyGetter(ctx) {
-          const bearer_token = ctx.headers?.get('Authorization');
-          if (!bearer_token) {
+          const authHeader = ctx.headers?.get('Authorization');
+          if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return null;
           }
-          const token = bearer_token.split(' ');
-          if (token[0] !== 'Bearer') {
-            return null;
+
+          const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+          // ✅ Only treat as API key if it matches our expected format
+          // API keys should have a prefix (like 'wq_') and be longer than session tokens
+          // Session tokens are typically shorter and don't have our prefix
+          if (
+            token.includes('wq_') ||
+            (token.length > 40 && token.includes('_'))
+          ) {
+            console.log(
+              '🔑 Treating as API key:',
+              `${token.substring(0, 10)}...`,
+            );
+            return token;
           }
-          if (token.length !== 2) {
-            return null;
-          }
-          return token[1];
+
+          // Let bearer plugin handle session tokens
+          console.log('🔓 Letting bearer plugin handle session token');
+          return null;
         },
         rateLimit: {
           enabled: true,
