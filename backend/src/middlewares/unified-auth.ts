@@ -22,14 +22,27 @@ function validateSessionToken(token: string) {
       return null;
     }
 
+    // Create a session object that matches Better Auth's expected structure
+    const now = new Date();
     return {
       user: {
         id: tokenData.userId,
         email: tokenData.email,
+        name: tokenData.name || tokenData.email,
+        image: tokenData.image || null,
+        emailVerified: true,
+        createdAt: now,
+        updatedAt: now,
       },
       session: {
         id: `frontend-${tokenData.userId}`,
+        createdAt: now,
+        updatedAt: now,
+        userId: tokenData.userId,
         expiresAt: new Date(tokenData.timestamp + maxAge),
+        token: `frontend-token-${tokenData.userId}`,
+        ipAddress: null,
+        userAgent: null,
       },
     };
   } catch (error) {
@@ -49,13 +62,19 @@ function normalizeCookiesForProduction(
     return cookieHeader;
   }
 
+  console.log('Original cookie header:', cookieHeader);
+
   // Create a modified cookie header that includes both standard and secure-prefixed versions
   // This ensures Better Auth can find the session cookie regardless of prefix
   const cookies = cookieHeader.split('; ');
   const normalizedCookies: string[] = [...cookies];
 
+  console.log('Parsed cookies:', cookies);
+
   // Look for secure-prefixed Better Auth session cookies and add standard versions
   for (const cookie of cookies) {
+    console.log('Checking cookie:', cookie);
+
     if (cookie.startsWith('__Secure-better-auth.session_token=')) {
       // Add the standard cookie name version
       const value = cookie.replace('__Secure-better-auth.session_token=', '');
@@ -71,11 +90,15 @@ function normalizeCookiesForProduction(
         !cookies.some((c) => c.startsWith(`${standardName.split('=')[0]}=`))
       ) {
         normalizedCookies.push(standardName);
+        console.log('Normalized secure cookie:', cookie, '->', standardName);
       }
     }
   }
 
-  return normalizedCookies.join('; ');
+  const result = normalizedCookies.join('; ');
+  console.log('Normalized cookie header:', result);
+
+  return result;
 }
 
 /**
@@ -110,6 +133,7 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
       normalizedCookieHeader !== originalCookieHeader
     ) {
       normalizedHeaders.set('cookie', normalizedCookieHeader);
+      console.log('Updated headers with normalized cookies');
     }
 
     // CRITICAL: Always try Better Auth session validation first
