@@ -1,20 +1,27 @@
 import { createAuthClient } from 'better-auth/react';
 
-export const authClient = createAuthClient({
-  // NO baseURL needed - defaults to current domain's /api/auth/* routes
-  // This handles email login & OAuth authentication on the SAME domain
+// ✅ CRITICAL: Point to backend auth server for cross-domain setup
+const isProduction = process.env.NODE_ENV === 'production';
+const backendUrl = isProduction
+  ? 'https://weblinq-production.thinktank-himanshu.workers.dev'
+  : 'http://localhost:8787';
 
-  // ✅ Enhanced session management for Safari/incognito compatibility
+export const authClient = createAuthClient({
+  // ✅ CRITICAL: Point to backend auth server, not current domain
+  baseURL: `${backendUrl}/api/auth`,
+
+  // ✅ CRITICAL: Configure for cross-domain authentication
   fetchOptions: {
-    credentials: 'include', // Ensure cookies are included
+    credentials: 'include', // Send cross-domain cookies
+    mode: 'cors', // Enable CORS
   },
 
-  // ✅ Session configuration for better reliability
+  // ✅ Enhanced session management for cross-domain reliability
   session: {
-    // Check session more frequently for Safari/incognito reliability
+    // Check session more frequently for cross-domain reliability
     refetchInterval: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: true,
-    // Retry session checks if they fail
+    // Retry session checks if they fail (important for cross-domain)
     retry: 3,
     retryDelay: 1000, // 1 second between retries
   },
