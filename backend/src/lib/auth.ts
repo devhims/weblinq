@@ -29,7 +29,10 @@ interface AuthConfigParams {
 }
 
 export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
-  const trustedOrigins = [params.frontendUrl!, 'http://localhost:3000'];
+  const trustedOrigins = [
+    'https://weblinq.vercel.app/',
+    'http://localhost:3000',
+  ];
 
   // Detect if we're running in local development
   const isLocalDevelopment =
@@ -68,7 +71,7 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     secret: params.secret,
     baseURL: params.baseURL,
     // Allow requests from the frontend - use environment variable
-    trustedOrigins,
+    trustedOrigins: ['https://weblinq.vercel.app', 'http://localhost:3000'],
     emailAndPassword: {
       enabled: true,
     },
