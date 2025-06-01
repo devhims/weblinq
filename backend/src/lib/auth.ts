@@ -32,9 +32,9 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
   const trustedOrigins = [params.frontendUrl!, 'http://localhost:3000'];
 
   // Detect if we're running in local development
-  const isLocalDevelopment
-    = params.baseURL?.includes('localhost')
-      || params.baseURL?.includes('127.0.0.1');
+  const isLocalDevelopment =
+    params.baseURL?.includes('localhost') ||
+    params.baseURL?.includes('127.0.0.1');
 
   // Detect if we're in production environment
   const isProduction = !isLocalDevelopment;
@@ -56,8 +56,7 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       if (frontendDomain === backendDomain) {
         cookieDomain = `.${frontendDomain}`;
       }
-    }
-    catch (error) {
+    } catch (error) {
       console.warn(
         'Could not parse frontend URL for domain extraction:',
         error,
@@ -128,20 +127,38 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
 export type { AuthConfigParams };
 
 export function createAuth(env: CloudflareBindings) {
-  const db = createDb(env); // create db per request
-  const config = createAuthConfig({
-    githubClientId: env.GITHUB_CLIENT_ID,
-    githubClientSecret: env.GITHUB_CLIENT_SECRET,
-    secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
-    frontendUrl: env.FRONTEND_URL,
-    database: drizzleAdapter(db, {
+  console.log('🔧 Creating auth instance...');
+
+  try {
+    const db = createDb(env); // create db per request
+    console.log('✅ Database instance created:', !!db);
+    console.log('🔧 Database binding available:', !!env.D1_DB);
+
+    const adapter = drizzleAdapter(db, {
       provider: 'sqlite',
       schema,
-    }),
-  });
+    });
+    console.log('✅ Drizzle adapter created:', !!adapter);
 
-  return betterAuth(config);
+    const config = createAuthConfig({
+      githubClientId: env.GITHUB_CLIENT_ID,
+      githubClientSecret: env.GITHUB_CLIENT_SECRET,
+      secret: env.BETTER_AUTH_SECRET,
+      baseURL: env.BETTER_AUTH_URL,
+      frontendUrl: env.FRONTEND_URL,
+      database: adapter,
+    });
+    console.log('✅ Auth config created');
+
+    const authInstance = betterAuth(config);
+    console.log('✅ Better Auth instance created:', !!authInstance);
+    console.log('✅ Auth API available:', !!authInstance.api);
+
+    return authInstance;
+  } catch (error) {
+    console.error('❌ Error creating auth instance:', error);
+    throw error;
+  }
 }
 
 export const auth = betterAuth(

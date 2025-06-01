@@ -3,206 +3,140 @@ import type { MiddlewareHandler } from 'hono';
 import type { AppBindings } from '@/lib/types';
 
 /**
- * Helper function to validate custom session token from frontend
- */
-function validateSessionToken(token: string) {
-  try {
-    const decoded = atob(token);
-    const tokenData = JSON.parse(decoded);
-
-    // Basic validation
-    if (!tokenData.userId || !tokenData.email || !tokenData.timestamp) {
-      return null;
-    }
-
-    // Check if token is not too old (15 minutes)
-    const maxAge = 15 * 60 * 1000; // 15 minutes
-    if (Date.now() - tokenData.timestamp > maxAge) {
-      console.log('Session token expired');
-      return null;
-    }
-
-    // Create a session object that matches Better Auth's expected structure
-    const now = new Date();
-    return {
-      user: {
-        id: tokenData.userId,
-        email: tokenData.email,
-        name: tokenData.name || tokenData.email,
-        image: tokenData.image || null,
-        emailVerified: true,
-        createdAt: now,
-        updatedAt: now,
-      },
-      session: {
-        id: `frontend-${tokenData.userId}`,
-        createdAt: now,
-        updatedAt: now,
-        userId: tokenData.userId,
-        expiresAt: new Date(tokenData.timestamp + maxAge),
-        token: `frontend-token-${tokenData.userId}`,
-        ipAddress: null,
-        userAgent: null,
-      },
-    };
-  } catch (error) {
-    console.error('Invalid session token:', error);
-    return null;
-  }
-}
-
-/**
- * Helper function to normalize cookies for production secure cookie prefixes
- * In production, browsers automatically prefix cookies with __Secure- when served over HTTPS
- */
-function normalizeCookiesForProduction(
-  cookieHeader: string | undefined,
-): string | undefined {
-  if (!cookieHeader) {
-    return cookieHeader;
-  }
-
-  console.log('Original cookie header:', cookieHeader);
-
-  // Create a modified cookie header that includes both standard and secure-prefixed versions
-  // This ensures Better Auth can find the session cookie regardless of prefix
-  const cookies = cookieHeader.split('; ');
-  const normalizedCookies: string[] = [...cookies];
-
-  console.log('Parsed cookies:', cookies);
-
-  // Look for secure-prefixed Better Auth session cookies and add standard versions
-  for (const cookie of cookies) {
-    console.log('Checking cookie:', cookie);
-
-    if (cookie.startsWith('__Secure-better-auth.session_token=')) {
-      // Add the standard cookie name version
-      const value = cookie.replace('__Secure-better-auth.session_token=', '');
-      normalizedCookies.push(`better-auth.session_token=${value}`);
-      console.log(
-        'Found secure-prefixed session cookie, adding standard version for Better Auth compatibility',
-      );
-    }
-    // Handle any other secure-prefixed Better Auth cookies
-    if (cookie.startsWith('__Secure-better-auth.')) {
-      const standardName = cookie.replace('__Secure-', '');
-      if (
-        !cookies.some((c) => c.startsWith(`${standardName.split('=')[0]}=`))
-      ) {
-        normalizedCookies.push(standardName);
-        console.log('Normalized secure cookie:', cookie, '->', standardName);
-      }
-    }
-  }
-
-  const result = normalizedCookies.join('; ');
-  console.log('Normalized cookie header:', result);
-
-  return result;
-}
-
-/**
- * Unified authentication middleware that supports both cookie sessions and API keys.
- *
- * This middleware leverages Better Auth's built-in unified session handling:
- * 1. Checks for a valid backend session cookie and API keys with normalized headers
- * 2. Handles secure-prefixed cookies in production (__Secure- prefix)
- * 3. If Better Auth session fails, falls back to custom X-Session-Token validation
- * 4. When an API key is valid, uses Better Auth's session object
- * 5. Returns the same session shape regardless of authentication method
- *
- * CRITICAL: API key operations require Better Auth's real session context, not custom sessions
- *
- * Note: This middleware expects the auth instance to be available in context (set by create-app.ts)
+ * Unified authentication middleware that:
+ * 1. Handles secure cookie prefixes in production
+ * 2. Uses standard Better Auth session validation only
+ * 3. No custom session fallbacks
  */
 export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const auth = c.get('auth');
 
-  try {
-    // Get the original cookie header
-    const originalCookieHeader = c.req.header('cookie');
+  console.log('🔒 Starting unified auth middleware');
 
-    // Normalize cookies to handle secure prefixes in production
-    const normalizedCookieHeader =
-      normalizeCookiesForProduction(originalCookieHeader);
+  // Debug: Log all cookies to understand what we're receiving
+  const cookieHeader = c.req.header('cookie');
+  console.log('📝 Raw cookie header:', cookieHeader);
 
-    // Create a new headers object with normalized cookies
-    const normalizedHeaders = new Headers(c.req.raw.headers);
-    if (
-      normalizedCookieHeader &&
-      normalizedCookieHeader !== originalCookieHeader
-    ) {
-      normalizedHeaders.set('cookie', normalizedCookieHeader);
-      console.log('Updated headers with normalized cookies');
-    }
-
-    // CRITICAL: Always try Better Auth session validation first
-    // This ensures API key operations have proper session context
-    let session = await auth.api.getSession({
-      headers: normalizedHeaders,
-    });
-
-    let sessionSource = 'none';
-
-    if (session) {
-      sessionSource = 'backend';
-      console.log(
-        'UnifiedAuth: Using Better Auth session (required for API key operations)',
-      );
-    } else {
-      // Only fall back to custom token validation if Better Auth session completely fails
-      // Note: Custom sessions won't work with API key operations
-      const sessionToken = c.req.header('X-Session-Token');
-      if (sessionToken) {
-        console.log(
-          'UnifiedAuth: Better Auth session failed, trying custom session token...',
-        );
-        console.log(
-          'WARNING: Custom sessions do not support API key operations',
-        );
-        session = validateSessionToken(sessionToken);
-        sessionSource = session ? 'frontend-token' : 'none';
+  // Extract all cookies
+  const cookies: Record<string, string> = {};
+  if (cookieHeader) {
+    cookieHeader.split(';').forEach((cookie) => {
+      const [key, ...valueParts] = cookie.trim().split('=');
+      if (key && valueParts.length > 0) {
+        cookies[key] = valueParts.join('=');
       }
-    }
-
-    console.log('UnifiedAuth debug:', {
-      hasAuth: !!auth,
-      hasSession: !!session,
-      sessionSource,
-      hasSessionToken: !!c.req.header('X-Session-Token'),
-      originalCookies: originalCookieHeader,
-      normalizedCookies: normalizedCookieHeader,
-      cookiesModified: normalizedCookieHeader !== originalCookieHeader,
-      userAgent: c.req.header('user-agent'),
-      origin: c.req.header('origin'),
     });
-
-    if (session) {
-      // Authentication successful - could be backend session, frontend token, or API key
-      c.set('user', session.user);
-      c.set('session', session.session);
-      console.log(
-        `Auth successful for user: ${session.user.email} (source: ${sessionSource})`,
-      );
-
-      // Warn if using custom session for API operations
-      if (sessionSource === 'frontend-token') {
-        console.log(
-          'WARNING: Using custom session - API key operations may fail',
-        );
-      }
-    } else {
-      c.set('user', null);
-      c.set('session', null);
-      console.log('No valid session found from any source');
-    }
-  } catch (error) {
-    console.error('UnifiedAuth error:', error);
-    c.set('user', null);
-    c.set('session', null);
   }
 
-  await next();
+  console.log('📝 Parsed cookies:', Object.keys(cookies));
+
+  // If we have a secure-prefixed session cookie, normalize it for Better Auth
+  const secureSessionKey = '__Secure-better-auth.session_token';
+  const standardSessionKey = 'better-auth.session_token';
+
+  if (cookies[secureSessionKey] && !cookies[standardSessionKey]) {
+    console.log('🔄 Found secure-prefixed session cookie, normalizing...');
+
+    const normalizedCookieEntries = Object.entries(cookies);
+    normalizedCookieEntries.push([
+      standardSessionKey,
+      cookies[secureSessionKey],
+    ]);
+
+    // Create normalized cookie header
+    const normalizedCookieHeader = normalizedCookieEntries
+      .map(([key, value]) => `${key}=${value}`)
+      .join('; ');
+
+    // Create new request with normalized cookies for Better Auth
+    const newHeaders = new Headers(c.req.raw.headers);
+    newHeaders.set('cookie', normalizedCookieHeader);
+
+    console.log(
+      '🔄 Normalized cookie header for Better Auth:',
+      normalizedCookieHeader,
+    );
+
+    // Create new request with normalized headers
+    const newRequest = new Request(c.req.raw.url, {
+      method: c.req.raw.method,
+      headers: newHeaders,
+      body: c.req.raw.body,
+    });
+
+    // Override the request in context for Better Auth
+    Object.defineProperty(c.req, 'raw', {
+      value: newRequest,
+      writable: true,
+    });
+  }
+
+  // Now use standard Better Auth session validation
+  try {
+    console.log('🔍 Attempting Better Auth session validation...');
+
+    const session = await auth.api.getSession({
+      headers: c.req.header(),
+    });
+
+    if (session) {
+      console.log('✅ Better Auth session found:', {
+        userId: session.user?.id,
+        email: session.user?.email,
+        sessionId: session.session?.id,
+      });
+
+      c.set('user', session.user);
+      c.set('session', session.session);
+
+      await next();
+      return;
+    }
+
+    console.log('❌ No Better Auth session found');
+  } catch (error) {
+    console.log('❌ Better Auth session validation failed:', error);
+  }
+
+  // Check for API key in Authorization header
+  const authHeader = c.req.header('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      console.log('🔑 Attempting API key validation...');
+
+      // Create headers object for API key validation
+      const apiHeaders = new Headers(c.req.raw.headers);
+      apiHeaders.set('authorization', authHeader);
+
+      // Use the session endpoint with API key authentication
+      const result = await auth.api.getSession({
+        headers: apiHeaders,
+      });
+
+      if (result) {
+        console.log('✅ Valid API key found');
+        c.set('user', result.user);
+        c.set('session', result.session);
+        await next();
+        return;
+      }
+
+      console.log('❌ Invalid API key');
+    } catch (error) {
+      console.log('❌ API key validation failed:', error);
+    }
+  }
+
+  // No valid authentication found
+  console.log('❌ Authentication failed - no valid session or API key');
+
+  return c.json(
+    {
+      error: 'Authentication required',
+      message: 'Valid session or API key required',
+    },
+    401,
+  );
 };
 
 /**
