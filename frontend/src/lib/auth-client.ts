@@ -1,7 +1,23 @@
 import { createAuthClient } from 'better-auth/react';
 
 export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787',
+  // NO baseURL needed - defaults to current domain's /api/auth/* routes
+  // This handles email login & OAuth authentication on the SAME domain
+
+  // ✅ Enhanced session management for Safari/incognito compatibility
+  fetchOptions: {
+    credentials: 'include', // Ensure cookies are included
+  },
+
+  // ✅ Session configuration for better reliability
+  session: {
+    // Check session more frequently for Safari/incognito reliability
+    refetchInterval: 2 * 60 * 1000, // 2 minutes
+    refetchOnWindowFocus: true,
+    // Retry session checks if they fail
+    retry: 3,
+    retryDelay: 1000, // 1 second between retries
+  },
 });
 
 // Export the hooks and methods from Better Auth
