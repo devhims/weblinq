@@ -39,23 +39,38 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
   // Detect if we're in production environment
   const isProduction = !isLocalDevelopment;
 
-  // For production, we need to extract the domain from frontendUrl
+  // For production, check if frontend and backend are on different domains
+  let isDifferentDomain = false;
   let cookieDomain: string | undefined;
-  if (!isLocalDevelopment && params.frontendUrl) {
+
+  if (!isLocalDevelopment && params.frontendUrl && params.baseURL) {
     try {
-      const url = new URL(params.frontendUrl);
-      // If frontend and backend are on the same domain, set the domain
-      // If they're on different domains (e.g., subdomain), don't set domain
-      const backendUrl = new URL(params.baseURL || '');
+      const frontendUrl = new URL(params.frontendUrl);
+      const backendUrl = new URL(params.baseURL);
 
       // Extract root domain (e.g., "example.com" from "app.example.com")
-      const frontendDomain = url.hostname.split('.').slice(-2).join('.');
+      const frontendDomain = frontendUrl.hostname
+        .split('.')
+        .slice(-2)
+        .join('.');
       const backendDomain = backendUrl.hostname.split('.').slice(-2).join('.');
 
-      // Only set domain if they share the same root domain
-      if (frontendDomain === backendDomain) {
+      // Check if they're completely different domains
+      isDifferentDomain = frontendDomain !== backendDomain;
+
+      // Only set cookieDomain if they share the same root domain (subdomain case)
+      if (!isDifferentDomain) {
         cookieDomain = `.${frontendDomain}`;
       }
+
+      console.warn('🔧 Domain analysis:', {
+        frontend: frontendUrl.hostname,
+        backend: backendUrl.hostname,
+        frontendDomain,
+        backendDomain,
+        isDifferentDomain,
+        cookieDomain,
+      });
     } catch (error) {
       console.warn(
         'Could not parse frontend URL for domain extraction:',
@@ -92,12 +107,14 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     // ✅ CRITICAL: Backend cookie config must support cross-domain cookies
     advanced: {
       defaultCookieAttributes: {
-        // ✅ CRITICAL: 'none' for cross-domain, 'lax' for same-domain
-        sameSite: isProduction && !cookieDomain ? 'none' : 'lax',
-        // ✅ CRITICAL: Must be secure for SameSite=none
+        // ✅ CRITICAL: For cross-domain (different domains), always use 'none'
+        // For same domain/subdomain, use 'lax'
+        sameSite: isProduction && isDifferentDomain ? 'none' : 'lax',
+        // ✅ CRITICAL: Must be secure for SameSite=none and production
         secure: isProduction,
-        // ✅ CRITICAL: Enable partitioned cookies for cross-site requests
-        partitioned: isProduction && !cookieDomain,
+        // ✅ CRITICAL: Enable partitioned cookies for cross-domain requests
+        partitioned: isProduction && isDifferentDomain,
+        // Only set domain for subdomain sharing, not cross-domain
         domain: cookieDomain,
         httpOnly: true,
         path: '/',
@@ -106,7 +123,7 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       },
       // Force secure cookies in production
       useSecureCookies: isProduction,
-      // ✅ CRITICAL: Enable cross-domain cookie support
+      // ✅ CRITICAL: Only enable cross-subdomain for same root domain
       crossSubDomainCookies: cookieDomain
         ? {
             enabled: true,

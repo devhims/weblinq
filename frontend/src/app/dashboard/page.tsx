@@ -5,12 +5,42 @@ import { Button } from '@/components/ui/Button';
 import { ApiKeyManager } from '@/components/dashboard/ApiKeyManager';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { getAuthUrl } from '@/config/env';
 
 export default function DashboardPage() {
   const { data: session, isPending, error } = useSession();
   const router = useRouter();
 
   console.log('Dashboard render:', { session, isPending, error });
+
+  // Debug: Check cookies and make a manual session request
+  useEffect(() => {
+    console.log('🍪 Document cookies:', document.cookie);
+    console.log('🔧 Auth URL for requests:', getAuthUrl());
+
+    // Manual session check to debug the issue
+    fetch(`${getAuthUrl()}/session`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((response) => {
+        console.log(
+          '🔍 Manual session check response status:',
+          response.status
+        );
+        console.log('🔍 Response headers:', [...response.headers.entries()]);
+        return response.json();
+      })
+      .then((data) => {
+        console.log('🔍 Manual session check data:', data);
+      })
+      .catch((error) => {
+        console.error('❌ Manual session check failed:', error);
+      });
+  }, []);
 
   // Handle redirect to login if not authenticated
   useEffect(() => {
