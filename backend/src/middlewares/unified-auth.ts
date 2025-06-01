@@ -32,11 +32,50 @@ function validateSessionToken(token: string) {
         expiresAt: new Date(tokenData.timestamp + maxAge),
       },
     };
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Invalid session token:', error);
     return null;
   }
+}
+
+/**
+ * Helper function to normalize cookies for production secure cookie prefixes
+ * In production, browsers automatically prefix cookies with __Secure- when served over HTTPS
+ */
+function normalizeCookiesForProduction(
+  cookieHeader: string | undefined,
+): string | undefined {
+  if (!cookieHeader) {
+    return cookieHeader;
+  }
+
+  // Create a modified cookie header that includes both standard and secure-prefixed versions
+  // This ensures Better Auth can find the session cookie regardless of prefix
+  const cookies = cookieHeader.split('; ');
+  const normalizedCookies: string[] = [...cookies];
+
+  // Look for secure-prefixed Better Auth session cookies and add standard versions
+  cookies.forEach((cookie) => {
+    if (cookie.startsWith('__Secure-better-auth.session_token=')) {
+      // Add the standard cookie name version
+      const value = cookie.replace('__Secure-better-auth.session_token=', '');
+      normalizedCookies.push(`better-auth.session_token=${value}`);
+      console.log(
+        'Found secure-prefixed session cookie, adding standard version for Better Auth compatibility',
+      );
+    }
+    // Handle any other secure-prefixed Better Auth cookies
+    if (cookie.startsWith('__Secure-better-auth.')) {
+      const standardName = cookie.replace('__Secure-', '');
+      if (
+        !cookies.some((c) => c.startsWith(`${standardName.split('=')[0]}=`))
+      ) {
+        normalizedCookies.push(standardName);
+      }
+    }
+  });
+
+  return normalizedCookies.join('; ');
 }
 
 /**
@@ -44,9 +83,10 @@ function validateSessionToken(token: string) {
  *
  * This middleware leverages Better Auth's built-in unified session handling:
  * 1. Checks for a valid backend session cookie and API keys
- * 2. If no backend session, tries to validate custom X-Session-Token header from frontend
- * 3. When an API key is valid, creates a mock session object linked to the key's owner
- * 4. Returns the same session shape regardless of authentication method
+ * 2. Handles secure-prefixed cookies in production (__Secure- prefix)
+ * 3. If no backend session, tries to validate custom X-Session-Token header from frontend
+ * 4. When an API key is valid, creates a mock session object linked to the key's owner
+ * 5. Returns the same session shape regardless of authentication method
  *
  * This means ONE middleware can protect routes from both browser users (cookies)
  * and machine clients (API keys) seamlessly.
@@ -57,9 +97,25 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const auth = c.get('auth');
 
   try {
+    // Get the original cookie header
+    const originalCookieHeader = c.req.header('cookie');
+
+    // Normalize cookies to handle secure prefixes in production
+    const normalizedCookieHeader =
+      normalizeCookiesForProduction(originalCookieHeader);
+
+    // Create a new headers object with normalized cookies
+    const normalizedHeaders = new Headers(c.req.raw.headers);
+    if (
+      normalizedCookieHeader &&
+      normalizedCookieHeader !== originalCookieHeader
+    ) {
+      normalizedHeaders.set('cookie', normalizedCookieHeader);
+    }
+
     // First, try backend session validation (for API keys and backend sessions)
     let session = await auth.api.getSession({
-      headers: c.req.raw.headers,
+      headers: normalizedHeaders,
     });
 
     let sessionSource = 'none';
@@ -72,8 +128,7 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
         session = validateSessionToken(sessionToken);
         sessionSource = session ? 'frontend-token' : 'none';
       }
-    }
-    else {
+    } else {
       sessionSource = 'backend';
     }
 
@@ -82,7 +137,9 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
       hasSession: !!session,
       sessionSource,
       hasSessionToken: !!c.req.header('X-Session-Token'),
-      cookies: c.req.header('cookie'),
+      originalCookies: originalCookieHeader,
+      normalizedCookies: normalizedCookieHeader,
+      cookiesModified: normalizedCookieHeader !== originalCookieHeader,
       userAgent: c.req.header('user-agent'),
       origin: c.req.header('origin'),
     });
@@ -94,14 +151,12 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
       console.log(
         `Auth successful for user: ${session.user.email} (source: ${sessionSource})`,
       );
-    }
-    else {
+    } else {
       c.set('user', null);
       c.set('session', null);
       console.log('No valid session found from any source');
     }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('UnifiedAuth error:', error);
     c.set('user', null);
     c.set('session', null);
