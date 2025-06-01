@@ -1,4 +1,5 @@
 import { getBackendUrl } from '@/config/env';
+import { getSession } from '@/lib/auth-client';
 
 // Types based on the backend API schemas
 export interface ApiKey {
@@ -35,6 +36,36 @@ export interface DeleteApiKeyResponse {
   message: string;
 }
 
+// Helper function to create a session token for backend communication
+async function getSessionToken(): Promise<string | null> {
+  try {
+    // Get current session from frontend auth
+    const sessionResult = await getSession();
+
+    // Check if we have a valid session with user data
+    if (!sessionResult?.data?.user) {
+      console.warn('No active session found');
+      return null;
+    }
+
+    const session = sessionResult.data;
+
+    // Create a temporary token with user info for backend validation
+    const tokenData = {
+      userId: session.user.id,
+      email: session.user.email,
+      timestamp: Date.now(),
+    };
+
+    // Simple base64 encoding (not for security, just for transport)
+    const token = btoa(JSON.stringify(tokenData));
+    return token;
+  } catch (error) {
+    console.error('Failed to get session token:', error);
+    return null;
+  }
+}
+
 // Helper function to make authenticated requests
 async function makeAuthenticatedRequest<T>(
   endpoint: string,
@@ -42,15 +73,25 @@ async function makeAuthenticatedRequest<T>(
 ): Promise<T> {
   const url = getBackendUrl(endpoint);
 
+  // Get session token for backend validation
+  const sessionToken = await getSessionToken();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  // Add session token as custom header for backend validation
+  if (sessionToken) {
+    headers['X-Session-Token'] = sessionToken;
+  }
+
   const response = await fetch(url, {
     ...options,
     credentials: 'include', // Include cookies for session-based auth
     mode: 'cors', // Explicitly set CORS mode
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {

@@ -16,19 +16,38 @@ export default function createAuthCors(c: Context<AppBindings>) {
     ? 'http://localhost:3000'
     : c.env.FRONTEND_URL || 'http://localhost:3000';
 
+  // Create array of allowed origins - include both development and production
+  const allowedOrigins = [
+    'http://localhost:3000', // Always allow localhost for development
+    frontendUrl, // Production frontend URL
+  ];
+
+  // Remove duplicates
+  const uniqueOrigins = [...new Set(allowedOrigins)];
+
   return cors({
-    origin: [frontendUrl, 'http://localhost:3000'],
+    origin: uniqueOrigins,
     allowHeaders: [
       'Content-Type',
       'Authorization',
       'X-Requested-With',
-      'Cookie',
-      'Set-Cookie',
+      'Cookie', // CRITICAL: Allow session cookies from frontend
+      'Set-Cookie', // CRITICAL: Allow setting auth cookies
+      'X-Session-Token', // CRITICAL: Allow custom session token from frontend
+      'Accept',
+      'Origin',
+      'User-Agent',
+      'Cache-Control',
     ],
-    allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE', 'PATCH'],
-    exposeHeaders: ['Content-Length', 'Set-Cookie'],
-    maxAge: 600, // 10 minutes
-    credentials: true,
+    allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE', 'PATCH', 'HEAD'],
+    exposeHeaders: [
+      'Content-Length',
+      'Set-Cookie', // CRITICAL: Expose auth cookies to frontend
+      'Access-Control-Allow-Origin',
+      'Access-Control-Allow-Credentials',
+    ],
+    maxAge: 86400, // 24 hours - helps with preflight caching
+    credentials: true, // CRITICAL: Allow cookies for session authentication
   });
 }
 

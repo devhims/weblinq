@@ -36,6 +36,34 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
     params.baseURL?.includes('localhost') ||
     params.baseURL?.includes('127.0.0.1');
 
+  // Detect if we're in production environment
+  const isProduction = !isLocalDevelopment;
+
+  // For production, we need to extract the domain from frontendUrl
+  let cookieDomain: string | undefined;
+  if (!isLocalDevelopment && params.frontendUrl) {
+    try {
+      const url = new URL(params.frontendUrl);
+      // If frontend and backend are on the same domain, set the domain
+      // If they're on different domains (e.g., subdomain), don't set domain
+      const backendUrl = new URL(params.baseURL || '');
+
+      // Extract root domain (e.g., "example.com" from "app.example.com")
+      const frontendDomain = url.hostname.split('.').slice(-2).join('.');
+      const backendDomain = backendUrl.hostname.split('.').slice(-2).join('.');
+
+      // Only set domain if they share the same root domain
+      if (frontendDomain === backendDomain) {
+        cookieDomain = `.${frontendDomain}`;
+      }
+    } catch (error) {
+      console.warn(
+        'Could not parse frontend URL for domain extraction:',
+        error,
+      );
+    }
+  }
+
   return {
     secret: params.secret,
     baseURL: params.baseURL,
@@ -51,15 +79,20 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       },
     },
     database: params.database,
-    // Configure cookies for cross-domain requests
+    // ✅ CRITICAL: Backend cookie config must match frontend for proper session sharing
     advanced: {
       defaultCookieAttributes: {
+        // MUST match frontend: Use 'lax' for same-domain compatibility
         sameSite: isLocalDevelopment ? 'lax' : 'none',
-        secure: !isLocalDevelopment, // Only secure in production
-        partitioned: false,
-        domain: isLocalDevelopment ? undefined : undefined, // Let browser handle domain
+        // MUST match frontend: Only secure in production
+        secure: isProduction,
+        // Enable partitioned cookies for production cross-site requests
+        partitioned: !isLocalDevelopment,
+        domain: cookieDomain,
         httpOnly: true,
         path: '/',
+        // MUST match frontend: Same maxAge for session consistency
+        maxAge: 60 * 60 * 24 * 7, // 7 days
       },
     },
     plugins: [
