@@ -18,7 +18,7 @@ export interface ApiKey {
   expiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
 }
 
 export interface ApiKeyWithKey extends ApiKey {
