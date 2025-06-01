@@ -76,6 +76,7 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
       github: {
         clientId: params.githubClientId,
         clientSecret: params.githubClientSecret,
+        redirectURI: `${params.baseURL}/api/auth/callback/github`,
       },
     },
     database: params.database,
@@ -145,18 +146,18 @@ export function createAuthConfig(params: AuthConfigParams): BetterAuthOptions {
 export type { AuthConfigParams };
 
 export function createAuth(env: CloudflareBindings) {
-  console.log('🔧 Creating auth instance...');
+  console.warn('🔧 Creating auth instance...');
 
   try {
     const db = createDb(env); // create db per request
-    console.log('✅ Database instance created:', !!db);
-    console.log('🔧 Database binding available:', !!env.D1_DB);
+    console.warn('✅ Database instance created:', !!db);
+    console.warn('🔧 Database binding available:', !!env.D1_DB);
 
     const adapter = drizzleAdapter(db, {
       provider: 'sqlite',
       schema,
     });
-    console.log('✅ Drizzle adapter created:', !!adapter);
+    console.warn('✅ Drizzle adapter created:', !!adapter);
 
     const config = createAuthConfig({
       githubClientId: env.GITHUB_CLIENT_ID,
@@ -166,11 +167,11 @@ export function createAuth(env: CloudflareBindings) {
       frontendUrl: env.FRONTEND_URL,
       database: adapter,
     });
-    console.log('✅ Auth config created');
+    console.warn('✅ Auth config created');
 
     const authInstance = betterAuth(config);
-    console.log('✅ Better Auth instance created:', !!authInstance);
-    console.log('✅ Auth API available:', !!authInstance.api);
+    console.warn('✅ Better Auth instance created:', !!authInstance);
+    console.warn('✅ Auth API available:', !!authInstance.api);
 
     return authInstance;
   } catch (error) {
@@ -185,6 +186,7 @@ export const auth = betterAuth(
     githubClientSecret: process.env.GITHUB_CLIENT_SECRET!,
     secret: process.env.BETTER_AUTH_SECRET,
     baseURL: process.env.BETTER_AUTH_URL,
+    frontendUrl: process.env.FRONTEND_URL,
     database: drizzleAdapter({} as any, {
       provider: 'sqlite',
     }),
