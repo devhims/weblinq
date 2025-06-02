@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ApiKeyManager } from '@/components/dashboard/ApiKeyManager';
+import { TaskManager } from '@/components/dashboard/TaskManager';
 import { SignOutButton } from '@/components/dashboard/SignOutButton';
 
 export default async function DashboardPage() {
@@ -54,6 +55,8 @@ export default async function DashboardPage() {
               </p>
             </div>
           </div>
+
+          <TaskManager />
 
           <ApiKeyManager />
         </div>

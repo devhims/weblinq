@@ -20,6 +20,20 @@
       "preview_database_id": "f588bfb9-729c-4fdf-ab68-a07ad0822c09"
     }
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TASK_DURABLE_OBJECT",
+        "class_name": "TaskDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["TaskDurableObject"]
+    }
+  ],
   "observability": {
     "enabled": true
   }

@@ -1,3 +1,5 @@
+import type { Schema } from 'hono';
+
 import { logger } from 'hono/logger';
 import { notFound, onError, serveEmojiFavicon } from 'stoker/middlewares';
 import { defaultHook } from 'stoker/openapi';
@@ -52,4 +54,8 @@ export default function createApp(): AppOpenAPI {
   app.notFound(notFound);
   app.onError(onError);
   return app;
+}
+
+export function createTestApp(router: AppOpenAPI) {
+  return createApp().route('/', router);
 }

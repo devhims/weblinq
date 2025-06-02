@@ -1,8 +1,10 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import * as HttpStatusCodes from 'stoker/http-status-codes';
 import * as HttpStatusPhrases from 'stoker/http-status-phrases';
 
+import type { publicTaskSchema } from '@/db/schema';
 import type { AppRouteHandler } from '@/lib/types';
+import type { z } from '@hono/zod-openapi';
 
 import { createDb } from '@/db';
 import { tasks } from '@/db/schema';
@@ -16,27 +18,57 @@ import type {
   RemoveRoute,
 } from './tasks.routes';
 
+/**
+ * Helper function to serialize task objects for public API
+ */
+function serializeTask(task: any): z.infer<typeof publicTaskSchema> {
+  return {
+    id: task.id,
+    name: task.name,
+    done: task.done,
+    createdAt: task.createdAt ? task.createdAt.toISOString() : null,
+    updatedAt: task.updatedAt ? task.updatedAt.toISOString() : null,
+  };
+}
+
 export const list: AppRouteHandler<ListRoute> = async (c) => {
+  const user = c.get('user')!; // Auth middleware ensures user exists
   const db = createDb(c.env);
-  const tasks = await db.query.tasks.findMany();
-  return c.json(tasks);
+
+  // Filter tasks by userId to ensure data isolation
+  const userTasks = await db
+    .select()
+    .from(tasks)
+    .where(eq(tasks.userId, user.id));
+
+  return c.json(userTasks.map((task) => serializeTask(task)));
 };
 
 export const create: AppRouteHandler<CreateRoute> = async (c) => {
+  const user = c.get('user')!; // Auth middleware ensures user exists
+  const taskData = c.req.valid('json');
   const db = createDb(c.env);
-  const task = c.req.valid('json');
-  const [inserted] = await db.insert(tasks).values(task).returning();
-  return c.json(inserted, HttpStatusCodes.OK);
+
+  // Add userId to the task data
+  const taskWithUserId = {
+    ...taskData,
+    userId: user.id,
+  };
+
+  const [inserted] = await db.insert(tasks).values(taskWithUserId).returning();
+  return c.json(serializeTask(inserted), HttpStatusCodes.OK);
 };
 
 export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
-  const db = createDb(c.env);
+  const user = c.get('user')!; // Auth middleware ensures user exists
   const { id } = c.req.valid('param');
-  const task = await db.query.tasks.findFirst({
-    where(fields, operators) {
-      return operators.eq(fields.id, id);
-    },
-  });
+  const db = createDb(c.env);
+
+  const [task] = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, Number(id)), eq(tasks.userId, user.id)))
+    .limit(1);
 
   if (!task) {
     return c.json(
@@ -47,13 +79,14 @@ export const getOne: AppRouteHandler<GetOneRoute> = async (c) => {
     );
   }
 
-  return c.json(task, HttpStatusCodes.OK);
+  return c.json(serializeTask(task), HttpStatusCodes.OK);
 };
 
 export const patch: AppRouteHandler<PatchRoute> = async (c) => {
-  const db = createDb(c.env);
+  const user = c.get('user')!; // Auth middleware ensures user exists
   const { id } = c.req.valid('param');
   const updates = c.req.valid('json');
+  const db = createDb(c.env);
 
   if (Object.keys(updates).length === 0) {
     return c.json(
@@ -74,10 +107,11 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
     );
   }
 
+  // Only update tasks that belong to this user
   const [task] = await db
     .update(tasks)
     .set(updates)
-    .where(eq(tasks.id, id))
+    .where(and(eq(tasks.id, Number(id)), eq(tasks.userId, user.id)))
     .returning();
 
   if (!task) {
@@ -89,13 +123,18 @@ export const patch: AppRouteHandler<PatchRoute> = async (c) => {
     );
   }
 
-  return c.json(task, HttpStatusCodes.OK);
+  return c.json(serializeTask(task), HttpStatusCodes.OK);
 };
 
 export const remove: AppRouteHandler<RemoveRoute> = async (c) => {
-  const db = createDb(c.env);
+  const user = c.get('user')!; // Auth middleware ensures user exists
   const { id } = c.req.valid('param');
-  const result = await db.delete(tasks).where(eq(tasks.id, id));
+  const db = createDb(c.env);
+
+  // Only delete tasks that belong to this user
+  const result = await db
+    .delete(tasks)
+    .where(and(eq(tasks.id, Number(id)), eq(tasks.userId, user.id)));
 
   if (result.meta.changes === 0) {
     return c.json(

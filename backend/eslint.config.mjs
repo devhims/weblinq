@@ -37,6 +37,17 @@ export default antfu(
       'style/brace-style': 'off',
       'style/indent': 'off',
       'style/comma-dangle': 'off',
+      'style/quotes': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.ts', '**/*.test.js', '**/test-*.js'],
+    rules: {
+      'node/no-process-env': 'off',
+      'style/quotes': 'off',
+      'style/indent': 'off',
+      'style/indent-binary-ops': 'off',
+      'style/quote-props': 'off',
     },
   },
 );
