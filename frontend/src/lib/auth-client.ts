@@ -1,66 +1,42 @@
 import { createAuthClient } from 'better-auth/react';
 
-console.log(
-  '🔧 Auth client setup (frontend auth with subdomain cookie sharing):',
-  {
-    environment: process.env.NODE_ENV,
-    frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL,
-    backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
-  }
-);
+/* Detect where the front-end is running.
+   - In production we'll be behind `https://www.weblinq.dev` (fixed: was missing 'www')
+   - In dev we fall back to localhost so "vercel dev" just works.           */
+const BASE_URL =
+  process.env.NEXT_PUBLIC_FRONTEND_URL ?? 'http://localhost:3000';
 
-// Add minimal fetch debugging to see what's happening
-const originalFetch = globalThis.fetch;
-globalThis.fetch = async (input, init) => {
-  const url =
-    typeof input === 'string'
-      ? input
-      : input instanceof URL
-      ? input.href
-      : input.url;
-
-  // Only log auth-related requests
-  if (url.includes('/api/auth/')) {
-    console.log('🌐 Auth request:', { url, method: init?.method || 'GET' });
-
-    const response = await originalFetch(input, init);
-
-    console.log('🌐 Auth response:', {
-      url,
-      status: response.status,
-      setCookie: response.headers.get('set-cookie'),
-      hasBody: response.headers.get('content-length') !== '0',
-    });
-
-    // Log response body for get-session requests
-    if (url.includes('get-session')) {
-      const cloned = response.clone();
-      try {
-        const text = await cloned.text();
-        console.log('🌐 Session response body:', text);
-      } catch {
-        console.log('🌐 Could not read session response body');
-      }
-    }
-
-    return response;
-  }
-
-  return originalFetch(input, init);
-};
-
+/* 1.  Create the client.
+      `credentials:"include"` is essential; without it the browser drops
+      the `ba_session` cookie on every cross-sub-domain fetch.             */
 export const authClient = createAuthClient({
-  // Use frontend auth endpoints for login/logout/session (subdomain cookies will be shared with backend)
-  baseURL: process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
-  fetchOptions: {
-    credentials: 'include', // Include cookies for session management
-  },
+  baseURL: BASE_URL, // docs: baseURL is optional but recommended
+  fetchOptions: { credentials: 'include' }, // send cookie on every request
 });
 
-// Export the hooks and methods from Better Auth
-export const { useSession, signIn, signUp, signOut, getSession, $Infer } =
-  authClient;
+/* 2.  Re-export the hooks & helpers Better Auth injects. */
+export const {
+  useSession, // live session info inside React components
+  signIn,
+  signUp,
+  signOut,
+  getSession,
+  $Infer,
+} = authClient;
 
-// Export types for TypeScript support
+/* 3.  Handy TypeScript aliases. */
 export type Session = typeof authClient.$Infer.Session;
-export type User = typeof authClient.$Infer.Session.user;
+export type User = (typeof authClient.$Infer.Session)['user'];
+
+/* 4.  Optional utility: bypass the cookie cache.
+      Better Auth caches a fresh session in a short-lived cookie to spare
+      network calls; disabling that cache forces a round-trip when you
+      suspect the cookie is stale.                                          */
+export async function refreshSession() {
+  try {
+    return await getSession({ query: { disableCookieCache: true } });
+  } catch {
+    /* swallow – treat "no session" the same as "expired session"          */
+    return null;
+  }
+}

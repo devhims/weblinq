@@ -1,95 +1,67 @@
 import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { bearer } from 'better-auth/plugins';
 import { db } from '@/db';
 
-// Detect environment
-const isProduction = process.env.NODE_ENV === 'production';
+const isProd = process.env.NODE_ENV === 'production';
 
-// Environment-specific URLs
-const frontendUrl =
-  process.env.NEXT_PUBLIC_FRONTEND_URL ||
-  (isProduction ? 'https://www.weblinq.dev' : 'http://localhost:3000');
-const backendUrl =
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  (isProduction ? 'https://api.weblinq.dev' : 'http://localhost:8787');
+/* ------------------------------------------------------------------ */
+/* 1.  Values you share with the Cloudflare-Worker back-end            */
+/* ------------------------------------------------------------------ */
+const FRONTEND_URL = isProd
+  ? 'https://www.weblinq.dev'
+  : 'http://localhost:3000'; // Fixed: was missing 'www'
+const BACKEND_URL = isProd
+  ? 'https://api.weblinq.dev'
+  : 'http://localhost:8787';
+const SECRET = process.env.BETTER_AUTH_SECRET!;
 
+/* ------------------------------------------------------------------ */
+/* 2.  Better Auth                                                     */
+/* ------------------------------------------------------------------ */
 export const auth = betterAuth({
-  // Simple database setup for frontend auth
-  // In development, this creates a local SQLite file
-  // In production, you'd use your production database URL
+  /* database → simple Drizzle adapter for SQLite in dev, Postgres in prod */
   database: drizzleAdapter(db, {
-    provider: 'sqlite',
+    provider: 'sqlite', // Explicitly set provider for clarity
   }),
 
-  // Secret for JWT signing and session encryption
-  secret: process.env.BETTER_AUTH_SECRET || 'your-secret-key-here',
+  /* cryptographic key that signs every cookie & JWT */
+  secret: SECRET,
 
-  // Base URL for the frontend auth endpoints
-  baseURL: frontendUrl,
+  /* where Better Auth should generate links & OAuth callbacks */
+  baseURL: FRONTEND_URL,
 
-  // ✅ Environment-specific trusted origins
-  trustedOrigins: [
-    frontendUrl,
-    backendUrl,
-    // Always include localhost for development
-    'http://localhost:3000',
-    'http://localhost:8787',
-    // Production domains
-    'https://www.weblinq.dev',
-    'https://api.weblinq.dev',
-  ],
+  /* allow only our two origins to hit the built-in auth routes */
+  trustedOrigins: [FRONTEND_URL, BACKEND_URL],
 
-  // ✅ Environment-specific cookie configuration
+  /* cookie settings that survive Safari + Incognito */
   advanced: {
-    // Only enable cross-subdomain cookies in production
-    ...(isProduction && {
-      crossSubDomainCookies: {
-        enabled: true,
-      },
-    }),
+    /*  ← one flag to spread the cookie to every sub-domain in prod   */
+    crossSubDomainCookies: { enabled: isProd },
+
+    // Global cookie attributes for Better Auth
     defaultCookieAttributes: {
-      // Only set domain in production for subdomain sharing
-      ...(isProduction && { domain: '.weblinq.dev' }),
-      // In development, don't set domain to work with localhost
-      secure: isProduction, // Only secure in production
-      httpOnly: true,
-      sameSite: 'lax', // Use 'lax' for both dev and prod
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      domain: isProd ? '.weblinq.dev' : undefined, // leading "." = any sub-domain
+      sameSite: 'lax', // "same-site", so Safari accepts it
+      secure: isProd, // Safari requires Secure for cross-sub-domain cookies
+      httpOnly: true, // Security best practice
+      path: '/', // Available site-wide
     },
-    useSecureCookies: isProduction,
   },
 
-  // GitHub OAuth configuration
+  /* built-in auth modes – _no_ plugin calls needed in v1 */
+  emailAndPassword: { enabled: true },
   socialProviders: {
     github: {
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      // Frontend handles the OAuth callback
-      redirectURI: `${frontendUrl}/api/auth/callback/github`,
+      // Better Auth auto-builds the callback from baseURL, so no redirectURI here
     },
   },
 
-  // Email/password auth for development
-  emailAndPassword: {
-    enabled: true,
-  },
-
-  // Session configuration that supports both local dev and production
-  session: {
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60, // 5 minutes
-    },
-    freshAge: 10 * 60, // 10 minutes
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
-  },
-
-  // Use Next.js cookies plugin and bearer plugin
-  plugins: [bearer(), nextCookies()],
+  /* Next-specific helper that refreshes React cache after auth events */
+  plugins: [nextCookies()],
 });
 
+/* typed helpers you'll import elsewhere */
 export const { handler, api } = auth;

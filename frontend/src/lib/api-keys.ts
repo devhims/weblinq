@@ -30,68 +30,47 @@ export interface ApiKeysListResponse {
 
 export interface DeleteApiKeyResponse {
   success: boolean;
+  message: string;
 }
 
-// ✅ SUBDOMAIN SOLUTION: Direct backend API calls with cross-subdomain cookies
-async function makeAuthenticatedRequest<T>(
+// Get backend URL with cross-subdomain cookie support
+const getBackendUrl = () =>
+  process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787';
+
+// Simplified authenticated request helper
+async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  // Call backend API directly - subdomain cookies will be shared automatically
-  const backendUrl =
-    process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787';
-  const apiUrl = `${backendUrl}${endpoint}`;
+  const response = await fetch(`${getBackendUrl()}${endpoint}`, {
+    ...options,
+    credentials: 'include', // Cross-subdomain cookies
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
 
-  console.log('🚀 Making direct request to backend:', apiUrl);
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...((options.headers as Record<string, string>) || {}),
-  };
-
-  try {
-    const response = await fetch(apiUrl, {
-      ...options,
-      headers,
-      credentials: 'include', // Include cross-subdomain session cookies
-    });
-
-    console.log('📊 Backend response status:', response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Backend request failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-      });
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('✅ Backend request successful:', data);
-    return data;
-  } catch (error) {
-    console.error('🚨 Backend request error:', error);
-    throw error;
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`API Error ${response.status}: ${error}`);
   }
+
+  return response.json();
 }
 
-export async function createApiKey(
+// API functions matching backend route definitions
+export const createApiKey = (
   data: CreateApiKeyRequest
-): Promise<ApiKeyWithKey> {
-  return makeAuthenticatedRequest<ApiKeyWithKey>('/api-keys', {
+): Promise<ApiKeyWithKey> =>
+  apiRequest('/api-keys/create', {
     method: 'POST',
     body: JSON.stringify(data),
   });
-}
 
-export async function listApiKeys(): Promise<ApiKeysListResponse> {
-  return makeAuthenticatedRequest<ApiKeysListResponse>('/api-keys/list');
-}
+export const listApiKeys = (): Promise<ApiKeysListResponse> =>
+  apiRequest('/api-keys/list');
 
-export async function deleteApiKey(id: string): Promise<DeleteApiKeyResponse> {
-  return makeAuthenticatedRequest<DeleteApiKeyResponse>(`/api-keys/${id}`, {
-    method: 'DELETE',
-  });
-}
+// Backend route expects DELETE /{id}, handler internally calls Better Auth with keyId in body
+export const deleteApiKey = (id: string): Promise<DeleteApiKeyResponse> =>
+  apiRequest(`/api-keys/${id}`, { method: 'DELETE' });
