@@ -18,7 +18,8 @@ export function TaskManager() {
   const [newTaskName, setNewTaskName] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787';
+  const API_BASE =
+    process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787';
 
   // Fetch tasks
   const fetchTasks = async () => {
