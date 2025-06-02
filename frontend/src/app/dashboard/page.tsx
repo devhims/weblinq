@@ -1,46 +1,19 @@
-'use client';
-
-import { useSession, signOut } from '@/lib/auth-client';
-import { Button } from '@/components/ui/Button';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { ApiKeyManager } from '@/components/dashboard/ApiKeyManager';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { SignOutButton } from '@/components/dashboard/SignOutButton';
 
-export default function DashboardPage() {
-  const { data: session, isPending } = useSession();
-  const router = useRouter();
+export default async function DashboardPage() {
+  // Check session on the server side
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-  useEffect(() => {
-    if (!isPending && !session) {
-      console.log('No user found, redirecting to login...');
-      setTimeout(() => {
-        router.push('/');
-      }, 1000);
-    }
-  }, [session, isPending, router]);
-
-  if (isPending) {
-    return (
-      <div className='min-h-screen bg-gray-50 flex justify-center items-center'>
-        <div className='text-lg text-gray-700'>Checking authentication...</div>
-      </div>
-    );
-  }
-
+  // Redirect to home if no session
   if (!session?.user) {
-    return (
-      <div className='min-h-screen bg-gray-50 flex justify-center items-center'>
-        <div className='text-lg text-gray-700'>
-          No user found, waiting a bit before redirect...
-        </div>
-      </div>
-    );
+    redirect('/login');
   }
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push('/');
-  };
 
   return (
     <div className='min-h-screen bg-gray-50'>
@@ -52,9 +25,7 @@ export default function DashboardPage() {
               Welcome back, {session.user.name || session.user.email}!
             </p>
           </div>
-          <Button onClick={handleSignOut} variant='outline'>
-            Sign Out
-          </Button>
+          <SignOutButton />
         </div>
 
         <div className='grid gap-6'>

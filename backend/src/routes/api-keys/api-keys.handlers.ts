@@ -139,7 +139,7 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
     if (error && typeof error === 'object') {
       try {
         console.error('Error JSON:', JSON.stringify(error, null, 2));
-      } catch (_jsonError) {
+      } catch {
         console.error('Could not stringify error object');
       }
 
