@@ -1,8 +1,10 @@
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import { ApiKeyManager } from '@/components/dashboard/ApiKeyManager';
 import { TaskManager } from '@/components/dashboard/TaskManager';
+import { TaskManagerLoading } from '@/components/dashboard/TaskManagerLoading';
 import { SignOutButton } from '@/components/dashboard/SignOutButton';
 
 export default async function DashboardPage() {
@@ -56,7 +58,9 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <TaskManager />
+          <Suspense fallback={<TaskManagerLoading />}>
+            <TaskManager />
+          </Suspense>
 
           <ApiKeyManager />
         </div>
