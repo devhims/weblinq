@@ -56,3 +56,6 @@ backend/.env
 backend/.dev.vars
 backend/.wrangler
 backend/project_docs
+
+
+.cursor/

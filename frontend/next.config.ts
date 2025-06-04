@@ -1,7 +1,10 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Removed experimental flags - now using stable unstable_cache API
+  // experimental: {
+  //   useCache: true,
+  // },
 };
 
 export default nextConfig;

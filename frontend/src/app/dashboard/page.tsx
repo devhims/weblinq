@@ -2,10 +2,12 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { ApiKeyManager } from '@/components/dashboard/ApiKeyManager';
-import { TaskManager } from '@/components/dashboard/TaskManager';
+import { ApiKeyManagerWithSuspense } from '@/components/dashboard/ApiKeyManagerWithSuspense';
+import { ApiKeyManagerLoading } from '@/components/dashboard/ApiKeyManagerLoading';
+import { TaskManagerWithSuspense } from '@/components/dashboard/TaskManagerWithSuspense';
 import { TaskManagerLoading } from '@/components/dashboard/TaskManagerLoading';
 import { SignOutButton } from '@/components/dashboard/SignOutButton';
+import { ApiKeyManagerWithPromise } from '@/components/dashboard/ApiKeyManagerWithPromise';
 
 export default async function DashboardPage() {
   // Check session on the server side
@@ -58,11 +60,39 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <Suspense fallback={<TaskManagerLoading />}>
-            <TaskManager />
-          </Suspense>
+          {/* Task Manager Section */}
+          <div className='bg-white p-6 rounded-lg shadow-sm border border-gray-200'>
+            <div className='mb-6'>
+              <h2 className='text-2xl font-semibold text-gray-900 mb-2'>
+                Task Manager
+              </h2>
+              <p className='text-gray-600'>
+                Powered by Durable Objects for per-user task isolation
+              </p>
+            </div>
 
-          <ApiKeyManager />
+            <Suspense fallback={<TaskManagerLoading />}>
+              <TaskManagerWithSuspense />
+            </Suspense>
+          </div>
+
+          {/* API Keys Section */}
+          <div className='bg-white p-6 rounded-lg shadow-sm border border-gray-200'>
+            <div className='mb-6'>
+              <h2 className='text-2xl font-semibold text-gray-900 mb-2'>
+                API Keys
+              </h2>
+              <p className='text-gray-600'>
+                Manage your API keys to access our services programmatically
+              </p>
+            </div>
+
+            <Suspense fallback={<ApiKeyManagerLoading />}>
+              <ApiKeyManagerWithSuspense />
+            </Suspense>
+
+            <ApiKeyManagerWithPromise />
+          </div>
         </div>
       </div>
     </div>
