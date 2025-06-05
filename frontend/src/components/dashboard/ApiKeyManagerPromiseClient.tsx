@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   createApiKey,
-  listApiKeys,
+  listApiKeysClient,
   deleteApiKey,
   type ApiKeysListResponse,
   type ApiKeyWithKey,
@@ -55,7 +55,7 @@ export function ApiKeyManagerPromiseClient({
     error: queryError,
   } = useQuery({
     queryKey: ['apiKeys'],
-    queryFn: listApiKeys,
+    queryFn: listApiKeysClient,
     initialData: initialApiKeys, // Use promise-resolved data as initial data
     staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
     gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache longer

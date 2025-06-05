@@ -8,6 +8,7 @@ export { ApiKeyManagerLoading } from './ApiKeyManagerLoading';
 // Export Task Manager components
 export { TaskManagerWithSuspense } from './TaskManagerWithSuspense';
 export { TaskManagerClient } from './TaskManagerClient';
+export { TaskManagerPromiseClient } from './TaskManagerPromiseClient';
 export { TaskManagerLoading } from './TaskManagerLoading';
 
 // Export other dashboard components

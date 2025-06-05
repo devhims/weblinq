@@ -1,42 +1,26 @@
-import { listApiKeys, type ApiKeysListResponse } from '@/lib/api-keys';
-import { ApiKeyManagerClient } from './ApiKeyManagerClient';
+import { listApiKeys } from '@/lib/api-keys';
+import { ApiKeyManagerPromiseClient } from './ApiKeyManagerPromiseClient';
 
-// Server component that fetches initial API keys data for the ApiKeyManagerClient
-export async function ApiKeyManagerWithSuspense({
+// Server component that creates a promise for streaming (proper Next.js 15 pattern)
+export function ApiKeyManagerWithSuspense({
   className,
 }: {
   className?: string;
 }) {
-  console.log('🏗️ [Server Component] ApiKeyManagerWithSuspense starting...');
+  console.log(
+    '🏗️ [Server Component - Suspense Streaming] Creating API keys promise...'
+  );
 
-  let initialApiKeys: ApiKeysListResponse;
-  try {
-    console.log('🏗️ [Server Component] About to call listApiKeys()...');
-    // Fetch initial data using the API function (no caching)
-    initialApiKeys = await listApiKeys();
-    console.log(
-      `🏗️ [Server Component] Successfully fetched ${initialApiKeys.apiKeys.length} initial API keys:`,
-      initialApiKeys
-    );
-  } catch (error) {
-    console.warn(
-      '⚠️ [Server Component] Failed to fetch initial API keys, falling back to empty list:',
-      error
-    );
-    initialApiKeys = {
-      apiKeys: [],
-      total: 0,
-    };
-  }
+  // DON'T await - create promise for streaming
+  const apiKeysPromise = listApiKeys();
 
   console.log(
-    '🏗️ [Server Component] Rendering ApiKeyManagerClient with data:',
-    initialApiKeys
+    '🏗️ [Server Component - Suspense Streaming] Passing promise to client for streaming'
   );
 
   return (
-    <ApiKeyManagerClient
-      initialApiKeys={initialApiKeys}
+    <ApiKeyManagerPromiseClient
+      apiKeysPromise={apiKeysPromise}
       className={className}
     />
   );

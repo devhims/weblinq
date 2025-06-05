@@ -7,7 +7,6 @@ import { ApiKeyManagerLoading } from '@/components/dashboard/ApiKeyManagerLoadin
 import { TaskManagerWithSuspense } from '@/components/dashboard/TaskManagerWithSuspense';
 import { TaskManagerLoading } from '@/components/dashboard/TaskManagerLoading';
 import { SignOutButton } from '@/components/dashboard/SignOutButton';
-import { ApiKeyManagerWithPromise } from '@/components/dashboard/ApiKeyManagerWithPromise';
 
 export default async function DashboardPage() {
   // Check session on the server side
@@ -17,7 +16,7 @@ export default async function DashboardPage() {
 
   // Redirect to home if no session
   if (!session?.user) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   return (
@@ -90,8 +89,6 @@ export default async function DashboardPage() {
             <Suspense fallback={<ApiKeyManagerLoading />}>
               <ApiKeyManagerWithSuspense />
             </Suspense>
-
-            <ApiKeyManagerWithPromise />
           </div>
         </div>
       </div>

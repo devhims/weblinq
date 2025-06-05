@@ -1,24 +1,18 @@
-import { fetchTasks, type Task } from '@/server/task-actions';
-import { TaskManagerClient } from './TaskManagerClient';
+import { fetchTasks } from '@/server/task-actions';
+import { TaskManagerPromiseClient } from './TaskManagerPromiseClient';
 
-// Server component that fetches initial data for the TaskManagerClient
-export async function TaskManagerWithSuspense() {
-  console.log('🏗️ [Server Component] Fetching initial tasks...');
+// Server component that creates a promise for streaming (proper Next.js 15 pattern)
+export function TaskManagerWithSuspense() {
+  console.log(
+    '🏗️ [Server Component - Task Streaming] Creating tasks promise...'
+  );
 
-  let initialTasks: Task[];
-  try {
-    // Fetch initial data using server action (no caching)
-    initialTasks = await fetchTasks();
-    console.log(
-      `🏗️ [Server Component] Fetched ${initialTasks.length} initial tasks`
-    );
-  } catch (error) {
-    console.warn(
-      '⚠️ [Server Component] Failed to fetch initial tasks, falling back to empty array:',
-      error
-    );
-    initialTasks = [];
-  }
+  // DON'T await - create promise for streaming
+  const tasksPromise = fetchTasks();
 
-  return <TaskManagerClient initialTasks={initialTasks} />;
+  console.log(
+    '🏗️ [Server Component - Task Streaming] Passing promise to client for streaming'
+  );
+
+  return <TaskManagerPromiseClient tasksPromise={tasksPromise} />;
 }
