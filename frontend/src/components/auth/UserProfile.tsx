@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
 
 export function UserProfile() {
   const { data: session, isPending, error } = useSession();
@@ -33,10 +34,12 @@ export function UserProfile() {
     <div className='p-4 border rounded-lg'>
       <div className='flex items-center gap-4'>
         {session.user.image && (
-          <img
+          <Image
             src={session.user.image}
             alt={session.user.name || 'User'}
-            className='w-12 h-12 rounded-full'
+            width={48}
+            height={48}
+            className='rounded-full'
           />
         )}
         <div>

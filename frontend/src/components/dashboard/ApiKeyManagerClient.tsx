@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   createApiKey,
   listApiKeysClient as listApiKeys,
@@ -226,16 +227,22 @@ export function ApiKeyManagerClient({
           <form onSubmit={handleCreateApiKey} className='space-y-4'>
             <div>
               <div className='space-y-2'>
+                <Label htmlFor='keyName'>Key Name</Label>
                 <Input
-                  label='Key Name'
+                  id='keyName'
                   type='text'
                   value={newKeyName}
                   onChange={(e) => handleNameChange(e.target.value)}
                   placeholder='Enter a descriptive name for your API key'
                   required
-                  error={nameError}
-                  helperText='Give your API key a memorable name to identify its purpose'
+                  className={nameError ? 'border-destructive' : ''}
                 />
+                {nameError && (
+                  <p className='text-sm text-destructive'>{nameError}</p>
+                )}
+                <p className='text-sm text-muted-foreground'>
+                  Give your API key a memorable name to identify its purpose
+                </p>
               </div>
               <Button
                 type='button'

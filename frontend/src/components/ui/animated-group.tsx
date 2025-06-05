@@ -23,8 +23,8 @@ export type AnimatedGroupProps = {
     item?: Variants;
   };
   preset?: PresetType;
-  as?: keyof React.JSX.IntrinsicElements | React.ComponentType<any>;
-  asChild?: keyof React.JSX.IntrinsicElements | React.ComponentType<any>;
+  as?: keyof React.JSX.IntrinsicElements | React.ComponentType<unknown>;
+  asChild?: keyof React.JSX.IntrinsicElements | React.ComponentType<unknown>;
 };
 
 const defaultContainerVariants: Variants = {

@@ -55,7 +55,9 @@ const carouselSlides = [
                     <Type className='h-3 w-3 text-primary mr-1' />
                     <span className='text-xs font-medium'>Text Content</span>
                   </div>
-                  <p className='text-xs'>"Welcome to Modern Web Development"</p>
+                  <p className='text-xs'>
+                    &quot;Welcome to Modern Web Development&quot;
+                  </p>
                 </div>
                 <div className='flex gap-1 text-xs'>
                   <div className='bg-accent/20 px-1 py-0.5 rounded'>640×32</div>
