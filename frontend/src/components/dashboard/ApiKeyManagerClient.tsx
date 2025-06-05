@@ -225,16 +225,18 @@ export function ApiKeyManagerClient({
           <h4 className='font-medium text-gray-900 mb-4'>Create New API Key</h4>
           <form onSubmit={handleCreateApiKey} className='space-y-4'>
             <div>
-              <Input
-                label='Key Name'
-                type='text'
-                value={newKeyName}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder='Enter a descriptive name for your API key'
-                required
-                error={nameError}
-                helperText='Give your API key a memorable name to identify its purpose'
-              />
+              <div className='space-y-2'>
+                <Input
+                  label='Key Name'
+                  type='text'
+                  value={newKeyName}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder='Enter a descriptive name for your API key'
+                  required
+                  error={nameError}
+                  helperText='Give your API key a memorable name to identify its purpose'
+                />
+              </div>
               <Button
                 type='button'
                 variant='ghost'

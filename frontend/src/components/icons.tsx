@@ -4,7 +4,15 @@ import Image from 'next/image';
 export const Icons = {
   arrowLeft: ArrowLeft,
   logOut: LogOut,
-  logo: () => <Image src='/logo.png' alt='logo' width={100} height={100} />,
+  logo: ({ className }: { className?: string }) => (
+    <Image
+      src='/logo.png'
+      alt='logo'
+      width={100}
+      height={100}
+      className={className}
+    />
+  ),
   google: ({ ...props }: LucideProps) => (
     <svg
       xmlns='http://www.w3.org/2000/svg'
