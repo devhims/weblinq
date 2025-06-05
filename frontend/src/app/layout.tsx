@@ -1,7 +1,16 @@
 import type { Metadata } from 'next';
+
+import { Outfit } from 'next/font/google';
+import { Toaster } from '@/components/ui/sonner';
+
 import { Geist, Geist_Mono } from 'next/font/google';
 import { QueryProvider } from '@/providers/query-provider';
 import './globals.css';
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+});
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -14,8 +23,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'WebLinq - Your App',
-  description: 'Authentication with Next.js and Hono.js',
+  title: 'Weblinq',
+  description: 'Linking AI Agents to the Web',
 };
 
 export default function RootLayout({
@@ -24,11 +33,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang='en'>
+    <html lang='en' className='dark'>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${outfit.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>{children}</QueryProvider>
+        <Toaster />
       </body>
     </html>
   );
