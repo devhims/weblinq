@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { SocialLogin } from '@/components/auth/SocialLogin';
 import { signIn, getSession, useSession } from '@/lib/auth-client';
 
@@ -116,25 +117,31 @@ export default function LoginPage() {
 
         <form className='mt-8 space-y-6' onSubmit={handleSubmit}>
           <div className='space-y-4'>
-            <Input
-              label='Email address'
-              type='email'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder='Enter your email'
-              autoComplete='email'
-            />
+            <div className='space-y-2'>
+              <Label htmlFor='email'>Email address</Label>
+              <Input
+                id='email'
+                type='email'
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder='Enter your email'
+                autoComplete='email'
+              />
+            </div>
 
-            <Input
-              label='Password'
-              type='password'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder='Enter your password'
-              autoComplete='current-password'
-            />
+            <div className='space-y-2'>
+              <Label htmlFor='password'>Password</Label>
+              <Input
+                id='password'
+                type='password'
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder='Enter your password'
+                autoComplete='current-password'
+              />
+            </div>
           </div>
 
           {error && (

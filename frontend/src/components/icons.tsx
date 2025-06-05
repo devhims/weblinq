@@ -4,9 +4,7 @@ import Image from 'next/image';
 export const Icons = {
   arrowLeft: ArrowLeft,
   logOut: LogOut,
-  logo: ({ ...props }: LucideProps) => (
-    <Image src='/logo.png' alt='logo' width={100} height={100} />
-  ),
+  logo: () => <Image src='/logo.png' alt='logo' width={100} height={100} />,
   google: ({ ...props }: LucideProps) => (
     <svg
       xmlns='http://www.w3.org/2000/svg'

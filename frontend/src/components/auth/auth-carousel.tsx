@@ -11,17 +11,13 @@ import {
   Camera,
   FileJson,
   Search,
-  Globe,
-  FileText,
   Link as LinkIcon,
   FileImage,
-  Download,
   Zap,
   Shield,
   TrendingUp,
   ChevronDown,
   Type,
-  Layers,
   Settings,
 } from 'lucide-react';
 

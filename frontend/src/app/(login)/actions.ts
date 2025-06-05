@@ -76,16 +76,13 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   redirect('/dashboard/studio');
 });
 
-export const signOut = validatedActionWithUser(
-  z.object({}),
-  async (_, __, user) => {
-    await auth.api.signOut({
-      headers: await headers(),
-    });
+export const signOut = validatedActionWithUser(z.object({}), async () => {
+  await auth.api.signOut({
+    headers: await headers(),
+  });
 
-    redirect('/sign-in');
-  }
-);
+  redirect('/sign-in');
+});
 
 const updatePasswordSchema = z.object({
   currentPassword: z.string().min(8).max(100),
