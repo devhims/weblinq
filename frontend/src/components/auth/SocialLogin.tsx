@@ -1,7 +1,7 @@
 'use client';
 
 import { signIn } from '@/lib/auth-client';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { getCallbackURL } from '@/lib/utils';
 import { useState } from 'react';
 

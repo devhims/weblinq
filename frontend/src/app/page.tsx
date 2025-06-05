@@ -1,168 +1,462 @@
-'use client';
-
+import React from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { useSession } from '@/lib/auth-client';
+import { ArrowRight, Code, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-export default function HomePage() {
-  const { data: session } = useSession();
-  const isAuthenticated = !!session?.user;
-  const user = session?.user;
+import { TextEffect } from '@/components/ui/text-effect';
+import { AnimatedGroup } from '@/components/ui/animated-group';
+import { HeroHeader } from '@/components/header';
+import { Logo } from '@/components/logo';
+import { BorderBeam } from '@/components/magicui/border-beam';
+import { FAQSection } from '@/components/faq-section';
+import { FeaturesSection } from '@/components/features-section';
 
+const transitionVariants = {
+  item: {
+    hidden: {
+      opacity: 0,
+      filter: 'blur(12px)',
+      y: 12,
+    },
+    visible: {
+      opacity: 1,
+      filter: 'blur(0px)',
+      y: 0,
+      transition: {
+        type: 'spring',
+        bounce: 0.3,
+        duration: 1.5,
+      },
+    },
+  },
+};
+
+export default async function HomePage() {
   return (
-    <div className='min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100'>
-      {/* Navigation */}
-      <nav className='bg-white shadow-lg'>
-        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-          <div className='flex justify-between items-center py-4'>
-            <div className='flex items-center'>
-              <h1 className='text-2xl font-bold text-gray-900'>WebLinq</h1>
-            </div>
-            <div className='flex items-center space-x-4'>
-              {isAuthenticated ? (
-                <>
-                  <span className='text-gray-700'>
-                    Welcome, {user?.name || user?.email}!
-                  </span>
-                  <Link href='/dashboard'>
-                    <Button variant='primary'>Dashboard</Button>
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link href='/login'>
-                    <Button variant='ghost'>Sign In</Button>
-                  </Link>
-                  <Link href='/signup'>
-                    <Button variant='primary'>Get Started</Button>
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
+    <div className='min-h-screen'>
+      <HeroHeader />
+
+      <main className='overflow-hidden'>
+        {/* Light beam gradient effects */}
+        <div
+          aria-hidden
+          className='absolute inset-0 isolate hidden opacity-50 lg:block'
+        >
+          <div className='w-[35rem] h-[80rem] absolute left-0 top-0 -translate-y-[21.875rem] -rotate-45 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,hsla(0,0%,85%,.08)_0,hsla(0,0%,55%,.02)_50%,hsla(0,0%,45%,0)_80%)]' />
+          <div className='h-[80rem] absolute left-0 top-0 w-60 -rotate-45 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.06)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)] translate-x-[5%] -translate-y-[50%]' />
+          <div className='h-[80rem] absolute left-0 top-0 w-60 -translate-y-[21.875rem] -rotate-45 bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.04)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)]' />
         </div>
-      </nav>
 
-      {/* Hero Section */}
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20'>
-        <div className='text-center'>
-          <h1 className='text-4xl md:text-6xl font-bold text-gray-900 mb-6'>
-            Welcome to{' '}
-            <span className='text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600'>
-              WebLinq
-            </span>
-          </h1>
+        {/* Hero Section */}
+        <section>
+          <div className='relative pt-24 md:pt-36'>
+            <AnimatedGroup
+              variants={{
+                container: {
+                  visible: {
+                    transition: {
+                      delayChildren: 1,
+                    },
+                  },
+                },
+                item: {
+                  hidden: {
+                    opacity: 0,
+                    y: 20,
+                  },
+                  visible: {
+                    opacity: 1,
+                    y: 0,
+                    transition: {
+                      type: 'spring',
+                      bounce: 0.3,
+                      duration: 2,
+                    },
+                  },
+                },
+              }}
+              className='absolute inset-0 -z-20'
+            >
+              <div className='absolute inset-x-0 top-56 -z-20 lg:top-32'>
+                <div className='absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background' />
+              </div>
+            </AnimatedGroup>
 
-          <p className='text-xl text-gray-600 mb-8 max-w-3xl mx-auto'>
-            A modern authentication system built with Next.js frontend and
-            Hono.js backend, deployed on Cloudflare Workers for maximum
-            performance and scalability.
-          </p>
+            <div className='absolute inset-0 -z-10 size-full [background:radial-gradient(125%_125%_at_50%_100%,transparent_0%,var(--color-background)_75%)]' />
 
-          {!isAuthenticated ? (
-            <div className='flex flex-col sm:flex-row gap-4 justify-center'>
-              <Link href='/signup'>
-                <Button size='lg' className='w-full sm:w-auto'>
-                  Create Account
-                </Button>
-              </Link>
-              <Link href='/login'>
-                <Button
-                  variant='outline'
-                  size='lg'
-                  className='w-full sm:w-auto'
+            <div className='mx-auto max-w-7xl px-6'>
+              <div className='text-center sm:mx-auto lg:mr-auto lg:mt-0'>
+                <AnimatedGroup variants={transitionVariants}>
+                  <div className='relative overflow-hidden rounded-full w-fit mx-auto'>
+                    <Link
+                      href='/dashboard/studio'
+                      className='hover:bg-background dark:hover:border-t-border bg-muted group mx-auto flex w-fit items-center gap-4 rounded-full border p-1 pl-4 shadow-md shadow-zinc-950/5 transition-colors duration-300 dark:border-t-white/5 dark:shadow-zinc-950'
+                    >
+                      <span className='text-foreground text-sm'>
+                        Explore Studio
+                      </span>
+                      <span className='dark:border-background block h-4 w-0.5 border-l bg-white dark:bg-zinc-700' />
+                      <div className='bg-background group-hover:bg-muted size-6 overflow-hidden rounded-full duration-500'>
+                        <div className='flex w-12 -translate-x-1/2 duration-500 ease-in-out group-hover:translate-x-0'>
+                          <span className='flex size-6'>
+                            <ArrowRight className='m-auto size-3' />
+                          </span>
+                          <span className='flex size-6'>
+                            <ArrowRight className='m-auto size-3' />
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                    <BorderBeam
+                      duration={8}
+                      size={50}
+                      colorFrom='#f97316'
+                      colorTo='#ea580c'
+                      delay={0}
+                    />
+                  </div>
+                </AnimatedGroup>
+
+                <TextEffect
+                  preset='fade-in-blur'
+                  speedSegment={0.3}
+                  as='h1'
+                  className='mt-8 text-balance text-6xl md:text-7xl lg:mt-16 xl:text-[5.25rem]'
                 >
-                  Sign In
+                  Linking AI agents to the web
+                </TextEffect>
+
+                <TextEffect
+                  per='line'
+                  preset='fade-in-blur'
+                  speedSegment={0.3}
+                  delay={0.5}
+                  as='p'
+                  className='mx-auto mt-8 max-w-4xl text-balance text-lg'
+                >
+                  Extract web data, capture screenshots, and search the internet
+                  with our web scraping and data extraction platform.
+                </TextEffect>
+
+                <AnimatedGroup
+                  variants={{
+                    container: {
+                      visible: {
+                        transition: {
+                          staggerChildren: 0.05,
+                          delayChildren: 0.75,
+                        },
+                      },
+                    },
+                    ...transitionVariants,
+                  }}
+                  className='mt-12 flex flex-col items-center justify-center gap-2 md:flex-row'
+                >
+                  <div className='bg-foreground/10 rounded-[calc(var(--radius-xl)+0.125rem)] border p-0.5'>
+                    <Button
+                      asChild
+                      size='lg'
+                      className='rounded-xl px-5 text-base'
+                    >
+                      <Link href='/dashboard/studio'>
+                        <Code className='mr-2 h-5 w-5' />
+                        <span className='text-nowrap'>Try API Studio</span>
+                      </Link>
+                    </Button>
+                  </div>
+                  <Button
+                    asChild
+                    size='lg'
+                    variant='ghost'
+                    className='h-10.5 rounded-xl px-5'
+                  >
+                    <Link href='#features'>
+                      <span className='text-nowrap'>View API Features</span>
+                    </Link>
+                  </Button>
+                </AnimatedGroup>
+              </div>
+            </div>
+
+            <AnimatedGroup
+              variants={{
+                container: {
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.05,
+                      delayChildren: 0.75,
+                    },
+                  },
+                },
+                ...transitionVariants,
+              }}
+            >
+              <div className='relative -mr-56 mt-8 overflow-hidden px-2 sm:mr-0 sm:mt-12 md:mt-20'>
+                <div
+                  aria-hidden
+                  className='bg-linear-to-b to-background absolute inset-0 z-10 from-transparent from-35%'
+                />
+                <div className='inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background relative mx-auto max-w-6xl overflow-hidden rounded-2xl border p-4 shadow-lg shadow-zinc-950/15 ring-1'>
+                  {/* API Demo */}
+                  <div className='bg-background rounded-2xl p-8'>
+                    <div className='flex items-center space-x-2 mb-6'>
+                      <div className='flex space-x-2'>
+                        <div className='w-3 h-3 bg-red-500 rounded-full' />
+                        <div className='w-3 h-3 bg-yellow-500 rounded-full' />
+                        <div className='w-3 h-3 bg-green-500 rounded-full' />
+                      </div>
+                      <span className='text-muted-foreground text-sm ml-4'>
+                        api.weblinq.dev
+                      </span>
+                    </div>
+                    <div className='bg-black rounded-lg p-6 text-left border border-border'>
+                      <div className='text-green-400 font-mono text-sm'>
+                        <div className='text-gray-500 mb-2'>
+                          {`// Scrape any website`}
+                        </div>
+                        <div>
+                          <span className='text-blue-400'>POST</span>{' '}
+                          <span className='text-gray-300'>
+                            https://api.weblinq.dev/v1/
+                          </span>
+                          <span className='text-yellow-400'>scrape</span>
+                        </div>
+                        <div className='mt-2 ml-4'>
+                          <span className='text-gray-300'>{'{'}</span>
+                        </div>
+                        <div className='ml-8'>
+                          <span className='text-blue-400'>&quot;url&quot;</span>
+                          <span className='text-gray-300'>: </span>
+                          <span className='text-green-400'>
+                            &quot;https://example.com&quot;
+                          </span>
+                          <span className='text-gray-300'>,</span>
+                        </div>
+                        <div className='ml-8'>
+                          <span className='text-blue-400'>
+                            &quot;format&quot;
+                          </span>
+                          <span className='text-gray-300'>: </span>
+                          <span className='text-green-400'>
+                            &quot;markdown&quot;
+                          </span>
+                        </div>
+                        <div className='ml-4 text-gray-300'>{'}'}</div>
+                        <div className='mt-4 text-orange-400'>
+                          ✓ Content extracted successfully
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </AnimatedGroup>
+          </div>
+        </section>
+
+        <FeaturesSection />
+
+        {/* Pricing Section */}
+        <section id='pricing' className='py-20'>
+          <div className='mx-auto max-w-7xl px-6'>
+            <div className='text-center mb-16'>
+              <TextEffect
+                preset='fade-in-blur'
+                speedSegment={0.3}
+                as='h2'
+                className='text-4xl font-bold mb-4'
+              >
+                Simple, Transparent Pricing
+              </TextEffect>
+              <p className='text-muted-foreground text-lg'>
+                Choose the plan that fits your needs
+              </p>
+            </div>
+
+            <div className='grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto'>
+              {/* Free Plan */}
+              <div className='bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm'>
+                <div className='text-center mb-8'>
+                  <h3 className='text-2xl font-bold mb-2'>Free</h3>
+                  <div className='text-4xl font-bold'>
+                    $0
+                    <span className='text-lg text-muted-foreground'>
+                      /month
+                    </span>
+                  </div>
+                  <p className='text-muted-foreground mt-2'>
+                    1,000 API requests
+                  </p>
+                </div>
+                <ul className='space-y-3 mb-8'>
+                  <li className='flex items-center'>
+                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                    <span>Basic scraping tools</span>
+                  </li>
+                  <li className='flex items-center'>
+                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                    <span>Community support</span>
+                  </li>
+                  <li className='flex items-center'>
+                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                    <span>Rate limiting</span>
+                  </li>
+                </ul>
+                <Button variant='outline' className='w-full'>
+                  Get Started
                 </Button>
-              </Link>
+              </div>
+
+              {/* Pro Plan */}
+              <div className='bg-primary/10 rounded-2xl border border-primary/30 p-8 backdrop-blur-sm relative'>
+                <div className='absolute -top-4 left-1/2 transform -translate-x-1/2'>
+                  <span className='bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium'>
+                    Most Popular
+                  </span>
+                </div>
+                <div className='text-center mb-8'>
+                  <h3 className='text-2xl font-bold mb-2'>Pro</h3>
+                  <div className='text-4xl font-bold'>
+                    $20
+                    <span className='text-lg text-muted-foreground'>
+                      /month
+                    </span>
+                  </div>
+                  <p className='text-muted-foreground mt-2'>
+                    Everything in Free, plus...
+                  </p>
+                </div>
+                <ul className='space-y-3 mb-8'>
+                  <li className='flex items-center'>
+                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                    <span>Advanced scraping & monitoring</span>
+                  </li>
+                  <li className='flex items-center'>
+                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                    <span>Browser profiles</span>
+                  </li>
+                  <li className='flex items-center'>
+                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                    <span>24/7 customer support</span>
+                  </li>
+                </ul>
+                <Button className='w-full'>Subscribe →</Button>
+              </div>
+
+              {/* Enterprise Plan */}
+              <div className='bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm'>
+                <div className='text-center mb-8'>
+                  <h3 className='text-2xl font-bold mb-2'>Enterprise</h3>
+                  <div className='text-4xl font-bold'>Contact us</div>
+                  <p className='text-muted-foreground mt-2'>Unlimited usage</p>
+                </div>
+                <ul className='space-y-3 mb-8'>
+                  <li className='flex items-center'>
+                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                    <span>Most powerful agent modules</span>
+                  </li>
+                  <li className='flex items-center'>
+                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                    <span>24/7 premium support</span>
+                  </li>
+                  <li className='flex items-center'>
+                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                    <span>Custom integrations</span>
+                  </li>
+                </ul>
+                <Button variant='outline' className='w-full'>
+                  Contact Sales →
+                </Button>
+              </div>
             </div>
-          ) : (
-            <Link href='/dashboard'>
-              <Button size='lg'>Go to Dashboard</Button>
-            </Link>
-          )}
+          </div>
+        </section>
+
+        <FAQSection />
+      </main>
+
+      {/* Footer */}
+      <footer className='border-t'>
+        <div className='mx-auto max-w-7xl px-6 py-12'>
+          <div className='grid lg:grid-cols-4 gap-8'>
+            <div>
+              <div className='flex items-center space-x-2 mb-4'>
+                <Logo className='h-8' />
+              </div>
+              <p className='text-muted-foreground mb-4'>
+                Professional web scraping API platform built for developers and
+                enterprises.
+              </p>
+            </div>
+
+            <div>
+              <h3 className='font-semibold mb-4'>Legal</h3>
+              <ul className='space-y-2 text-muted-foreground'>
+                <li>
+                  <Link
+                    href='#'
+                    className='hover:text-foreground transition-colors'
+                  >
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href='#'
+                    className='hover:text-foreground transition-colors'
+                  >
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href='#'
+                    className='hover:text-foreground transition-colors'
+                  >
+                    Refund Policy
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className='font-semibold mb-4'>Links</h3>
+              <ul className='space-y-2 text-muted-foreground'>
+                <li>
+                  <Link
+                    href='#'
+                    className='hover:text-foreground transition-colors'
+                  >
+                    Support
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href='#'
+                    className='hover:text-foreground transition-colors'
+                  >
+                    Documentation
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href='/dashboard/studio'
+                    className='hover:text-foreground transition-colors'
+                  >
+                    API Studio
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className='text-muted-foreground text-sm'>
+                © 2025 Weblinq. All rights reserved.
+              </p>
+            </div>
+          </div>
         </div>
-
-        {/* Features */}
-        <div className='mt-20 grid grid-cols-1 md:grid-cols-3 gap-8'>
-          <div className='bg-white rounded-lg shadow-lg p-6 text-center'>
-            <div className='w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4'>
-              <svg
-                className='w-6 h-6 text-blue-600'
-                fill='none'
-                stroke='currentColor'
-                viewBox='0 0 24 24'
-              >
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'
-                />
-              </svg>
-            </div>
-            <h3 className='text-lg font-semibold mb-2'>
-              Secure Authentication
-            </h3>
-            <p className='text-gray-600'>
-              Built-in email/password and GitHub OAuth authentication with
-              secure session management.
-            </p>
-          </div>
-
-          <div className='bg-white rounded-lg shadow-lg p-6 text-center'>
-            <div className='w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4'>
-              <svg
-                className='w-6 h-6 text-green-600'
-                fill='none'
-                stroke='currentColor'
-                viewBox='0 0 24 24'
-              >
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M13 10V3L4 14h7v7l9-11h-7z'
-                />
-              </svg>
-            </div>
-            <h3 className='text-lg font-semibold mb-2'>Fast & Scalable</h3>
-            <p className='text-gray-600'>
-              Powered by Cloudflare Workers for global edge computing and
-              lightning-fast response times.
-            </p>
-          </div>
-
-          <div className='bg-white rounded-lg shadow-lg p-6 text-center'>
-            <div className='w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4'>
-              <svg
-                className='w-6 h-6 text-purple-600'
-                fill='none'
-                stroke='currentColor'
-                viewBox='0 0 24 24'
-              >
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z'
-                />
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
-                />
-              </svg>
-            </div>
-            <h3 className='text-lg font-semibold mb-2'>Modern Stack</h3>
-            <p className='text-gray-600'>
-              Built with Next.js 15, TypeScript, Tailwind CSS, and Hono.js for a
-              modern development experience.
-            </p>
-          </div>
-        </div>
-      </div>
+      </footer>
     </div>
   );
 }
