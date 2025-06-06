@@ -11,21 +11,72 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
 export default function SignInForm() {
-  const initialState = { errorMessage: '' };
+  const initialState = {
+    errorMessage: '',
+    requiresVerification: false,
+    email: '',
+  };
   const [state, formAction, pending] = useActionState(signIn, initialState);
 
+  // Check for success messages from URL params
   useEffect(() => {
-    if (state.errorMessage.length) {
-      toast.error(state.errorMessage);
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetSuccess = urlParams.get('reset');
+    const message = urlParams.get('message');
+
+    if (resetSuccess === 'success' && message) {
+      toast.success(decodeURIComponent(message), {
+        style: {
+          background: '#dcfce7',
+          border: '1px solid #bbf7d0',
+          color: '#166534',
+        },
+        duration: 5000, // Show for 5 seconds
+      });
+
+      // Clean up URL params
+      const newUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
     }
-  }, [state.errorMessage]);
+  }, []);
+
+  useEffect(() => {
+    if (state.errorMessage) {
+      if (state.requiresVerification && state.email) {
+        toast.error(state.errorMessage, {
+          style: {
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            color: '#92400e',
+          },
+          duration: 8000, // Show longer for verification message
+          action: {
+            label: 'Go to Verification',
+            onClick: () => {
+              window.location.href = `/verify-email?email=${encodeURIComponent(
+                state.email!
+              )}`;
+            },
+          },
+        });
+      } else {
+        toast.error(state.errorMessage, {
+          style: {
+            background: '#fee2e2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+          },
+        });
+      }
+    }
+  }, [state.errorMessage, state.requiresVerification, state.email]);
 
   return (
     <div className='w-full'>
       {/* Header */}
       <div className='mb-8'>
         <Link href='/' aria-label='go home' className='inline-block mb-6'>
-          <Icons.logo className='h-8 w-8' />
+          <Icons.logo className='h-8 w-auto' />
         </Link>
         <h1 className='text-3xl font-bold text-foreground mb-2'>Sign In.</h1>
         <p className='text-muted-foreground'>
@@ -80,7 +131,7 @@ export default function SignInForm() {
               </Label>
               <Button asChild variant='link' size='sm' className='px-0 h-auto'>
                 <Link
-                  href='/sign-in/forgot-account'
+                  href='/forgot-password'
                   className='text-sm text-muted-foreground hover:text-foreground'
                 >
                   Forgot password?

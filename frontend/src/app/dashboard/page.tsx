@@ -7,6 +7,7 @@ import { ApiKeyManagerLoading } from '@/components/dashboard/ApiKeyManagerLoadin
 import { TaskManagerWithSuspense } from '@/components/dashboard/TaskManagerWithSuspense';
 import { TaskManagerLoading } from '@/components/dashboard/TaskManagerLoading';
 import { SignOutButton } from '@/components/dashboard/SignOutButton';
+import { VerificationSuccessToast } from '@/components/dashboard/VerificationSuccessToast';
 
 export default async function DashboardPage() {
   // Check session on the server side
@@ -21,6 +22,9 @@ export default async function DashboardPage() {
 
   return (
     <div className='min-h-screen bg-gray-50'>
+      <Suspense fallback={null}>
+        <VerificationSuccessToast />
+      </Suspense>
       <div className='container mx-auto px-4 py-8 max-w-7xl'>
         <div className='flex justify-between items-center mb-8'>
           <div>

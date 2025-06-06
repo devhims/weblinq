@@ -1,5 +1,5 @@
-import SignInForm from '@/components/auth/signin-form';
+import UnifiedAuthForm from '@/components/auth/unified-auth-form';
 
 export default function SignInPage() {
-  return <SignInForm />;
+  return <UnifiedAuthForm />;
 }
