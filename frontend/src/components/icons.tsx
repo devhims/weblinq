@@ -1,9 +1,17 @@
-import { ArrowLeft, LogOut, LucideProps } from 'lucide-react';
+import {
+  ArrowLeft,
+  LogOut,
+  Mail,
+  AlertTriangle,
+  LucideProps,
+} from 'lucide-react';
 import Image from 'next/image';
 
 export const Icons = {
   arrowLeft: ArrowLeft,
   logOut: LogOut,
+  mail: Mail,
+  alertTriangle: AlertTriangle,
   logo: ({ className }: { className?: string }) => (
     <Image
       src='/logo.png'

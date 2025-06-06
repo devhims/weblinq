@@ -2,6 +2,13 @@ import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/db';
+import {
+  sendEmail,
+  getVerificationEmailTemplate,
+  getPasswordResetEmailTemplate,
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from './email';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -50,12 +57,30 @@ export const auth = betterAuth({
   },
 
   /* built-in auth modes – _no_ plugin calls needed in v1 */
-  emailAndPassword: { enabled: true },
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: true,
+    sendResetPassword: async ({ user, url, token }, request) => {
+      await sendPasswordResetEmail(url, user.email);
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url, token }, request) => {
+      console.log('Sending verification email with URL:', url);
+      await sendVerificationEmail(url, user.email);
+    },
+  },
   socialProviders: {
     github: {
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       // Better Auth auto-builds the callback from baseURL, so no redirectURI here
+    },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     },
   },
 
