@@ -2,7 +2,7 @@
 
 import PlaygroundContainer from './components/PlaygroundContainer';
 import { InfoIcon } from 'lucide-react';
-import { ReactNode } from 'react';
+import { ReactNode, Suspense } from 'react';
 
 // Custom Alert components since the import is failing
 interface AlertProps {
@@ -70,7 +70,9 @@ function AlertDescription({
 export default function PlaygroundPage() {
   return (
     <div className='w-full'>
-      <PlaygroundContainer />
+      <Suspense fallback={<div>Loading...</div>}>
+        <PlaygroundContainer />
+      </Suspense>
     </div>
   );
 }
