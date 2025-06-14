@@ -9,7 +9,6 @@ import {
 import { useSession } from '@/lib/auth-client';
 import { Suspense } from 'react';
 import React from 'react';
-import { authClient } from '@/lib/auth-client';
 
 function SubscriptionSkeleton() {
   return (
@@ -115,7 +114,7 @@ function ManageSubscription() {
                   variant='outline'
                   onClick={async () => {
                     try {
-                      await authClient.customer.portal();
+                      await createCustomerPortalSession();
                     } catch (error) {
                       console.error('Portal error:', error);
                       // Could show a toast notification here
@@ -170,8 +169,8 @@ function ManageSubscription() {
               {currentPlan === 'free'
                 ? ' Free plan gives you 1,000 lifetime credits (no monthly reset). Upgrade to Pro for 5,000 monthly credits!'
                 : currentPlan === 'pro'
-                  ? ' Your Pro plan credits reset to 5,000 every month.'
-                  : ''}
+                ? ' Your Pro plan credits reset to 5,000 every month.'
+                : ''}
             </p>
           </div>
 
