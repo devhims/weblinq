@@ -1,5 +1,3 @@
-import type { Schema } from 'hono';
-
 import { logger } from 'hono/logger';
 import { notFound, onError, serveEmojiFavicon } from 'stoker/middlewares';
 import { defaultHook } from 'stoker/openapi';

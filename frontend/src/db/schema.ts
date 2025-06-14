@@ -91,3 +91,70 @@ export const apikey = sqliteTable('apikey', {
   permissions: text('permissions'),
   metadata: text('metadata'),
 });
+
+// Polar-specific subscription tracking
+export const polarSubscription = sqliteTable('polar_subscription', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  polarCustomerId: text('polar_customer_id').notNull(),
+  subscriptionId: text('subscription_id').notNull().unique(),
+  status: text('status').notNull(), // active, canceled, past_due, etc.
+  planName: text('plan_name').notNull(), // free, pro, enterprise
+  productId: text('product_id'),
+  currentPeriodStart: integer('current_period_start', { mode: 'timestamp' }),
+  currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
+  cancelAtPeriodEnd: integer('cancel_at_period_end', {
+    mode: 'boolean',
+  }).default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+// User credits tracking (separate from auth)
+export const userCredits = sqliteTable('user_credits', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' })
+    .unique(), // One record per user
+  credits: integer('credits').notNull().default(1000), // Total credits
+  creditsUsed: integer('credits_used').notNull().default(0), // Used credits
+  planName: text('plan_name').notNull().default('free'), // Current plan
+  lastReset: integer('last_reset', { mode: 'timestamp' }).$defaultFn(
+    () => /* @__PURE__ */ new Date()
+  ),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+// Credit usage history
+export const creditUsage = sqliteTable('credit_usage', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  operation: text('operation').notNull(), // 'scrape', 'search', 'extract', etc.
+  creditsUsed: integer('credits_used').notNull(),
+  metadata: text('metadata'), // JSON string with operation details
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+});
