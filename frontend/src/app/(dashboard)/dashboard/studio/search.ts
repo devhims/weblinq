@@ -221,7 +221,9 @@ async function searchDuckDuckGo(
     duckDuckGoLastRequest.time = Date.now();
 
     // Try DuckDuckGo Lite which is more bot-friendly
-    const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
+    const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(
+      query
+    )}`;
 
     // Enhanced headers specifically for DuckDuckGo
     const enhancedHeaders = {
@@ -404,7 +406,9 @@ async function searchDuckDuckGo(
     if (results.length === 0 && searchUrl.includes('lite.duckduckgo.com')) {
       console.log('DuckDuckGo: Lite version failed, trying main search...');
       try {
-        const fallbackUrl = `https://duckduckgo.com/?q=${encodeURIComponent(query)}&ia=web`;
+        const fallbackUrl = `https://duckduckgo.com/?q=${encodeURIComponent(
+          query
+        )}&ia=web`;
         const fallbackResponse = await fetchWithRetry(
           fallbackUrl,
           { headers: enhancedHeaders },
@@ -436,7 +440,9 @@ async function searchStartpage(
   limit: number
 ): Promise<SearchResult[]> {
   try {
-    const searchUrl = `https://www.startpage.com/sp/search?query=${encodeURIComponent(query)}&cat=web&pl=opensearch`;
+    const searchUrl = `https://www.startpage.com/sp/search?query=${encodeURIComponent(
+      query
+    )}&cat=web&pl=opensearch`;
     const response = await fetchWithRetry(searchUrl);
     const html = await response.text();
     const $ = cheerio.load(html);
@@ -666,7 +672,9 @@ async function searchYandex(
   limit: number
 ): Promise<SearchResult[]> {
   try {
-    const searchUrl = `https://yandex.com/search/?text=${encodeURIComponent(query)}&lr=84`;
+    const searchUrl = `https://yandex.com/search/?text=${encodeURIComponent(
+      query
+    )}&lr=84`;
     const response = await fetchWithRetry(searchUrl);
     const html = await response.text();
     const $ = cheerio.load(html);
@@ -784,7 +792,9 @@ async function searchBing(
   limit: number
 ): Promise<SearchResult[]> {
   try {
-    const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+    const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(
+      query
+    )}`;
     const response = await fetchWithRetry(searchUrl);
     const html = await response.text();
     const $ = cheerio.load(html);
@@ -870,7 +880,7 @@ async function searchBing(
                     const urlMatch = url.match(pattern);
                     if (urlMatch) {
                       try {
-                        let decoded = decodeURIComponent(urlMatch[1]);
+                        const decoded = decodeURIComponent(urlMatch[1]);
 
                         // Debug logging for pattern matching (reduced)
                         if (results.length < 1) {
@@ -891,7 +901,7 @@ async function searchBing(
                         ) {
                           try {
                             // Try different base64 decoding approaches
-                            let base64Attempts = [
+                            const base64Attempts = [
                               decoded, // Try as-is
                               decoded.substring(2), // Remove first 2 chars (like 'a1')
                               decoded.substring(1), // Remove first char
@@ -1034,7 +1044,9 @@ async function searchBrave(
       return [];
     }
 
-    const searchUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${Math.min(limit, 20)}`;
+    const searchUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(
+      query
+    )}&count=${Math.min(limit, 20)}`;
 
     const response = await fetchWithRetry(searchUrl, {
       headers: {
@@ -1217,7 +1229,9 @@ export async function searchMultipleEngines(
     });
 
     console.log(
-      `Total results collected: ${allResults.length} from sources: ${successfulSources.join(', ')}`
+      `Total results collected: ${
+        allResults.length
+      } from sources: ${successfulSources.join(', ')}`
     );
 
     if (allResults.length === 0) {
@@ -1250,7 +1264,9 @@ export async function searchMultipleEngines(
 
     if (error instanceof z.ZodError) {
       throw new Error(
-        `Invalid search parameters: ${error.errors.map((e) => e.message).join(', ')}`
+        `Invalid search parameters: ${error.errors
+          .map((e) => e.message)
+          .join(', ')}`
       );
     }
 

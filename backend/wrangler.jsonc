@@ -32,7 +32,11 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["TaskDurableObject", "WebDurableObject"]
+      "new_sqlite_classes": ["TaskDurableObject"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["WebDurableObject"]
     }
   ],
   "observability": {
