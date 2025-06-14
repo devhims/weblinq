@@ -1,7 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
 import { and, eq } from 'drizzle-orm';
-import * as HttpStatusCodes from 'stoker/http-status-codes';
-import * as HttpStatusPhrases from 'stoker/http-status-phrases';
 
 import type {
   insertTasksSchema,
@@ -12,7 +10,6 @@ import type { z } from '@hono/zod-openapi';
 
 import { createDb } from '@/db';
 import { tasks } from '@/db/schema';
-import { ZOD_ERROR_CODES, ZOD_ERROR_MESSAGES } from '@/lib/constants';
 
 export interface Env {
   D1_DB: D1Database;

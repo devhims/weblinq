@@ -38,6 +38,11 @@ export default antfu(
       'style/indent': 'off',
       'style/comma-dangle': 'off',
       'style/quotes': 'off',
+      'style/quote-props': 'off',
+      'style/semicolon': 'off',
+      'style/member-delimiter-style': 'off',
+      curly: ['off'],
+      'antfu/if-newline': 'off',
     },
   },
   {

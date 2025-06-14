@@ -25,13 +25,14 @@
       {
         "name": "TASK_DURABLE_OBJECT",
         "class_name": "TaskDurableObject"
-      }
+      },
+      { "name": "WEBLINQ_DURABLE_OBJECT", "class_name": "WebDurableObject" }
     ]
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["TaskDurableObject"]
+      "new_sqlite_classes": ["TaskDurableObject", "WebDurableObject"]
     }
   ],
   "observability": {
