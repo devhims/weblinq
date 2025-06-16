@@ -3,19 +3,23 @@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useSearchParams, usePathname, useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+
+import { useQueryState, parseAsInteger } from 'nuqs';
+
+import {
+  useSearchParams, // still used for many read-only flags
+} from 'next/navigation';
+
+import { useTransition, useEffect } from 'react';
+import React from 'react';
+
 import { studioApi } from '@/lib/studio-api';
 import { ApiResult } from '../types';
-import React from 'react';
 import { filterMainContent } from '../utils/mainContent';
 
-interface UrlInputProps {
-  onApiResult: (result: ApiResult, error: string | null) => void;
-  onLoadingChange?: (loading: boolean) => void;
-}
-
-// Common selectors that typically represent main content areas
+/* ──────────────────────────────────────────────────────────────
+   Constants
+──────────────────────────────────────────────────────────────── */
 const MAIN_CONTENT_SELECTORS = [
   'h1',
   'h2',
@@ -33,351 +37,236 @@ const MAIN_CONTENT_SELECTORS = [
   '.main-content',
 ];
 
+/* ──────────────────────────────────────────────────────────────
+   Component
+──────────────────────────────────────────────────────────────── */
+interface UrlInputProps {
+  onApiResult: (result: ApiResult, error: string | null) => void;
+  onLoadingChange?: (loading: boolean) => void;
+}
+
 export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const router = useRouter();
+  /* ———————————————————————————————————————————
+     URL-backed state (nuqs)
+  ——————————————————————————————————————————— */
+  const [url, setUrl] = useQueryState('url', { defaultValue: 'https://example.com' });
+  const [query, setQuery] = useQueryState('query', { defaultValue: '' });
+  const [limit, setLimit] = useQueryState('limit', parseAsInteger.withDefault(15));
+
+  /* ———————————————————————————————————————————
+     Other react state
+  ——————————————————————————————————————————— */
   const [loading, startTransition] = useTransition();
 
-  // All state declarations at the top level to avoid hook order issues
-  const [localUrl, setLocalUrl] = useState(
-    searchParams.get('url') || 'https://example.com'
-  );
-  const [localQuery, setLocalQuery] = useState(searchParams.get('query') || '');
-  const [localLimit, setLocalLimit] = useState(
-    searchParams.get('limit') || '15'
-  );
-
-  // Get current endpoint to determine what inputs to show
+  /* ———————————————————————————————————————————
+     Read-only flags (still via useSearchParams)
+  ——————————————————————————————————————————— */
+  const searchParams = useSearchParams();
   const selectedEndpoint = searchParams.get('endpoint') || 'scrape';
 
-  // Update parent component about loading state changes
-  React.useEffect(() => {
-    if (onLoadingChange) {
-      onLoadingChange(loading);
-    }
+  /* ———————————————————————————————————————————
+     Notify parent about loading changes
+  ——————————————————————————————————————————— */
+  useEffect(() => {
+    onLoadingChange?.(loading);
   }, [loading, onLoadingChange]);
 
-  const updateUrl = (newUrl: string) => {
-    setLocalUrl(newUrl);
-    const params = new URLSearchParams(searchParams);
-    params.set('url', newUrl);
-    router.replace(`${pathname}?${params.toString()}`);
-  };
-
-  const updateQuery = (newQuery: string) => {
-    setLocalQuery(newQuery);
-    const params = new URLSearchParams(searchParams);
-    if (newQuery) {
-      params.set('query', newQuery);
+  /* ———————————————————————————————————————————
+     Helpers to update URL state from inputs
+  ——————————————————————————————————————————— */
+  const onUrlChange = (v: string) => setUrl(v.trim() === '' ? null : v);
+  const onQueryChange = (v: string) => setQuery(v.trim() === '' ? null : v);
+  const onLimitChange = (v: string) => {
+    if (v.trim() === '') {
+      setLimit(null);
     } else {
-      params.delete('query');
+      const n = Number(v);
+      if (!Number.isNaN(n) && n > 0) setLimit(n);
     }
-    router.replace(`${pathname}?${params.toString()}`);
   };
 
-  const updateLimit = (newLimit: string) => {
-    setLocalLimit(newLimit);
-    const params = new URLSearchParams(searchParams);
-    const numValue = parseInt(newLimit, 10);
-    if (!isNaN(numValue) && numValue > 0) {
-      params.set('limit', newLimit);
-    } else {
-      params.delete('limit');
-    }
-    router.replace(`${pathname}?${params.toString()}`);
-  };
-
+  /* ———————————————————————————————————————————
+     Main action handler
+  ——————————————————————————————————————————— */
   const handleApiCall = async () => {
     startTransition(async () => {
       try {
-        // Get current endpoint and action from URL
-        const selectedEndpoint = searchParams.get('endpoint') || 'scrape';
-        const selectedAction = searchParams.get('action') || 'markdown';
-        const url = localUrl;
+        /* pull frequently-used flags fresh each time */
+        const endpoint = searchParams.get('endpoint') || 'scrape';
+        const action = searchParams.get('action') || 'markdown';
 
-        // Gather parameters based on endpoint/action
-        const selector = searchParams.get('selector') || '';
-        const elements = selector
-          ? selector.split(',').map((s) => ({ selector: s.trim() }))
-          : [];
+        const currentUrl = url ?? '';
+        const selectorRaw = searchParams.get('selector') || '';
+        const elements = selectorRaw ? selectorRaw.split(',').map((s) => ({ selector: s.trim() })) : [];
+
+        /* shared visual params */
+        const fullPage = searchParams.get('fullPage') === 'true';
+        const waitTime = searchParams.get('waitTime') ? Number(searchParams.get('waitTime')) : 0;
+        const width = searchParams.get('width') ? Number(searchParams.get('width')) : 1920;
+        const height = searchParams.get('height') ? Number(searchParams.get('height')) : 1080;
+        const format = searchParams.get('format') || 'png';
+        const quality = searchParams.get('quality') ? Number(searchParams.get('quality')) : undefined;
+        const mobile = searchParams.get('mobile') === 'true';
+        const mobileViewport = mobile
+          ? { width: 390, height: 844, deviceScaleFactor: 3, hasTouch: true, isMobile: true }
+          : undefined;
+
+        /* scrape-specific flags */
         const onlyMainContent = searchParams.get('onlyMainContent') === 'true';
         const includeMarkdown = searchParams.get('includeMarkdown') === 'true';
         const includeLinks = searchParams.get('includeLinks') === 'true';
-        const visibleLinksOnly =
-          searchParams.get('visibleLinksOnly') === 'true';
+        const visibleLinksOnly = searchParams.get('visibleLinksOnly') === 'true'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
-        // Visual params
-        const fullPage = searchParams.get('fullPage') !== 'false'; // default true
-        const width = searchParams.get('width')
-          ? Number(searchParams.get('width'))
-          : 1280;
-        const height = searchParams.get('height')
-          ? Number(searchParams.get('height'))
-          : 800;
-        const waitTime = searchParams.get('waitTime')
-          ? Number(searchParams.get('waitTime'))
-          : 0;
-        const format = searchParams.get('format') || 'png';
-        const quality = searchParams.get('quality')
-          ? Number(searchParams.get('quality'))
-          : undefined;
-
-        // Structured params
+        /* structured */
         const jsonPrompt = searchParams.get('jsonPrompt') || '';
 
-        // Handle different endpoints and actions
-        if (selectedEndpoint === 'scrape') {
-          if (selectedAction === 'elements') {
-            let elementsToUse = elements;
+        /* search */
+        const currentQuery = query ?? '';
+        const currentLimit = limit;
 
-            // If no elements are specified and onlyMainContent is true,
-            // use all main content selectors
+        /* — Endpoint router — */
+        if (endpoint === 'search' && action === 'web') {
+          if (!currentQuery.trim()) throw new Error('Search query is required');
+          const res = await studioApi.search({ query: currentQuery, limit: currentLimit });
+          if (res?.success && res.data?.results) {
+            const transformed = {
+              results: res.data.results,
+              totalResults: res.data.metadata.totalResults,
+              searchTime: res.data.metadata.searchTime,
+              sources: res.data.metadata.sources,
+            };
+            onApiResult(transformed, null);
+          } else {
+            throw new Error('Search failed');
+          }
+          return;
+        }
+
+        if (endpoint === 'scrape') {
+          if (action === 'elements') {
+            let elementsToUse = elements;
             if (elements.length === 0 && onlyMainContent) {
-              elementsToUse = MAIN_CONTENT_SELECTORS.map((selector) => ({
-                selector,
-              }));
+              elementsToUse = MAIN_CONTENT_SELECTORS.map((sel) => ({ selector: sel }));
             } else if (elements.length === 0) {
-              // Default to h1 if no selectors and not onlyMainContent
               elementsToUse = [{ selector: 'h1' }];
             }
 
-            const scrapePayload = {
-              url,
+            const scrapeRes = await studioApi.scrape({
+              url: currentUrl,
               elements: elementsToUse,
               waitTime: waitTime > 0 ? waitTime : undefined,
-            };
+            });
+
             const results: any[] = [];
-            const scrapeRes = await studioApi.scrape(scrapePayload);
 
             if (scrapeRes?.success && scrapeRes.data?.elements) {
-              // Transform backend response to frontend format
-              const transformedElements = scrapeRes.data.elements.map(
-                (element) => ({
-                  selector: element.selector,
-                  results: Array.isArray(element.data)
-                    ? element.data.map((item) => ({
-                        html: item.html || '',
-                        text: item.text || '',
-                        top: item.top || 0,
-                        left: item.left || 0,
-                        width: item.width || 0,
-                        height: item.height || 0,
-                        attributes: item.attributes || [],
-                      }))
-                    : [
-                        {
-                          html: element.data.html || '',
-                          text: element.data.text || '',
-                          top: element.data.top || 0,
-                          left: element.data.left || 0,
-                          width: element.data.width || 0,
-                          height: element.data.height || 0,
-                          attributes: element.data.attributes || [],
-                        },
-                      ],
-                })
-              );
+              const transformed = {
+                elements: scrapeRes.data.elements.map((el) => ({
+                  selector: el.selector,
+                  results: Array.isArray(el.data) ? el.data : [el.data],
+                })),
+              };
 
-              const frontendFormat = { elements: transformedElements };
+              const finalData = onlyMainContent ? filterMainContent(transformed) : transformed;
 
-              // Apply main content filtering if the option is enabled
-              if (onlyMainContent) {
-                const filteredResult = filterMainContent(frontendFormat);
-                results.push({ type: 'elements', data: filteredResult });
-              } else {
-                results.push({ type: 'elements', data: frontendFormat });
-              }
+              results.push({ type: 'elements', data: finalData });
             }
 
             if (includeMarkdown) {
-              try {
-                const markdownRes = await studioApi.markdown({ url });
-                if (markdownRes?.success && markdownRes.data?.markdown) {
-                  results.push({
-                    type: 'markdown',
-                    data: markdownRes.data.markdown,
-                  });
-                }
-              } catch (err) {
-                console.error('Markdown extraction error:', err);
-              }
+              const md = await studioApi.markdown({ url: currentUrl });
+              if (md?.success && md.data?.markdown) results.push({ type: 'markdown', data: md.data.markdown });
             }
+
             if (includeLinks) {
-              try {
-                const linksRes = await studioApi.links({
-                  url,
-                  includeExternal: true,
-                });
-                if (linksRes?.success && linksRes.data?.links) {
-                  results.push({ type: 'links', data: linksRes.data.links });
-                }
-              } catch (err) {
-                console.error('Links extraction error:', err);
-              }
+              const links = await studioApi.links({ url: currentUrl, includeExternal: true });
+              if (links?.success && links.data?.links) results.push({ type: 'links', data: links.data.links });
             }
-            if (results.length === 0) {
-              throw new Error('Failed to scrape elements: No data received');
-            } else if (results.length === 1) {
-              onApiResult(results[0].data, null);
-            } else {
-              const combinedResult = {
-                combinedResults: results,
-              };
-              onApiResult(combinedResult, null);
-            }
-            return;
-          }
-          if (selectedAction === 'markdown') {
-            const res = await studioApi.markdown({ url });
 
-            if (res?.success && res.data?.markdown) {
-              onApiResult(res.data.markdown, null);
-            } else {
-              throw new Error(
-                `Failed to extract markdown: No content received. Response: ${JSON.stringify(
-                  res
-                )}`
-              );
-            }
+            if (results.length === 0) throw new Error('Failed to scrape elements: No data received');
+            if (results.length === 1) onApiResult(results[0].data, null);
+            else onApiResult({ combinedResults: results }, null);
+
             return;
           }
-          if (selectedAction === 'html') {
-            const res = await studioApi.content({ url });
-            if (res?.success && res.data?.content) {
-              onApiResult(res.data.content, null);
-            } else {
-              throw new Error('Failed to fetch HTML content: No data received');
-            }
+
+          if (action === 'markdown') {
+            const res = await studioApi.markdown({ url: currentUrl });
+            if (res?.success && res.data?.markdown) onApiResult(res.data.markdown, null);
+            else throw new Error('Failed to extract markdown');
             return;
           }
-          if (selectedAction === 'links') {
-            const res = await studioApi.links({
-              url,
-              includeExternal: true,
-            });
-            if (res?.success && res.data?.links) {
-              onApiResult(res.data.links, null);
-            } else {
-              throw new Error('Failed to retrieve links: No data received');
-            }
+
+          if (action === 'html') {
+            const res = await studioApi.content({ url: currentUrl });
+            if (res?.success && res.data?.content) onApiResult(res.data.content, null);
+            else throw new Error('Failed to fetch HTML content');
+            return;
+          }
+
+          if (action === 'links') {
+            const res = await studioApi.links({ url: currentUrl, includeExternal: true });
+            if (res?.success && res.data?.links) onApiResult(res.data.links, null);
+            else throw new Error('Failed to retrieve links');
             return;
           }
         }
-        if (selectedEndpoint === 'visual') {
-          if (selectedAction === 'screenshot') {
-            const res = await studioApi.screenshot({
-              url,
+
+        if (endpoint === 'visual' && action === 'screenshot') {
+          const res = await studioApi.screenshot({
+            url: currentUrl,
+            viewport: mobileViewport ?? { width, height, deviceScaleFactor: 1 },
+            screenshotOptions: {
               fullPage,
-              width,
-              height,
-              waitTime,
-              format,
+              type: format as 'png' | 'jpeg' | 'webp',
               quality: format === 'png' ? undefined : quality,
-            });
-            if (res?.success && res.data?.image) {
-              const newResult = {
-                imageUrl: `data:image/${format};base64,${res.data.image}`,
-              };
-              onApiResult(newResult, null);
-            } else {
-              throw new Error(
-                'Failed to get screenshot: No image data received'
-              );
-            }
-            return;
+            },
+          });
+          if (res?.success && res.data?.image) {
+            onApiResult({ imageUrl: `data:image/${format};base64,${res.data.image}` }, null);
+          } else {
+            throw new Error('Failed to get screenshot');
           }
-          if (selectedAction === 'pdf') {
-            // Placeholder/mock result for PDF
-            const mockResult: ApiResult = {
-              fileUrl: 'https://example.com/sample.pdf',
-            };
-            onApiResult(mockResult, null);
-            return;
-          }
+          return;
         }
-        if (selectedEndpoint === 'structured') {
-          if (selectedAction === 'json') {
-            const jsonOptions: {
-              url: string;
-              schema: Record<string, any>;
-              waitTime?: number;
-              instructions?: string;
-            } = {
-              url,
-              schema: {}, // Default empty schema
-            };
-            if (jsonPrompt?.trim()) {
-              jsonOptions.instructions = jsonPrompt;
-            }
-            if (waitTime > 0) {
-              jsonOptions.waitTime = waitTime;
-            }
-            const res = await studioApi.jsonExtraction(jsonOptions);
-            if (res) {
-              onApiResult(res, null);
-            } else {
-              throw new Error('Failed to extract JSON: No data received');
-            }
-            return;
-          }
+
+        if (endpoint === 'structured' && action === 'json') {
+          const res = await studioApi.jsonExtraction({
+            url: currentUrl,
+            schema: {},
+            instructions: jsonPrompt || undefined,
+            waitTime: waitTime > 0 ? waitTime : undefined,
+          });
+          if (res) onApiResult(res, null);
+          else throw new Error('Failed to extract JSON');
+          return;
         }
-        if (selectedEndpoint === 'search') {
-          if (selectedAction === 'web') {
-            const query = searchParams.get('query') || '';
-            const limit = parseInt(searchParams.get('limit') || '15', 10);
 
-            if (!query.trim()) {
-              throw new Error('Search query is required');
-            }
-
-            const searchResult = await studioApi.search({ query, limit });
-
-            if (searchResult?.success && searchResult.data?.results) {
-              // Transform the response to match what SearchResultDisplay expects
-              const transformedResult = {
-                results: searchResult.data.results,
-                totalResults: searchResult.data.metadata.totalResults,
-                searchTime: searchResult.data.metadata.searchTime,
-                sources: searchResult.data.metadata.sources,
-              };
-              onApiResult(transformedResult, null);
-            } else {
-              throw new Error('Search failed');
-            }
-            return;
-          }
-        }
-        // fallback
-        const mockResult: ApiResult = {
-          message: `${selectedAction} operation completed successfully`,
-        };
-        onApiResult(mockResult, null);
+        /* fallback mock */
+        onApiResult({ message: `${action} operation completed successfully` }, null);
       } catch (err: any) {
         console.error('API call error:', err);
-        onApiResult(
-          null,
-          err?.message || 'An error occurred during the API call'
-        );
+        onApiResult(null, err?.message || 'An error occurred during the API call');
       }
     });
   };
 
-  // For search endpoint, show search query and limit inputs
+  /* ———————————————————————————————————————————
+     Render
+  ——————————————————————————————————————————— */
   if (selectedEndpoint === 'search') {
     return (
-      <div className='space-y-4'>
-        <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-          <div className='md:col-span-2'>
-            <Label htmlFor='search-query' className='text-base font-medium'>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <Label htmlFor="search-query" className="text-base font-medium">
               Search Query
             </Label>
             <Input
-              id='search-query'
-              value={localQuery}
-              onChange={(e) => updateQuery(e.target.value)}
-              placeholder='Enter your search terms...'
-              className='text-base h-11'
+              id="search-query"
+              value={query ?? ''}
+              onChange={(e) => onQueryChange(e.target.value)}
+              placeholder="Enter your search terms..."
+              className="text-base h-11"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -386,26 +275,27 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
               }}
             />
           </div>
-          <div className='flex flex-col'>
-            <Label htmlFor='search-limit' className='text-base font-medium'>
+
+          <div className="flex flex-col">
+            <Label htmlFor="search-limit" className="text-base font-medium">
               Results
             </Label>
-            <div className='flex space-x-2'>
+            <div className="flex space-x-2">
               <Input
-                id='search-limit'
-                type='number'
-                value={localLimit}
-                onChange={(e) => updateLimit(e.target.value)}
-                placeholder='15'
-                min='1'
-                max='50'
-                className='text-base h-11'
+                id="search-limit"
+                type="number"
+                value={limit?.toString() ?? ''}
+                onChange={(e) => onLimitChange(e.target.value)}
+                placeholder="15"
+                min="1"
+                max="50"
+                className="text-base h-11"
               />
               <Button
                 onClick={handleApiCall}
-                type='button'
-                className='h-11 px-6'
-                disabled={loading || !localQuery.trim()}
+                type="button"
+                className="h-11 px-6"
+                disabled={loading || !(query ?? '').trim()}
               >
                 {loading ? 'Searching...' : 'Search'}
               </Button>
@@ -417,17 +307,17 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   }
 
   return (
-    <div className='space-y-2'>
-      <Label htmlFor='url-input' className='text-base font-medium'>
+    <div className="space-y-2">
+      <Label htmlFor="url-input" className="text-base font-medium">
         URL
       </Label>
-      <div className='flex space-x-2'>
+      <div className="flex space-x-2">
         <Input
-          id='url-input'
-          value={localUrl}
-          onChange={(e) => updateUrl(e.target.value)}
-          placeholder='https://example.com'
-          className='flex-1 text-base h-11'
+          id="url-input"
+          value={url ?? ''}
+          onChange={(e) => onUrlChange(e.target.value)}
+          placeholder="https://example.com"
+          className="flex-1 text-base h-11"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -435,12 +325,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             }
           }}
         />
-        <Button
-          onClick={handleApiCall}
-          type='button'
-          className='h-11 px-6'
-          disabled={loading}
-        >
+        <Button onClick={handleApiCall} type="button" className="h-11 px-6" disabled={loading}>
           {loading ? 'Loading...' : 'Run'}
         </Button>
       </div>

@@ -6,18 +6,55 @@ import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Web'];
 
+/**
+ * request/response contracts (schemas) for web routes
+ * any change to the Zod route schemas instantly propagates to handlers
+ * schema is the single source of truth for request/response validation
+ */
 // Input schemas for different web operations
-const screenshotInputSchema = z.object({
+export const screenshotInputSchema = z.object({
   url: z.string().url('Must be a valid URL'),
-  fullPage: z.boolean().optional().default(false),
-  width: z.number().int().min(100).max(3840).optional().default(1280),
-  height: z.number().int().min(100).max(2160).optional().default(800),
+  // Optional delay (in ms) before taking the screenshot
   waitTime: z.number().int().min(0).max(30000).optional().default(0),
-  format: z.enum(['png', 'jpeg']).optional().default('png'),
-  quality: z.number().int().min(1).max(100).optional().default(80),
+
+  // Advanced Cloudflare/Puppeteer compatible screenshot options
+  screenshotOptions: z
+    .object({
+      captureBeyondViewport: z.boolean().optional(),
+      clip: z
+        .object({
+          height: z.number().int().min(1),
+          width: z.number().int().min(1),
+          x: z.number().int().min(0),
+          y: z.number().int().min(0),
+          scale: z.number().min(0.1).max(10).optional(),
+        })
+        .optional(),
+      encoding: z.enum(['binary', 'base64']).optional().default('binary'),
+      fromSurface: z.boolean().optional(),
+      fullPage: z.boolean().optional(),
+      omitBackground: z.boolean().optional(),
+      optimizeForSpeed: z.boolean().optional(),
+      quality: z.number().int().min(1).max(100).optional(),
+      type: z.enum(['png', 'jpeg', 'webp']).optional().default('png'),
+    })
+    .optional()
+    .default({}),
+
+  // Viewport configuration
+  viewport: z
+    .object({
+      height: z.number().int().min(100).max(2160),
+      width: z.number().int().min(100).max(3840),
+      deviceScaleFactor: z.number().min(0.1).max(10).optional(),
+      hasTouch: z.boolean().optional(),
+      isLandscape: z.boolean().optional(),
+      isMobile: z.boolean().optional(),
+    })
+    .optional(),
 });
 
-const markdownInputSchema = z.object({
+export const markdownInputSchema = z.object({
   url: z.string().url('Must be a valid URL'),
   waitTime: z.number().int().min(0).max(30000).optional().default(0),
   includeImages: z.boolean().optional().default(true),

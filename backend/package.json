@@ -35,6 +35,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.13.2",
+    "@cloudflare/puppeteer": "^1.0.2",
     "@cloudflare/workers-types": "^4.20250525.0",
     "@types/node": "^22.15.21",
     "cross-env": "^7.0.3",

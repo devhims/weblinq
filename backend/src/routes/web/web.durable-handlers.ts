@@ -1,14 +1,23 @@
 import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { WebDurableObject } from '@/durable-objects/web-durable-object';
+import type { AppRouteHandler } from '@/lib/types';
+
+// Route types – generated alongside schemas in web.routes.ts
+import type {
+  ContentRoute,
+  JsonExtractionRoute,
+  LinksRoute,
+  MarkdownRoute,
+  ScrapeRoute,
+  ScreenshotRoute,
+  SearchRoute,
+} from './web.routes';
 
 /**
  * Helper function to get the WebDurableObject stub for a user
  */
-function getWebDurableObject(
-  c: { env: CloudflareBindings },
-  userId: string,
-): DurableObjectStub<WebDurableObject> {
+function getWebDurableObject(c: { env: CloudflareBindings }, userId: string): DurableObjectStub<WebDurableObject> {
   const namespace = c.env.WEBLINQ_DURABLE_OBJECT;
   const id = namespace.idFromName(`web:${userId}`);
   return namespace.get(id);
@@ -17,7 +26,7 @@ function getWebDurableObject(
 /**
  * Screenshot endpoint - Capture webpage screenshots
  */
-export async function screenshot(c: any) {
+export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
   try {
     const user = c.get('user')!; // requireAuth ensures user exists
     const body = c.req.valid('json');
@@ -25,7 +34,8 @@ export async function screenshot(c: any) {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.screenshot(body);
+    // const result = await webDurableObject.screenshot(body);
+    const result = await webDurableObject.screenshotV2(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Screenshot error:', error);
@@ -37,12 +47,12 @@ export async function screenshot(c: any) {
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
-}
+};
 
 /**
  * Markdown extraction endpoint
  */
-export async function markdown(c: any) {
+export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
@@ -63,12 +73,12 @@ export async function markdown(c: any) {
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
-}
+};
 
 /**
  * JSON extraction endpoint
  */
-export async function jsonExtraction(c: any) {
+export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
@@ -88,12 +98,12 @@ export async function jsonExtraction(c: any) {
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
-}
+};
 
 /**
  * Content extraction endpoint
  */
-export async function content(c: any) {
+export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
@@ -113,12 +123,12 @@ export async function content(c: any) {
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
-}
+};
 
 /**
  * Element scraping endpoint
  */
-export async function scrape(c: any) {
+export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
@@ -138,12 +148,12 @@ export async function scrape(c: any) {
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
-}
+};
 
 /**
  * Link extraction endpoint
  */
-export async function links(c: any) {
+export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
@@ -163,12 +173,12 @@ export async function links(c: any) {
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
-}
+};
 
 /**
  * Web search endpoint
  */
-export async function search(c: any) {
+export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
@@ -189,4 +199,4 @@ export async function search(c: any) {
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );
   }
-}
+};

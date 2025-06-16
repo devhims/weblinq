@@ -116,13 +116,22 @@ export default function PlaygroundContainer() {
               <Label className='text-lg font-medium'>Result</Label>
               <div className='w-full overflow-hidden mt-2'>
                 {/* Result Display Component */}
-                <ResultDisplay
-                  loading={loading}
-                  error={error}
-                  result={endpointResults[selectedAction] || null}
-                  selectedEndpoint={selectedAction}
-                  fullPage={true}
-                />
+                {(() => {
+                  const fullPageParam = searchParams.get('fullPage');
+                  const isMobile = searchParams.get('mobile') === 'true';
+                  // Default to full-page for mobile mode, otherwise respect the param.
+                  const fullPage = isMobile || fullPageParam !== 'false';
+
+                  return (
+                    <ResultDisplay
+                      loading={loading}
+                      error={error}
+                      result={endpointResults[selectedAction] || null}
+                      selectedEndpoint={selectedAction}
+                      fullPage={fullPage}
+                    />
+                  );
+                })()}
               </div>
             </div>
           </div>
