@@ -3,12 +3,40 @@
 
 export interface ScreenshotRequest {
   url: string;
+  // Legacy top-level fields (still accepted)
   fullPage?: boolean;
   width?: number;
   height?: number;
-  waitTime?: number;
   format?: string;
   quality?: number;
+
+  // New unified props
+  waitTime?: number;
+  screenshotOptions?: {
+    captureBeyondViewport?: boolean;
+    clip?: {
+      height: number;
+      width: number;
+      x: number;
+      y: number;
+      scale?: number;
+    };
+    encoding?: 'binary' | 'base64';
+    fromSurface?: boolean;
+    fullPage?: boolean;
+    omitBackground?: boolean;
+    optimizeForSpeed?: boolean;
+    quality?: number;
+    type?: 'png' | 'jpeg' | 'webp';
+  };
+  viewport?: {
+    height: number;
+    width: number;
+    deviceScaleFactor?: number;
+    hasTouch?: boolean;
+    isLandscape?: boolean;
+    isMobile?: boolean;
+  };
 }
 
 export interface ScreenshotResponse {

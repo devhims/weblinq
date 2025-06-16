@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { Outfit } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -37,7 +38,9 @@ export default function RootLayout({
       <body
         className={`${outfit.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <QueryProvider>{children}</QueryProvider>
+        <NuqsAdapter>
+          <QueryProvider>{children}</QueryProvider>
+        </NuqsAdapter>
         <Toaster />
       </body>
     </html>

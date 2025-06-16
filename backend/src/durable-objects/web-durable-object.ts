@@ -1,7 +1,16 @@
+import type { z } from 'zod';
+
 import { DurableObject } from 'cloudflare:workers';
 import { Buffer } from 'node:buffer';
 
+import type { screenshotInputSchema } from '@/routes/web/web.routes';
+
 import { performWebSearch } from '@/routes/web/web.search-handler';
+import { connect } from '@cloudflare/puppeteer';
+
+import { markdownV2 } from './web-v2/markdown';
+// v2 operation modules
+import { screenshotV2 as screenshotV2Impl } from './web-v2/screenshot';
 // import { Env } from 'hono';
 
 // export interface Env {
@@ -32,12 +41,12 @@ interface CloudflareApiResponse {
   errors?: any;
 }
 
-export class WebDurableObject extends DurableObject {
+export class WebDurableObject extends DurableObject<CloudflareBindings> {
   private userId: string;
   protected env: CloudflareBindings;
 
-  constructor(state: DurableObjectState, env: CloudflareBindings) {
-    super(state, env);
+  constructor(ctx: DurableObjectState, env: CloudflareBindings) {
+    super(ctx, env);
     this.env = env;
     this.userId = '';
   }
@@ -52,15 +61,7 @@ export class WebDurableObject extends DurableObject {
   /**
    * Take a screenshot of a webpage using Cloudflare Browser Rendering API
    */
-  async screenshot(params: {
-    url: string;
-    fullPage?: boolean;
-    width?: number;
-    height?: number;
-    waitTime?: number;
-    format?: 'png' | 'jpeg';
-    quality?: number;
-  }): Promise<{
+  async screenshot(params: z.infer<typeof screenshotInputSchema>): Promise<{
     success: boolean;
     data: {
       image: string;
@@ -78,17 +79,10 @@ export class WebDurableObject extends DurableObject {
     const { CLOUDFLARE_ACCESS_TOKEN, CLOUDFLARE_ACCOUNT_ID } = this.env;
 
     try {
-      const payload: any = {
+      const payload: Record<string, any> = {
         url: params.url,
-        screenshotOptions: {
-          fullPage: params.fullPage || false,
-          type: params.format || 'png',
-          quality: params.format === 'png' ? undefined : params.quality || 80,
-        },
-        viewport: {
-          width: params.width || 1280,
-          height: params.height || 800,
-        },
+        screenshotOptions: params.screenshotOptions || {},
+        viewport: params.viewport,
         gotoOptions: {
           waitUntil: 'networkidle0',
           timeout: 45000,
@@ -138,9 +132,9 @@ export class WebDurableObject extends DurableObject {
             data: {
               image: String(jsonData.result),
               metadata: {
-                width: params.width || 1280,
-                height: params.height || 800,
-                format: params.format || 'png',
+                width: params.viewport?.width ?? 1280,
+                height: params.viewport?.height ?? 800,
+                format: params.screenshotOptions?.type ?? 'png',
                 size: String(jsonData.result).length,
                 url: params.url,
                 timestamp: new Date().toISOString(),
@@ -161,9 +155,9 @@ export class WebDurableObject extends DurableObject {
         data: {
           image: base64Image,
           metadata: {
-            width: params.width || 1280,
-            height: params.height || 800,
-            format: params.format || 'png',
+            width: params.viewport?.width ?? 1280,
+            height: params.viewport?.height ?? 800,
+            format: params.screenshotOptions?.type ?? 'png',
             size: buffer.length,
             url: params.url,
             timestamp: new Date().toISOString(),
@@ -597,8 +591,8 @@ export class WebDurableObject extends DurableObject {
             url: String(link.url || link.href || ''),
             text: String(link.text || link.title || ''),
             type: (link.internal ? 'internal' : 'external') as
-            | 'internal'
-            | 'external',
+              | 'internal'
+              | 'external',
           })),
           metadata: {
             url: params.url,
@@ -627,13 +621,11 @@ export class WebDurableObject extends DurableObject {
     clientIp?: string,
   ) {
     try {
-      const searchResult = await performWebSearch(
-        {
-          query: params.query,
-          limit: params.limit || 10,
-        },
+      const searchResult = await performWebSearch({
+        query: params.query,
+        limit: params.limit || 10,
         clientIp,
-      );
+      });
 
       return {
         success: true,
@@ -882,6 +874,21 @@ export class WebDurableObject extends DurableObject {
           });
         }
 
+        // -------------------- V2 endpoints (browser-based) --------------------
+        case '/v2/screenshot': {
+          const screenshotResult = await this.screenshotV2(body);
+          return new Response(JSON.stringify(screenshotResult), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        case '/v2/markdown': {
+          const markdownResult = await markdownV2(this.env, body);
+          return new Response(JSON.stringify(markdownResult), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
         default:
           return new Response('Not found', { status: 404 });
       }
@@ -898,5 +905,13 @@ export class WebDurableObject extends DurableObject {
         },
       );
     }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /*  v2 – Browser-based screenshot                                          */
+  /* ------------------------------------------------------------------------ */
+
+  async screenshotV2(params: Parameters<typeof screenshotV2Impl>[1]) {
+    return screenshotV2Impl(this.env, params);
   }
 }
