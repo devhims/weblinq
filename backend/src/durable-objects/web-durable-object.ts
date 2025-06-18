@@ -6,9 +6,8 @@ import { Buffer } from 'node:buffer';
 import type { screenshotInputSchema } from '@/routes/web/web.routes';
 
 import { performWebSearch } from '@/routes/web/web.search-handler';
-import { connect } from '@cloudflare/puppeteer';
 
-import { markdownV2 } from './web-v2/markdown';
+import { markdownV2 as markdownV2Impl } from './web-v2/markdown';
 // v2 operation modules
 import { screenshotV2 as screenshotV2Impl } from './web-v2/screenshot';
 // import { Env } from 'hono';
@@ -107,9 +106,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `Cloudflare API error: ${response.status} ${errorText}`,
-        );
+        throw new Error(`Cloudflare API error: ${response.status} ${errorText}`);
       }
 
       // Check content type to handle different response formats
@@ -120,9 +117,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
         const jsonData = (await response.json()) as CloudflareApiResponse;
 
         if (!jsonData.success) {
-          throw new Error(
-            `Screenshot failed: ${JSON.stringify(jsonData.errors)}`,
-          );
+          throw new Error(`Screenshot failed: ${JSON.stringify(jsonData.errors)}`);
         }
 
         // If JSON response contains base64 image
@@ -210,18 +205,14 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `Markdown extraction failed: ${response.status} ${errorText}`,
-        );
+        throw new Error(`Markdown extraction failed: ${response.status} ${errorText}`);
       }
 
       // Handle JSON response
       const jsonData = (await response.json()) as CloudflareApiResponse;
 
       if (!jsonData.success) {
-        throw new Error(
-          `Markdown extraction failed: ${JSON.stringify(jsonData.errors)}`,
-        );
+        throw new Error(`Markdown extraction failed: ${JSON.stringify(jsonData.errors)}`);
       }
 
       const markdownContent = String(jsonData.result || '');
@@ -302,9 +293,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `JSON extraction failed: ${response.status} ${errorText}`,
-        );
+        throw new Error(`JSON extraction failed: ${response.status} ${errorText}`);
       }
 
       const data = (await response.json()) as CloudflareApiResponse;
@@ -336,11 +325,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   /**
    * Get raw HTML content from a webpage
    */
-  async getContent(params: {
-    url: string;
-    waitTime?: number;
-    includeMetadata?: boolean;
-  }): Promise<{
+  async getContent(params: { url: string; waitTime?: number; includeMetadata?: boolean }): Promise<{
     success: boolean;
     data: {
       content: string;
@@ -371,9 +356,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `HTML content fetch failed: ${response.status} ${errorText}`,
-        );
+        throw new Error(`HTML content fetch failed: ${response.status} ${errorText}`);
       }
 
       // Check content type to determine response format
@@ -384,9 +367,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
         const jsonData = (await response.json()) as CloudflareApiResponse;
 
         if (!jsonData.success) {
-          throw new Error(
-            `HTML content fetch failed: ${JSON.stringify(jsonData.errors)}`,
-          );
+          throw new Error(`HTML content fetch failed: ${JSON.stringify(jsonData.errors)}`);
         }
 
         // Return the HTML content from result property - matching schema
@@ -527,11 +508,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   /**
    * Extract all links from a webpage
    */
-  async extractLinks(params: {
-    url: string;
-    includeExternal?: boolean;
-    waitTime?: number;
-  }): Promise<{
+  async extractLinks(params: { url: string; includeExternal?: boolean; waitTime?: number }): Promise<{
     success: boolean;
     data: {
       links: Array<{
@@ -571,9 +548,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `Links retrieval failed: ${response.status} ${errorText}`,
-        );
+        throw new Error(`Links retrieval failed: ${response.status} ${errorText}`);
       }
 
       const data = (await response.json()) as CloudflareApiResponse;
@@ -590,9 +565,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
           links: links.map((link: any) => ({
             url: String(link.url || link.href || ''),
             text: String(link.text || link.title || ''),
-            type: (link.internal ? 'internal' : 'external') as
-              | 'internal'
-              | 'external',
+            type: (link.internal ? 'internal' : 'external') as 'internal' | 'external',
           })),
           metadata: {
             url: params.url,
@@ -674,10 +647,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       })
       .replace(/<ol[^>]*>(.*?)<\/ol>/gis, (match, content) => {
         let counter = 1;
-        return content.replace(
-          /<li[^>]*>(.*?)<\/li>/gi,
-          () => `${counter++}. $1\n`,
-        );
+        return content.replace(/<li[^>]*>(.*?)<\/li>/gi, () => `${counter++}. $1\n`);
       })
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<[^>]*>/g, '') // Remove remaining HTML tags
@@ -689,10 +659,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
    * Simple JSON extraction from HTML
    * Note: This is a basic implementation. For production, consider using AI or more sophisticated parsing
    */
-  private extractJsonFromHtml(
-    html: string,
-    schema: Record<string, any>,
-  ): Record<string, any> {
+  private extractJsonFromHtml(html: string, schema: Record<string, any>): Record<string, any> {
     const extracted: Record<string, any> = {};
 
     // Basic extraction based on common patterns
@@ -700,16 +667,12 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       if (typeof type === 'string' && type === 'string') {
         // Try to extract text content
         if (key.toLowerCase().includes('title')) {
-          const titleMatch =
-            html.match(/<title[^>]*>(.*?)<\/title>/i) ||
-            html.match(/<h1[^>]*>(.*?)<\/h1>/i);
+          const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i) || html.match(/<h1[^>]*>(.*?)<\/h1>/i);
           if (titleMatch) {
             extracted[key] = titleMatch[1].replace(/<[^>]*>/g, '').trim();
           }
         } else if (key.toLowerCase().includes('description')) {
-          const descMatch = html.match(
-            /<meta[^>]*name="description"[^>]*content="([^"]*)"[^>]*>/i,
-          );
+          const descMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"[^>]*>/i);
           if (descMatch) {
             extracted[key] = descMatch[1].trim();
           }
@@ -734,10 +697,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       // Simple implementation for common selectors
       if (selector.startsWith('.')) {
         const className = selector.slice(1);
-        const regex = new RegExp(
-          `<[^>]*class="[^"]*${className}[^"]*"[^>]*>(.*?)</[^>]*>`,
-          'gi',
-        );
+        const regex = new RegExp(`<[^>]*class="[^"]*${className}[^"]*"[^>]*>(.*?)</[^>]*>`, 'gi');
 
         const matches = html.matchAll(regex);
         for (const match of matches) {
@@ -770,12 +730,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       const url = match[1];
       const text = match[2].replace(/<[^>]*>/g, '').trim();
 
-      if (
-        !url ||
-        url.startsWith('#') ||
-        url.startsWith('mailto:') ||
-        url.startsWith('tel:')
-      ) {
+      if (!url || url.startsWith('#') || url.startsWith('mailto:') || url.startsWith('tel:')) {
         continue;
       }
 
@@ -883,7 +838,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
         }
 
         case '/v2/markdown': {
-          const markdownResult = await markdownV2(this.env, body);
+          const markdownResult = await this.markdownV2(body);
           return new Response(JSON.stringify(markdownResult), {
             headers: { 'Content-Type': 'application/json' },
           });
@@ -913,5 +868,13 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
   async screenshotV2(params: Parameters<typeof screenshotV2Impl>[1]) {
     return screenshotV2Impl(this.env, params);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /*  v2 – Browser-based markdown extraction                                 */
+  /* ------------------------------------------------------------------------ */
+
+  async markdownV2(params: Parameters<typeof markdownV2Impl>[1]) {
+    return markdownV2Impl(this.env, params);
   }
 }

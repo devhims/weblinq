@@ -60,7 +60,8 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.extractMarkdown(body);
+    // const result = await webDurableObject.extractMarkdown(body);
+    const result = await webDurableObject.markdownV2(body);
     console.log('Markdown result:', result.data);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
