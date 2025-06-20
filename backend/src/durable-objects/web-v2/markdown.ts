@@ -1,3 +1,4 @@
+import type { Heading, Link, Root as MdastRoot, Paragraph, Text } from 'mdast';
 import type { z } from 'zod';
 
 import { toString } from 'mdast-util-to-string';
@@ -15,6 +16,30 @@ import type { markdownInputSchema } from '@/routes/web/web.routes';
 import { runWithBrowser } from './browser-utils';
 
 type MarkdownParams = z.infer<typeof markdownInputSchema>;
+
+interface MarkdownMetadata {
+  url: string;
+  timestamp: string;
+  wordCount: number;
+}
+
+interface MarkdownSuccess {
+  success: true;
+  data: {
+    markdown: string;
+    metadata: MarkdownMetadata;
+  };
+  creditsCost: number;
+}
+
+interface MarkdownFailure {
+  success: false;
+  error: { message: string };
+  creditsCost: 0;
+}
+
+type MarkdownResult = MarkdownSuccess | MarkdownFailure;
+
 const words = (t: string) => (t.match(/\b\w+\b/g) ?? []).length;
 
 /* One reusable processor */
@@ -23,56 +48,59 @@ const processor = unified()
   .use(rehypeRaw)
   .use(rehypeRemark)
   .use(remarkGfm)
-  .use(() => (tree) => {
-    /* 1️⃣  Remove paragraph duplicates of the subsequent heading */
-    visit(tree, 'paragraph', (node: any, idx: number | null, parent: any) => {
-      const next = parent!.children[idx! + 1];
-      if (next?.type === 'heading') {
-        const txt = toString(node).trim();
-        const hTxt = toString(next).trim();
-        if (txt === hTxt) parent!.children.splice(idx!, 1);
+  .use(() => (tree: MdastRoot) => {
+    /* ① Remove duplicate paragraph/heading pairs */
+    visit<MdastRoot, 'paragraph'>(tree, 'paragraph', (node, idx, parent) => {
+      if (idx === undefined || !parent) return;
+
+      const paragraph = node;
+      const next = parent.children[idx + 1] as Heading | undefined;
+
+      if (next?.type === 'heading' && toString(paragraph).trim() === toString(next).trim()) {
+        parent.children.splice(idx, 1);
       }
     });
 
-    /* 2️⃣  Strip links whose visible text is empty */
-    visit(tree, 'link', (node: any, idx: number | null, parent: any) => {
-      const text = toString(node).trim();
-      if (!text) parent!.children.splice(idx!, 1);
+    /* ② Strip links with empty visible text */
+    visit<MdastRoot, 'link'>(tree, 'link', (node: Link, idx, parent) => {
+      if (idx === undefined || !parent) return;
+      if (!toString(node).trim()) parent.children.splice(idx, 1);
     });
 
-    /* 3️⃣  Collapse identical consecutive paragraphs (contact row dupes) */
-    visit(tree, 'paragraph', (node: any, idx: number | null, parent: any) => {
-      const prev = parent!.children[idx! - 1];
+    /* ③ Collapse identical consecutive paragraphs */
+    visit<MdastRoot, 'paragraph'>(tree, 'paragraph', (node, idx, parent) => {
+      if (idx === undefined || !parent) return;
+      const prev = parent.children[idx - 1] as Paragraph | undefined;
       if (prev?.type === 'paragraph' && toString(prev).trim() === toString(node).trim()) {
-        parent!.children.splice(idx!, 1);
+        parent.children.splice(idx, 1);
       }
     });
 
-    /* 4️⃣  Remove trailing bare-text URLs that echo the previous link */
-    visit(tree, 'paragraph', (node: any) => {
+    /* ④ Remove echoed bare-URL after a link */
+    visit<MdastRoot, 'paragraph'>(tree, 'paragraph', (node) => {
       if (node.children.length < 2) return;
-      const last = node.children[node.children.length - 1];
-      const prev = node.children[node.children.length - 2];
+      const last = node.children.at(-1) as Text;
+      const prev = node.children.at(-2) as Link;
       if (last.type === 'text' && prev.type === 'link' && last.value.trim().startsWith(prev.url)) {
         node.children.pop();
-        if (node.children[node.children.length - 1]?.type === 'text') {
-          // trim extra space left behind
-          (node.children[node.children.length - 1] as any).value = (
-            node.children[node.children.length - 1] as any
-          ).value.trim();
-        }
+        const tail = node.children.at(-1);
+        if (tail && tail.type === 'text') tail.value = tail.value.trim();
       }
     });
   })
-  .use(remarkStringify, { bullet: '*', fences: true, listItemIndent: 'one' });
+  .use(remarkStringify, {
+    bullet: '*',
+    fences: true,
+    listItemIndent: 'one',
+  });
 
-export async function markdownV2(env: CloudflareBindings, params: MarkdownParams) {
+export async function markdownV2(env: CloudflareBindings, params: MarkdownParams): Promise<MarkdownResult> {
   try {
     /* 1️⃣  Render page HTML */
     const html = await runWithBrowser(env, async (page) => {
       await page.setRequestInterception(true);
       page.on('request', (req) => {
-        const shouldAbort = ['image', 'media', 'font', 'stylesheet'].includes(req.resourceType() as any);
+        const shouldAbort = ['image', 'media', 'font', 'stylesheet'].includes(req.resourceType());
         if (shouldAbort) {
           req.abort();
         } else {
@@ -85,26 +113,35 @@ export async function markdownV2(env: CloudflareBindings, params: MarkdownParams
     });
 
     /* 2️⃣  Sanitize */
-    const safeHtml = sanitizeHtml(html);
+    const safeHtml = sanitizeHtml(html, {
+      allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
+      allowedAttributes: {
+        ...sanitizeHtml.defaults.allowedAttributes,
+        img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
+      },
+      allowedSchemes: ['http', 'https', 'data'],
+    });
 
-    /* 3️⃣  HTML → Markdown */
-    let markdown = String(await processor.process(safeHtml));
+    /* 3️⃣ HTML → Markdown */
+    const mdFile = await processor.process(safeHtml);
+    let markdown = String(mdFile);
+    markdown = markdown.replace(/\n{3,}/g, '\n\n');
 
-    /* 4️⃣  Light post-cleanup */
-    markdown = markdown.replace(/\n{3,}/g, '\n\n'); // collapse >2 blank lines
+    /* 4️⃣ Compose response */
+    const meta: MarkdownMetadata = {
+      url: params.url,
+      timestamp: new Date().toISOString(),
+      wordCount: words(markdown),
+    };
 
     /* 5️⃣  Response */
     return {
       success: true as const,
       data: {
         markdown,
-        metadata: {
-          url: params.url,
-          timestamp: new Date().toISOString(),
-          wordCount: words(markdown),
-        },
+        metadata: meta,
       },
-      creditsCost: Math.max(1, Math.ceil(markdown.length / 5_000)),
+      creditsCost: 1,
     };
   } catch (err) {
     console.error('markdownV2 error', err);
