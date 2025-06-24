@@ -7,7 +7,10 @@ import type { screenshotInputSchema } from '@/routes/web/web.routes';
 
 import { performWebSearch } from '@/routes/web/web.search-handler';
 
+import { contentV2 as contentV2Impl } from './web-v2/content';
+import { linksV2 as linksV2Impl } from './web-v2/links';
 import { markdownV2 as markdownV2Impl } from './web-v2/markdown';
+import { scrapeV2 as scrapeV2Impl } from './web-v2/scrape';
 // v2 operation modules
 import { screenshotV2 as screenshotV2Impl } from './web-v2/screenshot';
 // import { Env } from 'hono';
@@ -169,12 +172,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   /**
    * Extract markdown content from a webpage
    */
-  async extractMarkdown(params: {
-    url: string;
-    waitTime?: number;
-    includeImages?: boolean;
-    includeLinks?: boolean;
-  }): Promise<{
+  async extractMarkdown(params: { url: string; waitTime?: number }): Promise<{
     success: boolean;
     data: {
       markdown: string;
@@ -325,7 +323,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   /**
    * Get raw HTML content from a webpage
    */
-  async getContent(params: { url: string; waitTime?: number; includeMetadata?: boolean }): Promise<{
+  async getContent(params: { url: string; waitTime?: number }): Promise<{
     success: boolean;
     data: {
       content: string;
@@ -844,6 +842,27 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
           });
         }
 
+        case '/v2/content': {
+          const contentResult = await this.contentV2(body);
+          return new Response(JSON.stringify(contentResult), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        case '/v2/links': {
+          const linksResult = await this.linksV2(body);
+          return new Response(JSON.stringify(linksResult), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        case '/v2/scrape': {
+          const scrapeResult = await this.scrapeV2(body);
+          return new Response(JSON.stringify(scrapeResult), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
         default:
           return new Response('Not found', { status: 404 });
       }
@@ -876,5 +895,29 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
   async markdownV2(params: Parameters<typeof markdownV2Impl>[1]) {
     return markdownV2Impl(this.env, params);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /*  v2 – Browser-based HTML content extraction                              */
+  /* ------------------------------------------------------------------------ */
+
+  async contentV2(params: Parameters<typeof contentV2Impl>[1]) {
+    return contentV2Impl(this.env, params);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /*  v2 – Browser-based Link extraction                                      */
+  /* ------------------------------------------------------------------------ */
+
+  async linksV2(params: Parameters<typeof linksV2Impl>[1]) {
+    return linksV2Impl(this.env, params);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /*  v2 – Browser-based Element scraping                                     */
+  /* ------------------------------------------------------------------------ */
+
+  async scrapeV2(params: Parameters<typeof scrapeV2Impl>[1]) {
+    return scrapeV2Impl(this.env, params);
   }
 }

@@ -3,19 +3,44 @@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-
-import { useQueryState, parseAsInteger } from 'nuqs';
-
-import {
-  useSearchParams, // still used for many read-only flags
-} from 'next/navigation';
-
 import { useTransition, useEffect } from 'react';
 import React from 'react';
 
 import { studioApi } from '@/lib/studio-api';
+import type {
+  MarkdownRequest,
+  ScreenshotRequest,
+  ContentRequest,
+  LinksRequest,
+  ScrapeRequest,
+  JsonExtractionRequest,
+  SearchRequest,
+} from '@/lib/studio-api';
 import { ApiResult } from '../types';
 import { filterMainContent } from '../utils/mainContent';
+import { useStudioParams } from '../hooks/useStudioParams';
+
+/* ──────────────────────────────────────────────────────────────
+   PURE NUQS + UTILITY FUNCTIONS APPROACH:
+   
+   This component now uses:
+   
+   import { useStudioParams } from '../hooks/useStudioParams';
+   const { getApiPayload, validateParams } = useStudioParams();
+   
+   const validation = validateParams(); // { valid: boolean, errors: string[] }
+   const { action, payload, error } = getApiPayload(); // Type-safe API payload
+   
+   if (validation.valid && !error) {
+     const result = await studioApi[action](payload);
+   }
+   
+   Benefits:
+   - Direct URL parameter management with nuqs
+   - Pure utility functions for transformations
+   - No complex context abstraction
+   - Type-safe API calls
+──────────────────────────────────────────────────────────────── */
 
 /* ──────────────────────────────────────────────────────────────
    Constants
@@ -47,22 +72,14 @@ interface UrlInputProps {
 
 export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   /* ———————————————————————————————————————————
-     URL-backed state (nuqs)
+     Simplified state management with nuqs + utilities
   ——————————————————————————————————————————— */
-  const [url, setUrl] = useQueryState('url', { defaultValue: 'https://example.com' });
-  const [query, setQuery] = useQueryState('query', { defaultValue: '' });
-  const [limit, setLimit] = useQueryState('limit', parseAsInteger.withDefault(15));
+  const { url, setUrl, query, setQuery, limit, setLimit, endpoint, action, getApiPayload, params } = useStudioParams();
 
   /* ———————————————————————————————————————————
-     Other react state
+     Loading state
   ——————————————————————————————————————————— */
   const [loading, startTransition] = useTransition();
-
-  /* ———————————————————————————————————————————
-     Read-only flags (still via useSearchParams)
-  ——————————————————————————————————————————— */
-  const searchParams = useSearchParams();
-  const selectedEndpoint = searchParams.get('endpoint') || 'scrape';
 
   /* ———————————————————————————————————————————
      Notify parent about loading changes
@@ -86,163 +103,133 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   };
 
   /* ———————————————————————————————————————————
-     Main action handler
+     Main action handler - much simpler now!
   ——————————————————————————————————————————— */
   const handleApiCall = async () => {
     startTransition(async () => {
       try {
-        /* pull frequently-used flags fresh each time */
-        const endpoint = searchParams.get('endpoint') || 'scrape';
-        const action = searchParams.get('action') || 'markdown';
+        // Build API payload using utility function (includes schema validation)
+        const { action: actionKey, payload, error } = getApiPayload();
 
-        const currentUrl = url ?? '';
-        const selectorRaw = searchParams.get('selector') || '';
-        const elements = selectorRaw ? selectorRaw.split(',').map((s) => ({ selector: s.trim() })) : [];
-
-        /* shared visual params */
-        const fullPage = searchParams.get('fullPage') === 'true';
-        const waitTime = searchParams.get('waitTime') ? Number(searchParams.get('waitTime')) : 0;
-        const width = searchParams.get('width') ? Number(searchParams.get('width')) : 1920;
-        const height = searchParams.get('height') ? Number(searchParams.get('height')) : 1080;
-        const format = searchParams.get('format') || 'png';
-        const quality = searchParams.get('quality') ? Number(searchParams.get('quality')) : undefined;
-        const mobile = searchParams.get('mobile') === 'true';
-        const mobileViewport = mobile
-          ? { width: 390, height: 844, deviceScaleFactor: 3, hasTouch: true, isMobile: true }
-          : undefined;
-
-        /* scrape-specific flags */
-        const onlyMainContent = searchParams.get('onlyMainContent') === 'true';
-        const includeMarkdown = searchParams.get('includeMarkdown') === 'true';
-        const includeLinks = searchParams.get('includeLinks') === 'true';
-        const visibleLinksOnly = searchParams.get('visibleLinksOnly') === 'true'; // eslint-disable-line @typescript-eslint/no-unused-vars
-
-        /* structured */
-        const jsonPrompt = searchParams.get('jsonPrompt') || '';
-
-        /* search */
-        const currentQuery = query ?? '';
-        const currentLimit = limit;
-
-        /* — Endpoint router — */
-        if (endpoint === 'search' && action === 'web') {
-          if (!currentQuery.trim()) throw new Error('Search query is required');
-          const res = await studioApi.search({ query: currentQuery, limit: currentLimit });
-          if (res?.success && res.data?.results) {
-            const transformed = {
-              results: res.data.results,
-              totalResults: res.data.metadata.totalResults,
-              searchTime: res.data.metadata.searchTime,
-              sources: res.data.metadata.sources,
-            };
-            onApiResult(transformed, null);
-          } else {
-            throw new Error('Search failed');
-          }
-          return;
+        if (error) {
+          throw new Error(error);
         }
 
-        if (endpoint === 'scrape') {
-          if (action === 'elements') {
-            let elementsToUse = elements;
-            if (elements.length === 0 && onlyMainContent) {
-              elementsToUse = MAIN_CONTENT_SELECTORS.map((sel) => ({ selector: sel }));
-            } else if (elements.length === 0) {
-              elementsToUse = [{ selector: 'h1' }];
+        // Route to appropriate API call based on action
+        switch (actionKey) {
+          case 'search/web': {
+            const res = await studioApi.search(payload as SearchRequest);
+            if (res?.success && res.data?.results) {
+              const transformed = {
+                results: res.data.results,
+                totalResults: res.data.metadata.totalResults,
+                searchTime: res.data.metadata.searchTime,
+                sources: res.data.metadata.sources,
+              };
+              onApiResult(transformed, null);
+            } else {
+              throw new Error('Search failed');
             }
+            break;
+          }
 
-            const scrapeRes = await studioApi.scrape({
-              url: currentUrl,
-              elements: elementsToUse,
-              waitTime: waitTime > 0 ? waitTime : undefined,
-            });
-
+          case 'scrape/elements': {
+            const scrapeRes = await studioApi.scrape(payload as ScrapeRequest);
             const results: any[] = [];
 
             if (scrapeRes?.success && scrapeRes.data?.elements) {
               const transformed = {
-                elements: scrapeRes.data.elements.map((el) => ({
-                  selector: el.selector,
-                  results: Array.isArray(el.data) ? el.data : [el.data],
-                })),
+                elements: scrapeRes.data.elements.map((el: any) => {
+                  if ('results' in el) {
+                    return {
+                      selector: el.selector,
+                      results: el.results,
+                    };
+                  }
+                  // Legacy/CF-API shape – "data" field
+                  const dataField = (el as any).data;
+                  return {
+                    selector: el.selector,
+                    results: Array.isArray(dataField) ? dataField : dataField ? [dataField] : [],
+                  };
+                }),
               };
 
+              const onlyMainContent = params.onlyMainContent ?? false;
               const finalData = onlyMainContent ? filterMainContent(transformed) : transformed;
-
               results.push({ type: 'elements', data: finalData });
             }
 
-            if (includeMarkdown) {
-              const md = await studioApi.markdown({ url: currentUrl });
-              if (md?.success && md.data?.markdown) results.push({ type: 'markdown', data: md.data.markdown });
-            }
+            // Handle additional data requests for elements action
+            const includeMarkdown = params.includeMarkdown ?? false;
 
-            if (includeLinks) {
-              const links = await studioApi.links({ url: currentUrl, includeExternal: true });
-              if (links?.success && links.data?.links) results.push({ type: 'links', data: links.data.links });
+            if (includeMarkdown) {
+              const md = await studioApi.markdown({ url: (payload as ScrapeRequest).url });
+              if (md?.success && md.data?.markdown) {
+                results.push({ type: 'markdown', data: md.data.markdown });
+              }
             }
 
             if (results.length === 0) throw new Error('Failed to scrape elements: No data received');
             if (results.length === 1) onApiResult(results[0].data, null);
             else onApiResult({ combinedResults: results }, null);
-
-            return;
+            break;
           }
 
-          if (action === 'markdown') {
-            const res = await studioApi.markdown({ url: currentUrl });
-            if (res?.success && res.data?.markdown) onApiResult(res.data.markdown, null);
-            else throw new Error('Failed to extract markdown');
-            return;
+          case 'scrape/markdown': {
+            const res = await studioApi.markdown(payload as MarkdownRequest);
+            if (res?.success && res.data?.markdown) {
+              onApiResult(res.data.markdown, null);
+            } else {
+              throw new Error('Failed to extract markdown');
+            }
+            break;
           }
 
-          if (action === 'html') {
-            const res = await studioApi.content({ url: currentUrl });
-            if (res?.success && res.data?.content) onApiResult(res.data.content, null);
-            else throw new Error('Failed to fetch HTML content');
-            return;
+          case 'scrape/html': {
+            const res = await studioApi.content(payload as ContentRequest);
+            if (res?.success && res.data?.content) {
+              onApiResult(res.data.content, null);
+            } else {
+              throw new Error('Failed to fetch HTML content');
+            }
+            break;
           }
 
-          if (action === 'links') {
-            const res = await studioApi.links({ url: currentUrl, includeExternal: true });
-            if (res?.success && res.data?.links) onApiResult(res.data.links, null);
-            else throw new Error('Failed to retrieve links');
-            return;
+          case 'scrape/links': {
+            const res = await studioApi.links(payload as LinksRequest);
+            if (res?.success && res.data?.links) {
+              onApiResult(res.data.links, null);
+            } else {
+              throw new Error('Failed to retrieve links');
+            }
+            break;
           }
+
+          case 'visual/screenshot': {
+            const res = await studioApi.screenshot(payload as ScreenshotRequest);
+            if (res?.success && res.data?.image) {
+              const format = params.format ?? 'png';
+              onApiResult({ imageUrl: `data:image/${format};base64,${res.data.image}` }, null);
+            } else {
+              throw new Error('Failed to get screenshot');
+            }
+            break;
+          }
+
+          case 'structured/json': {
+            const res = await studioApi.jsonExtraction(payload as JsonExtractionRequest);
+            if (res) {
+              onApiResult(res, null);
+            } else {
+              throw new Error('Failed to extract JSON');
+            }
+            break;
+          }
+
+          default:
+            onApiResult({ message: `${action} operation completed successfully` }, null);
         }
-
-        if (endpoint === 'visual' && action === 'screenshot') {
-          const res = await studioApi.screenshot({
-            url: currentUrl,
-            viewport: mobileViewport ?? { width, height, deviceScaleFactor: 1 },
-            screenshotOptions: {
-              fullPage,
-              type: format as 'png' | 'jpeg' | 'webp',
-              quality: format === 'png' ? undefined : quality,
-            },
-          });
-          if (res?.success && res.data?.image) {
-            onApiResult({ imageUrl: `data:image/${format};base64,${res.data.image}` }, null);
-          } else {
-            throw new Error('Failed to get screenshot');
-          }
-          return;
-        }
-
-        if (endpoint === 'structured' && action === 'json') {
-          const res = await studioApi.jsonExtraction({
-            url: currentUrl,
-            schema: {},
-            instructions: jsonPrompt || undefined,
-            waitTime: waitTime > 0 ? waitTime : undefined,
-          });
-          if (res) onApiResult(res, null);
-          else throw new Error('Failed to extract JSON');
-          return;
-        }
-
-        /* fallback mock */
-        onApiResult({ message: `${action} operation completed successfully` }, null);
       } catch (err: any) {
         console.error('API call error:', err);
         onApiResult(null, err?.message || 'An error occurred during the API call');
@@ -253,7 +240,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   /* ———————————————————————————————————————————
      Render
   ——————————————————————————————————————————— */
-  if (selectedEndpoint === 'search') {
+  if (endpoint === 'search') {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

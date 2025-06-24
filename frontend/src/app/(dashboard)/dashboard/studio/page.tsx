@@ -1,78 +1,24 @@
-'use client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ApiReference } from './components/ApiReference';
+import StudioClientContainer from './components/StudioClientContainer';
 
-import PlaygroundContainer from './components/PlaygroundContainer';
-import { InfoIcon } from 'lucide-react';
-import { ReactNode, Suspense } from 'react';
-
-// Custom Alert components since the import is failing
-interface AlertProps {
-  children: ReactNode;
-  className?: string;
-  variant?: 'default' | 'destructive';
-  [x: string]: any;
-}
-
-function Alert({
-  children,
-  className = '',
-  variant = 'default',
-  ...props
-}: AlertProps) {
+export default function StudioPage() {
   return (
-    <div
-      className={`relative rounded-lg border border-border p-4 ${className}`}
-      role='alert'
-      {...props}
-    >
-      {children}
-    </div>
-  );
-}
-
-interface AlertTitleProps {
-  children: ReactNode;
-  className?: string;
-  [x: string]: any;
-}
-
-function AlertTitle({ children, className = '', ...props }: AlertTitleProps) {
-  return (
-    <div
-      className={`font-medium text-lg tracking-tight ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-}
-
-interface AlertDescriptionProps {
-  children: ReactNode;
-  className?: string;
-  [x: string]: any;
-}
-
-function AlertDescription({
-  children,
-  className = '',
-  ...props
-}: AlertDescriptionProps) {
-  return (
-    <div
-      className={`text-base text-muted-foreground mt-1.5 ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-}
-
-export default function PlaygroundPage() {
-  return (
-    <div className='w-full'>
-      <Suspense fallback={<div>Loading...</div>}>
-        <PlaygroundContainer />
-      </Suspense>
+    <div className="w-full overflow-hidden">
+      <Card className="mb-6 w-full overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-2xl">Studio</CardTitle>
+          <CardDescription className="text-base">
+            Experiment with web scraping and data extraction in an interactive interface.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="w-full overflow-hidden">
+          {/* All client-side interaction is encapsulated in this component */}
+          <StudioClientContainer />
+        </CardContent>
+      </Card>
+      {/* API Reference Component */}
+      <ApiReference />
     </div>
   );
 }
