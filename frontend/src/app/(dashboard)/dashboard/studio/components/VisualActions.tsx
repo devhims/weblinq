@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Settings } from 'lucide-react';
@@ -62,19 +63,15 @@ export function ScreenshotActions() {
         <Label className="text-base font-semibold mb-1 block">Image Format</Label>
         <div className="flex flex-row gap-3 mt-2">
           {formats.map((f) => (
-            <button
+            <Button
               key={f.value}
+              variant={format === f.value ? 'default' : 'outline'}
+              size="sm"
+              className="text-base py-2 px-4"
               onClick={() => setFormat(f.value)}
-              aria-pressed={format === f.value}
-              className={`px-4 py-2 rounded border text-base font-medium transition-all
-                ${
-                  format === f.value
-                    ? 'bg-primary text-white border-primary shadow'
-                    : 'bg-background border-border text-foreground hover:bg-muted'
-                }`}
             >
               {f.label}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -105,24 +102,21 @@ export function ScreenshotActions() {
         <Label className="text-base font-semibold block mb-1">Capture range</Label>
         <div className="flex gap-3 mt-2">
           {(['fullpage', 'viewport'] as const).map((r) => (
-            <button
+            <Button
               key={r}
+              variant={fullPage === (r === 'fullpage') ? 'default' : 'outline'}
+              size="sm"
+              className="text-base py-2 px-4"
               onClick={() => setCaptureRange(r)}
-              className={`px-4 py-2 rounded border text-base font-medium transition-all
-                ${
-                  fullPage === (r === 'fullpage')
-                    ? 'bg-primary text-white border-primary shadow'
-                    : 'bg-background border-border text-foreground hover:bg-muted'
-                }`}
             >
               {r === 'viewport' ? 'Viewport' : 'Full page'}
-            </button>
+            </Button>
           ))}
         </div>
       </section>
 
       {/* ③ Advanced options */}
-      <section className="max-w-sm w-full">
+      <section className="w-full">
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="advanced-options">
             <AccordionTrigger className="text-base">
@@ -166,7 +160,7 @@ export function ScreenshotActions() {
                       placeholder="0"
                       min="0"
                       max="5000"
-                      className="mt-2 text-base h-11"
+                      className="mt-2 text-base h-11 max-w-sm"
                     />
                     <p className="text-sm text-muted-foreground mt-1.5">
                       Additional delay before capturing the screenshot (0-5000 ms)
@@ -215,7 +209,7 @@ export function ScreenshotActions() {
 
                 {/* Custom dimensions (only when not mobile) */}
                 {!mobile && (
-                  <div className="space-y-4">
+                  <div className="space-y-4 max-w-sm">
                     <div>
                       <Label className="text-base font-medium leading-none mb-3 block">Custom Dimensions</Label>
                       <p className="text-sm text-muted-foreground mb-3">Leave empty to use defaults (1920×1080)</p>

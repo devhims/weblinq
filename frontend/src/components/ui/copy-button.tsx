@@ -33,9 +33,7 @@ export function CopyButton({ content, darkBackground = false, inline = false, cl
 
   const baseClasses = inline ? '' : 'absolute top-3 right-6 z-10 h-8 w-8 p-0';
 
-  const colorClasses = darkBackground
-    ? 'text-muted hover:text-foreground hover:bg-accent/60'
-    : 'text-muted-foreground hover:text-foreground hover:bg-muted/70';
+  const colorClasses = 'text-muted-foreground hover:text-foreground hover:bg-muted/70';
 
   return (
     <TooltipProvider>

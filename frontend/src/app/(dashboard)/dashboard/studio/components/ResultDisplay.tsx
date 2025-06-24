@@ -161,7 +161,7 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[800px]">
+      <div className="flex items-center justify-center h-[400px]">
         <div className="animate-spin rounded-full h-14 w-14 border-b-2 border-primary"></div>
       </div>
     );
@@ -177,7 +177,7 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
   if (!result) {
     return (
-      <div className="flex flex-col items-center justify-center h-[800px] text-center">
+      <div className="flex flex-col items-center justify-center h-[400px] text-center">
         <Globe className="h-12 w-12 text-muted-foreground mb-3" />
         <p className="text-muted-foreground text-lg">Enter a URL and select an endpoint to see results</p>
       </div>
@@ -224,7 +224,7 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
       if (!finalScrapeResult || !finalScrapeResult.elements) {
         return (
-          <div className="flex items-center justify-center h-[800px] text-center">
+          <div className="flex items-center justify-center h-[400px] text-center">
             <div className="text-muted-foreground">
               <p>No valid scrape results available</p>
             </div>

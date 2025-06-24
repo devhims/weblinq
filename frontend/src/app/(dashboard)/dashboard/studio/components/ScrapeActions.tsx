@@ -27,7 +27,7 @@ export function ScrapeMarkdownActions() {
 
   return (
     <div className="space-y-4">
-      <Accordion type="single" collapsible className="w-full max-w-sm">
+      <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="advanced-options">
           <AccordionTrigger className="text-base">
             <span className="flex items-center">
@@ -55,7 +55,7 @@ export function ScrapeMarkdownActions() {
                     placeholder="0"
                     min="0"
                     max="5000"
-                    className="mt-2 text-base h-11"
+                    className="mt-2 text-base h-11 max-w-sm"
                   />
                   <p className="text-sm text-muted-foreground mt-1.5">
                     Additional time to wait for content to load before extracting markdown (0-5000ms)
@@ -87,7 +87,7 @@ export function ScrapeHtmlActions() {
 
   return (
     <div className="space-y-4">
-      <Accordion type="single" collapsible className="w-full max-w-sm">
+      <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="advanced-options">
           <AccordionTrigger className="text-base">
             <span className="flex items-center">
@@ -115,7 +115,7 @@ export function ScrapeHtmlActions() {
                     placeholder="0"
                     min="0"
                     max="5000"
-                    className="mt-2 text-base h-11"
+                    className="mt-2 text-base h-11 max-w-sm"
                   />
                   <p className="text-sm text-muted-foreground mt-1.5">
                     Additional time to wait for content to load before fetching HTML (0-5000ms)
@@ -163,7 +163,7 @@ export function ScrapeLinksActions() {
   ——————————————————————————————————————————— */
   return (
     <div className="space-y-4">
-      <Accordion type="single" collapsible className="w-full max-w-sm">
+      <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="advanced-options">
           <AccordionTrigger className="text-base">
             <span className="flex items-center">
@@ -198,7 +198,7 @@ export function ScrapeLinksActions() {
                     placeholder="0"
                     min="0"
                     max="5000"
-                    className="mt-2 text-base h-11"
+                    className="mt-2 text-base h-11 max-w-sm"
                   />
                   <p className="text-sm text-muted-foreground mt-1.5">
                     Additional time to wait for links to load before extraction (0-5000ms)
