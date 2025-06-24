@@ -26,6 +26,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Weblinq',
   description: 'Linking AI Agents to the Web',
+  viewport: 'width=device-width, initial-scale=1',
 };
 
 export default function RootLayout({
@@ -34,10 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang='en' className='dark'>
-      <body
-        className={`${outfit.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="en" className="dark">
+      <body className={`${outfit.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}>
         <NuqsAdapter>
           <QueryProvider>{children}</QueryProvider>
         </NuqsAdapter>
