@@ -11,7 +11,7 @@ const accountId = process.env['CLOUDFLARE_ACCOUNT_ID'];
 
 if (!apiToken || !accountId) {
   throw new Error(
-    'Cloudflare API credentials missing: Please set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in your .env file.'
+    'Cloudflare API credentials missing: Please set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in your .env file.',
   );
 }
 
@@ -35,10 +35,7 @@ const CREDIT_COSTS = {
 } as const;
 
 // Helper function to check authentication and credits
-async function checkCreditsAndAuth(
-  operation: keyof typeof CREDIT_COSTS,
-  metadata?: any
-) {
+async function checkCreditsAndAuth(operation: keyof typeof CREDIT_COSTS, metadata?: any) {
   // Get current session
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -51,11 +48,7 @@ async function checkCreditsAndAuth(
   const creditsRequired = CREDIT_COSTS[operation];
 
   // Check and deduct credits
-  const creditResult = await checkAndDeductCredits(
-    operation,
-    creditsRequired,
-    metadata
-  );
+  const creditResult = await checkAndDeductCredits(operation, creditsRequired, metadata);
 
   return {
     userId: session.user.id,
@@ -116,30 +109,22 @@ export async function getScreenshot({
     payload.waitFor = waitTime;
   }
 
-  console.log(
-    'Sending request to Cloudflare API:',
-    JSON.stringify(payload, null, 2)
-  );
+  console.log('Sending request to Cloudflare API:', JSON.stringify(payload, null, 2));
 
   try {
-    const response = await fetch(
-      `${BASE_URL}/accounts/${accountId}/browser-rendering/screenshot`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    const response = await fetch(`${BASE_URL}/accounts/${accountId}/browser-rendering/screenshot`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Cloudflare API error:', errorText);
-      throw new Error(
-        `Cloudflare API returned ${response.status}: ${errorText}`
-      );
+      throw new Error(`Cloudflare API returned ${response.status}: ${errorText}`);
     }
 
     // Check content type to handle different response formats
@@ -152,9 +137,7 @@ export async function getScreenshot({
       console.log('JSON response received:', JSON.stringify(jsonData, null, 2));
 
       if (!jsonData.success) {
-        throw new Error(
-          `Screenshot failed: ${JSON.stringify(jsonData.errors)}`
-        );
+        throw new Error(`Screenshot failed: ${JSON.stringify(jsonData.errors)}`);
       }
 
       // If JSON response contains base64 image
@@ -184,23 +167,18 @@ export async function getMarkdown({ url }: { url: string }) {
   });
 
   try {
-    const response = await fetch(
-      `${BASE_URL}/accounts/${accountId}/browser-rendering/markdown`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      }
-    );
+    const response = await fetch(`${BASE_URL}/accounts/${accountId}/browser-rendering/markdown`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `Markdown extraction failed: ${response.status} ${errorText}`
-      );
+      throw new Error(`Markdown extraction failed: ${response.status} ${errorText}`);
     }
 
     // Handle JSON response
@@ -208,9 +186,7 @@ export async function getMarkdown({ url }: { url: string }) {
     console.log('JSON response received:', JSON.stringify(jsonData, null, 2));
 
     if (!jsonData.success) {
-      throw new Error(
-        `Markdown extraction failed: ${JSON.stringify(jsonData.errors)}`
-      );
+      throw new Error(`Markdown extraction failed: ${JSON.stringify(jsonData.errors)}`);
     }
 
     // Return properly structured data with a markdown property
@@ -264,29 +240,21 @@ export async function getJson({
       payload.waitForTimeout = waitTime;
     }
 
-    console.log(
-      'Sending JSON extraction request:',
-      JSON.stringify(payload, null, 2)
-    );
+    console.log('Sending JSON extraction request:', JSON.stringify(payload, null, 2));
 
-    const response = await fetch(
-      `${BASE_URL}/accounts/${accountId}/browser-rendering/json`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    const response = await fetch(`${BASE_URL}/accounts/${accountId}/browser-rendering/json`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('JSON extraction API error:', errorText);
-      throw new Error(
-        `JSON extraction failed: ${response.status} ${errorText}`
-      );
+      throw new Error(`JSON extraction failed: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
@@ -318,23 +286,18 @@ export async function getContent({ url }: { url: string }) {
   });
 
   try {
-    const response = await fetch(
-      `${BASE_URL}/accounts/${accountId}/browser-rendering/content`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      }
-    );
+    const response = await fetch(`${BASE_URL}/accounts/${accountId}/browser-rendering/content`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
-        `HTML content fetch failed: ${response.status} ${errorText}`
-      );
+      throw new Error(`HTML content fetch failed: ${response.status} ${errorText}`);
     }
 
     // Check content type to determine response format
@@ -345,9 +308,7 @@ export async function getContent({ url }: { url: string }) {
       const jsonData = await response.json();
 
       if (!jsonData.success) {
-        throw new Error(
-          `HTML content fetch failed: ${JSON.stringify(jsonData.errors)}`
-        );
+        throw new Error(`HTML content fetch failed: ${JSON.stringify(jsonData.errors)}`);
       }
 
       // Return the HTML content from result property
@@ -424,17 +385,14 @@ export async function getScrape({
 
     console.log('Sending scrape request:', JSON.stringify(payload, null, 2));
 
-    const response = await fetch(
-      `${BASE_URL}/accounts/${accountId}/browser-rendering/scrape`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    const response = await fetch(`${BASE_URL}/accounts/${accountId}/browser-rendering/scrape`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -459,46 +417,35 @@ export async function getScrape({
 /**
  * Retrieve all links from a webpage using Cloudflare Browser Rendering API
  */
-export async function getLinks({
-  url,
-  visibleLinksOnly = false,
-}: {
-  url: string;
-  visibleLinksOnly?: boolean;
-}) {
+export async function getLinks({ url, includeExternal = true }: { url: string; includeExternal?: boolean }) {
   // Check credits first
   await checkCreditsAndAuth('scrape_links', {
     url,
-    visibleLinksOnly,
+    includeExternal,
     timestamp: new Date().toISOString(),
   });
 
   try {
     const payload = {
       url,
-      visibleLinksOnly,
+      includeExternal,
     };
 
     console.log('Sending links request:', JSON.stringify(payload, null, 2));
 
-    const response = await fetch(
-      `${BASE_URL}/accounts/${accountId}/browser-rendering/links`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    const response = await fetch(`${BASE_URL}/accounts/${accountId}/browser-rendering/links`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Links API error:', errorText);
-      throw new Error(
-        `Links retrieval failed: ${response.status} ${errorText}`
-      );
+      throw new Error(`Links retrieval failed: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();

@@ -50,6 +50,11 @@ export async function screenshotV2(
       timeout: 30_000,
     });
 
+    // Wait for additional time if specified
+    if (params.waitTime && params.waitTime > 0) {
+      await new Promise((resolve) => setTimeout(resolve, params.waitTime));
+    }
+
     // Capture the screenshot. The returned value can be Buffer or base64 string depending on encoding.
     return (await page.screenshot(screenshotOptions)) as Buffer | string;
   });

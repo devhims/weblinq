@@ -1,52 +1,15 @@
 'use client';
 
-import { ScreenshotActions } from './VisualActions';
-import { JsonActions } from './StructuredActions';
-import {
-  ScrapeMarkdownActions,
-  ScrapeHtmlActions,
-  ScrapeLinksActions,
-  ScrapeElementsActions,
-} from './ScrapeActions';
-import { SearchActions } from './SearchActions';
-import { useSearchParams } from 'next/navigation';
+import { API_ENDPOINTS } from '../endpoints';
+import { useStudioParams } from '../hooks/useStudioParams';
 
 export function EndpointActions() {
-  const searchParams = useSearchParams();
-  const selectedEndpoint = searchParams.get('endpoint') || 'scrape';
-  const selectedAction = searchParams.get('action') || 'markdown';
+  const { endpoint, action } = useStudioParams();
 
-  if (selectedEndpoint === 'visual') {
-    if (selectedAction === 'screenshot') {
-      return <ScreenshotActions />;
-    }
-    return null;
-  }
-  if (selectedEndpoint === 'structured') {
-    if (selectedAction === 'json') {
-      return <JsonActions />;
-    }
-    return null;
-  }
-  if (selectedEndpoint === 'search') {
-    if (selectedAction === 'web') {
-      return <SearchActions />;
-    }
-    return null;
-  }
-  if (selectedEndpoint === 'scrape') {
-    if (selectedAction === 'html') {
-      return <ScrapeHtmlActions />;
-    }
-    if (selectedAction === 'markdown') {
-      return <ScrapeMarkdownActions />;
-    }
-    if (selectedAction === 'links') {
-      return <ScrapeLinksActions />;
-    }
-    if (selectedAction === 'elements') {
-      return <ScrapeElementsActions />;
-    }
-  }
-  return null;
+  const endpointObj = API_ENDPOINTS.find((e) => e.id === endpoint);
+  const actionObj = endpointObj?.subActions.find((a) => a.id === action);
+
+  const Comp = actionObj?.Component;
+
+  return Comp ? <Comp /> : null;
 }

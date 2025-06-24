@@ -57,6 +57,7 @@ export interface ScreenshotResponse {
 
 export interface MarkdownRequest {
   url: string;
+  waitTime?: number;
 }
 
 export interface MarkdownResponse {
@@ -96,6 +97,7 @@ export interface JsonExtractionResponse {
 
 export interface ContentRequest {
   url: string;
+  waitTime?: number;
 }
 
 export interface ContentResponse {
@@ -125,7 +127,8 @@ export interface ScrapeResponse {
   data: {
     elements: Array<{
       selector: string;
-      data: Record<string, any>;
+      data?: Record<string, any> | Record<string, any>[];
+      results?: Array<Record<string, any>>;
     }>;
     metadata: {
       url: string;
@@ -139,6 +142,7 @@ export interface ScrapeResponse {
 export interface LinksRequest {
   url: string;
   includeExternal?: boolean;
+  visibleLinksOnly?: boolean;
   waitTime?: number;
 }
 
@@ -173,7 +177,7 @@ export interface SearchResponse {
       title: string;
       url: string;
       snippet: string;
-      source: 'duckduckgo' | 'startpage' | 'yandex' | 'bing';
+      source: 'duckduckgo' | 'startpage' | 'bing';
     }>;
     metadata: {
       query: string;
@@ -187,23 +191,15 @@ export interface SearchResponse {
 }
 
 // Base API request function with error handling
-async function apiRequest<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const response = await fetch(
-    `${
-      process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'
-    }${endpoint}`,
-    {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      credentials: 'include', // Include session cookies
-    }
-  );
+async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    credentials: 'include', // Include session cookies
+  });
 
   if (!response.ok) {
     const error = await response.text();
@@ -236,9 +232,7 @@ export const studioApi = {
     }),
 
   // Extract structured JSON
-  jsonExtraction: (
-    data: JsonExtractionRequest
-  ): Promise<JsonExtractionResponse> =>
+  jsonExtraction: (data: JsonExtractionRequest): Promise<JsonExtractionResponse> =>
     apiRequest('/web/extract-json', {
       method: 'POST',
       body: JSON.stringify(data),

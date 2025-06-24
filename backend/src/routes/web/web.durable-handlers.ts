@@ -19,7 +19,9 @@ import type {
  */
 function getWebDurableObject(c: { env: CloudflareBindings }, userId: string): DurableObjectStub<WebDurableObject> {
   const namespace = c.env.WEBLINQ_DURABLE_OBJECT;
+  console.log('user id', userId);
   const id = namespace.idFromName(`web:${userId}`);
+
   return namespace.get(id);
 }
 
@@ -112,7 +114,7 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.getContent(body);
+    const result = await webDurableObject.contentV2(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Content error:', error);
@@ -137,7 +139,8 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.scrapeElements(body);
+    // const result = await webDurableObject.scrapeElements(body);
+    const result = await webDurableObject.scrapeV2(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Scrape error:', error);
@@ -162,7 +165,7 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.extractLinks(body);
+    const result = await webDurableObject.linksV2(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Links error:', error);

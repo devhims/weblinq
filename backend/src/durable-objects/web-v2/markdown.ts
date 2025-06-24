@@ -108,7 +108,9 @@ export async function markdownV2(env: CloudflareBindings, params: MarkdownParams
         }
       });
       await page.goto(params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
-      if (params.waitTime) await (page as any).waitForTimeout(params.waitTime);
+      if (params.waitTime && params.waitTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, params.waitTime));
+      }
       return page.content();
     });
 
