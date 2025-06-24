@@ -62,3 +62,4 @@ frontend/project_docs
 .cursor/
 
 WEB_REQUEST_FLOW.md
+COMMUNICATION_ARCHITECTURE.md
