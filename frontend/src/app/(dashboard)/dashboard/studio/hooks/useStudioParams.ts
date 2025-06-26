@@ -8,7 +8,7 @@ import {
   type inferParserType,
   parseAsStringLiteral,
 } from 'nuqs';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { buildApiPayloadFromParams, validateParamsObject } from '../utils/api-builder';
 import { ENDPOINT_IDS, ACTION_IDS, type EndpointId, type ActionId } from '../constants';
@@ -60,6 +60,8 @@ export const studioParsers = {
 
   // Structured extraction
   jsonPrompt: parseAsString,
+
+  // PDF options – simplified to waitTime only (handled via waitTime generic)
 } as const;
 
 export type StudioParams = inferParserType<typeof studioParsers>;
@@ -70,13 +72,11 @@ export type StudioParams = inferParserType<typeof studioParsers>;
  */
 export function useStudioParams() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
 
   // ---------------------------------------------------------------------
   // useQueryStates – single hook for all parameters
   // ---------------------------------------------------------------------
-  const [params, setParams] = useQueryStates(studioParsers);
+  const [params, setParams] = useQueryStates(studioParsers, { history: 'push' });
 
   // Convenience destructuring (back-compat names)
   const { url, query, limit, endpoint, action, format, quality, fullPage, mobile, device, width, height } = params;
@@ -97,31 +97,11 @@ export function useStudioParams() {
 
   // Ensure URL reflects defaults on initial load
   useEffect(() => {
-    const params = new URLSearchParams(searchParams);
-    let needsUpdate = false;
-
-    // If endpoint is not in URL but we have a default, add it
-    if (!params.has('endpoint') && endpoint) {
-      params.set('endpoint', endpoint);
-      needsUpdate = true;
+    if (!searchParams.has('endpoint') || !searchParams.has('action') || !searchParams.has('url')) {
+      // --> 2nd argument are per-call options
+      setParams({ endpoint, action, url }, { clearOnDefault: false, history: 'replace' });
     }
-
-    // If action is not in URL but we have a default, add it
-    if (!params.has('action') && action) {
-      params.set('action', action);
-      needsUpdate = true;
-    }
-
-    if (!params.has('url') && url) {
-      params.set('url', url);
-      needsUpdate = true;
-    }
-
-    // If URL needs updating, replace it
-    if (needsUpdate) {
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    }
-  }, [endpoint, action, searchParams, router, pathname]);
+  }, [searchParams, endpoint, action, url, setParams]);
 
   // Build API payload using utility function (legacy bridge)
   const getApiPayload = () => buildApiPayloadFromParams(params);
@@ -147,7 +127,7 @@ export function useStudioParams() {
     });
 
     // Update all parameters at once
-    setParams(newParams);
+    setParams(newParams, { history: 'push' });
   };
 
   return {

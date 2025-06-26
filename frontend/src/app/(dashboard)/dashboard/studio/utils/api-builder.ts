@@ -9,6 +9,7 @@ import type {
   ScrapeRequest,
   JsonExtractionRequest,
   SearchRequest,
+  PdfRequest,
 } from '@/lib/studio-api';
 
 import { endpointActionSchemas } from '@/lib/studio-schemas';
@@ -23,7 +24,8 @@ type ApiPayload =
   | LinksRequest
   | ScrapeRequest
   | JsonExtractionRequest
-  | SearchRequest;
+  | SearchRequest
+  | PdfRequest;
 
 // Type definitions for each endpoint/action combo
 export type EndpointAction =
@@ -32,26 +34,9 @@ export type EndpointAction =
   | 'scrape/links'
   | 'scrape/elements'
   | 'visual/screenshot'
+  | 'visual/pdf'
   | 'structured/json'
   | 'search/web';
-
-// Simple type-safe parameter reading from URLSearchParams
-function getParam(params: URLSearchParams, key: string): string | null {
-  return params.get(key);
-}
-
-function getBooleanParam(params: URLSearchParams, key: string, defaultValue?: boolean): boolean {
-  const value = params.get(key);
-  if (value === null) return defaultValue ?? false;
-  return value === 'true';
-}
-
-function getNumberParam(params: URLSearchParams, key: string, defaultValue?: number): number | undefined {
-  const value = params.get(key);
-  if (value === null) return defaultValue;
-  const num = Number(value);
-  return isNaN(num) ? defaultValue : num;
-}
 
 // Main API payload builder - reads all params and transforms based on action
 export function buildApiPayloadFromParams(params: StudioParams): {
@@ -144,6 +129,8 @@ export function buildApiPayloadFromParams(params: StudioParams): {
         } as ScreenshotRequest;
       },
 
+      'visual/pdf': (p) => ({ url: p.url!, waitTime: undef(p.waitTime) } as PdfRequest),
+
       'structured/json': (p) =>
         ({
           url: p.url!,
@@ -210,6 +197,7 @@ export function getAllowedParamsForAction(endpoint: string, action: string): str
     'scrape/html': [],
     'scrape/links': [],
     'search/web': [],
+    'visual/pdf': [],
   };
 
   // Combine schema params with UI-specific params
@@ -253,6 +241,7 @@ export function buildApiPayload(
     width: searchParams.get('width') ? Number(searchParams.get('width')) : undefined,
     height: searchParams.get('height') ? Number(searchParams.get('height')) : undefined,
     jsonPrompt: searchParams.get('jsonPrompt') ?? undefined,
+    includeMarkdown: searchParams.get('includeMarkdown') === 'true' || undefined,
   } as StudioParams;
 
   return buildApiPayloadFromParams(p);

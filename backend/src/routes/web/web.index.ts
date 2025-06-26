@@ -19,5 +19,8 @@ router.openapi(routes.content, durableHandlers.content);
 router.openapi(routes.scrape, durableHandlers.scrape);
 router.openapi(routes.links, durableHandlers.links);
 router.openapi(routes.search, durableHandlers.search);
+router.openapi(routes.pdf, durableHandlers.pdf);
+router.openapi(routes.debugFiles, durableHandlers.debugFiles);
+router.openapi(routes.debugDelete, durableHandlers.debugDelete);
 
 export default router;

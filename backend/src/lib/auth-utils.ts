@@ -97,3 +97,114 @@ export function getAuthType(c: any): 'session' | 'api-token' | 'none' {
   }
   return 'none';
 }
+
+// ----------------------------------------------------------------
+// Origin Validation for CORS and Auth
+// ----------------------------------------------------------------
+
+export function isValidOrigin(origin: string, env: CloudflareBindings): boolean {
+  const isLocal = env.BETTER_AUTH_URL?.startsWith('http://localhost');
+
+  if (isLocal) {
+    // In development, allow localhost variants
+    const allowed = ['http://localhost:3000', 'http://localhost:8787'].includes(origin);
+    if (!allowed) {
+      console.log(`🔒 [DEV] Origin rejected: ${origin}`);
+    }
+    return allowed;
+  }
+
+  // Production allowed origins
+  const productionOrigins = ['https://weblinq.dev', 'https://www.weblinq.dev'];
+
+  // Check if it's a production origin
+  if (productionOrigins.includes(origin)) {
+    console.log(`✅ [PROD] Origin accepted (production): ${origin}`);
+    return true;
+  }
+
+  // Check if it's a Vercel preview URL
+  const isPreview = isValidVercelPreview(origin, env);
+  if (isPreview) {
+    console.log(`✅ [PREVIEW] Origin accepted (Vercel preview): ${origin}`);
+  } else {
+    console.log(`🔒 [REJECT] Origin rejected: ${origin}`);
+  }
+
+  return isPreview;
+}
+
+/**
+ * Validates Vercel preview URLs for your project
+ * Security layers:
+ * 1. HTTPS enforcement
+ * 2. Domain restriction (configurable via env)
+ * 3. Pattern matching
+ * 4. Account validation
+ */
+function isValidVercelPreview(origin: string, env: CloudflareBindings): boolean {
+  try {
+    const url = new URL(origin);
+
+    // Layer 1: Must be HTTPS for security
+    if (url.protocol !== 'https:') {
+      console.log(`🔒 Preview rejected (not HTTPS): ${origin}`);
+      return false;
+    }
+
+    const hostname = url.hostname;
+
+    // Layer 2: Configurable Vercel account restriction (security boundary)
+    const allowedVercelAccount = env.VERCEL_ACCOUNT_DOMAIN;
+    if (!hostname.endsWith(allowedVercelAccount)) {
+      console.log(`🔒 Preview rejected (wrong account, expected: ${allowedVercelAccount}): ${hostname}`);
+      return false;
+    }
+
+    // Layer 3: Pattern matching (business logic)
+    const vercelPatterns = getVercelPatterns(allowedVercelAccount);
+    const matches = vercelPatterns.some((pattern) => pattern.test(hostname));
+
+    if (!matches) {
+      console.log(`🔒 Preview rejected (pattern mismatch): ${hostname}`);
+    }
+
+    return matches;
+  } catch (error) {
+    console.log(`🔒 Preview rejected (invalid URL): ${origin}`, error);
+    return false;
+  }
+}
+
+/**
+ * Get Vercel preview patterns for the specified account domain
+ * These are validation rules, not secrets - kept in code for:
+ * - Version control and review
+ * - Testing and validation
+ * - Clear documentation
+ */
+function getVercelPatterns(accountDomain: string): RegExp[] {
+  // Extract the base pattern from account domain
+  const escapedDomain = accountDomain.replace(/\./g, '\\.');
+
+  return [
+    // Pattern 1: weblinq-git-{branch-name}-{account}.vercel.app
+    new RegExp(`^weblinq-git-[a-zA-Z0-9-]+-${escapedDomain}$`),
+    // Pattern 2: weblinq-{hash}-{account}.vercel.app
+    new RegExp(`^weblinq-[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*-${escapedDomain}$`),
+    // Pattern 3: weblinq-{deployment-id}-{account}.vercel.app
+    new RegExp(`^weblinq-[a-zA-Z0-9]+-${escapedDomain}$`),
+  ];
+}
+
+export function getTrustedOrigins(env: CloudflareBindings): string[] {
+  const isLocal = env.BETTER_AUTH_URL?.startsWith('http://localhost');
+
+  if (isLocal) {
+    return ['http://localhost:3000', 'http://localhost:8787'];
+  }
+
+  // For production, we'll dynamically check origins using isValidOrigin
+  // but still need to return the base origins for Better Auth configuration
+  return ['https://weblinq.dev', 'https://www.weblinq.dev'];
+}

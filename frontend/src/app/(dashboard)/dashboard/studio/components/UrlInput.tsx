@@ -15,6 +15,7 @@ import type {
   ScrapeRequest,
   JsonExtractionRequest,
   SearchRequest,
+  PdfRequest,
 } from '@/lib/studio-api';
 import { ApiResult } from '../types';
 import { filterMainContent } from '../utils/mainContent';
@@ -209,10 +210,19 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
           case 'visual/screenshot': {
             const res = await studioApi.screenshot(payload as ScreenshotRequest);
             if (res?.success && res.data?.image) {
-              const format = params.format ?? 'png';
-              onApiResult({ imageUrl: `data:image/${format};base64,${res.data.image}` }, null);
+              onApiResult({ image: res.data.image, data: res.data }, null);
             } else {
-              throw new Error('Failed to get screenshot');
+              throw new Error('Failed to capture screenshot');
+            }
+            break;
+          }
+
+          case 'visual/pdf': {
+            const res = await studioApi.pdf(payload as PdfRequest);
+            if (res?.success && res.data?.pdf) {
+              onApiResult({ pdf: res.data.pdf, data: res.data }, null);
+            } else {
+              throw new Error('Failed to generate PDF');
             }
             break;
           }

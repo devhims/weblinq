@@ -4,9 +4,18 @@ import { cors } from 'hono/cors';
 
 import type { AppBindings } from '@/lib/types';
 
+import { isValidOrigin } from '@/lib/auth-utils';
+
 export default function createAuthCors(c: Context<AppBindings>) {
   return cors({
-    origin: c.env.FRONTEND_URL,
+    // Dynamic origin validation - allows production domains and Vercel previews
+    origin: (origin) => {
+      // Allow requests with no origin (same-origin requests, Postman, etc.)
+      if (!origin) return origin;
+
+      // Use our secure pattern matching - return origin if valid, null if not
+      return isValidOrigin(origin, c.env) ? origin : null;
+    },
     // ✅ CRITICAL: Must be true for cross-domain cookies
     credentials: true,
     // ✅ CRITICAL: Allow all necessary methods including PATCH for task updates

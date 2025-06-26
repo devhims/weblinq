@@ -276,3 +276,35 @@ export function ScreenshotActions() {
     </div>
   );
 }
+
+export function PdfActions() {
+  const [waitTime, setWaitTime] = useQueryState('waitTime', parseAsInteger);
+
+  return (
+    <div className="flex flex-col gap-6 mb-4 p-4 border rounded-lg bg-muted/30">
+      {/* Wait Time (Advanced) */}
+      <section className="max-w-xs">
+        <Label htmlFor="wait-time-pdf" className="text-base font-medium mb-1 block">
+          Wait Time (ms)
+        </Label>
+        <Input
+          id="wait-time-pdf"
+          type="number"
+          value={waitTime?.toString() ?? ''}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v.trim() === '') setWaitTime(0);
+            else {
+              const n = Number(v);
+              if (!Number.isNaN(n) && n >= 0 && n <= 5000) setWaitTime(n);
+            }
+          }}
+          placeholder="0"
+          min="0"
+          max="5000"
+          className="mt-2 text-base h-11"
+        />
+      </section>
+    </div>
+  );
+}

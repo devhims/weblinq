@@ -17,6 +17,9 @@ export const screenshotInputSchema = z.object({
   // Optional delay (in ms) before taking the screenshot
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 
+  // Return format preference - binary (Uint8Array) by default for optimal performance
+  base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary Uint8Array'),
+
   // Advanced Cloudflare/Puppeteer compatible screenshot options
   screenshotOptions: z
     .object({
@@ -30,9 +33,11 @@ export const screenshotInputSchema = z.object({
           scale: z.number().min(0.1).max(10).optional(),
         })
         .optional(),
-      encoding: z.enum(['binary', 'base64']).optional().default('binary'),
+      // Note: While this option is accepted for Puppeteer compatibility,
+      // the API always returns base64-encoded images regardless of this setting
+      encoding: z.enum(['binary', 'base64']).optional().default('base64'),
       fromSurface: z.boolean().optional(),
-      fullPage: z.boolean().optional(),
+      fullPage: z.boolean().optional().default(true),
       omitBackground: z.boolean().optional(),
       optimizeForSpeed: z.boolean().optional(),
       quality: z.number().int().min(1).max(100).optional(),
@@ -216,6 +221,93 @@ const searchOutputSchema = z.object({
   creditsCost: z.number(),
 });
 
+// Add PDF input schema
+export const pdfInputSchema = z.object({
+  url: z.string().url('Must be a valid URL'),
+  // Optional delay before generating the PDF (ms)
+  waitTime: z.number().int().min(0).max(5000).optional().default(0),
+  // Return format preference - binary (Uint8Array) by default for optimal performance
+  base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary Uint8Array'),
+});
+
+// PDF output schema
+const pdfOutputSchema = z.object({
+  success: z.boolean(),
+  data: z.object({
+    pdf: z.string().describe('Base64 encoded PDF'),
+    metadata: z.object({
+      size: z.number(),
+      url: z.string(),
+      timestamp: z.string(),
+    }),
+  }),
+  creditsCost: z.number(),
+});
+
+// Debug input schema
+const debugFilesInputSchema = z.object({
+  type: z.enum(['screenshot', 'pdf']).optional(),
+  limit: z.number().int().min(1).max(100).optional().default(20),
+  offset: z.number().int().min(0).optional().default(0),
+});
+
+// Debug output schema
+const debugFilesOutputSchema = z.object({
+  success: z.boolean(),
+  data: z.object({
+    sqliteStatus: z.object({
+      enabled: z.boolean(),
+      available: z.boolean(),
+      userId: z.string(),
+    }),
+    files: z.array(
+      z.object({
+        id: z.string(),
+        type: z.enum(['screenshot', 'pdf']),
+        url: z.string(),
+        filename: z.string(),
+        r2_key: z.string(),
+        public_url: z.string(),
+        metadata: z.string(),
+        created_at: z.string(),
+        expires_at: z.string().optional(),
+      }),
+    ),
+    totalFiles: z.number(),
+  }),
+});
+
+// Debug delete input schema
+const debugDeleteInputSchema = z.object({
+  fileId: z.string().min(1, 'File ID is required'),
+  deleteFromR2: z.boolean().optional().default(false).describe('Also delete the file from R2 storage'),
+});
+
+// Debug delete output schema
+const debugDeleteOutputSchema = z.object({
+  success: z.boolean(),
+  data: z.object({
+    fileId: z.string(),
+    wasFound: z.boolean(),
+    deletedFromDatabase: z.boolean(),
+    deletedFromR2: z.boolean(),
+    deletedFile: z
+      .object({
+        id: z.string(),
+        type: z.enum(['screenshot', 'pdf']),
+        url: z.string(),
+        filename: z.string(),
+        r2_key: z.string(),
+        public_url: z.string(),
+        metadata: z.string(),
+        created_at: z.string(),
+        expires_at: z.string().optional(),
+      })
+      .optional(),
+    error: z.string().optional(),
+  }),
+});
+
 // Route definitions
 export const screenshot = createRoute({
   path: '/web/screenshot',
@@ -360,6 +452,66 @@ export const search = createRoute({
   },
 });
 
+export const pdf = createRoute({
+  path: '/web/pdf',
+  method: 'post',
+  request: {
+    body: jsonContentRequired(pdfInputSchema, 'PDF generation parameters'),
+  },
+  tags,
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(pdfOutputSchema, 'PDF generated successfully'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(pdfInputSchema), 'Validation error'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      z.object({
+        success: z.literal(false),
+        error: z.string(),
+      }),
+      'Internal server error',
+    ),
+  },
+});
+
+export const debugFiles = createRoute({
+  path: '/web/debug/files',
+  method: 'post',
+  request: {
+    body: jsonContentRequired(debugFilesInputSchema, 'Debug files query parameters'),
+  },
+  tags: ['Debug'],
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(debugFilesOutputSchema, 'Files listed successfully'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(debugFilesInputSchema), 'Validation error'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      z.object({
+        success: z.literal(false),
+        error: z.string(),
+      }),
+      'Internal server error',
+    ),
+  },
+});
+
+export const debugDelete = createRoute({
+  path: '/web/debug/delete',
+  method: 'post',
+  request: {
+    body: jsonContentRequired(debugDeleteInputSchema, 'Debug delete file parameters'),
+  },
+  tags: ['Debug'],
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(debugDeleteOutputSchema, 'File deleted successfully'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(debugDeleteInputSchema), 'Validation error'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      z.object({
+        success: z.literal(false),
+        error: z.string(),
+      }),
+      'Internal server error',
+    ),
+  },
+});
+
 // Export all route types for handlers
 export type ScreenshotRoute = typeof screenshot;
 export type MarkdownRoute = typeof markdown;
@@ -368,3 +520,6 @@ export type ContentRoute = typeof content;
 export type ScrapeRoute = typeof scrape;
 export type LinksRoute = typeof links;
 export type SearchRoute = typeof search;
+export type PdfRoute = typeof pdf;
+export type DebugFilesRoute = typeof debugFiles;
+export type DebugDeleteRoute = typeof debugDelete;
