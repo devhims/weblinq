@@ -74,6 +74,84 @@ export async function pdfV2(env: CloudflareBindings, params: PdfParams): Promise
         await new Promise((res) => setTimeout(res, params.waitTime));
       }
 
+      /* ════════════════════ Pop-up mitigation: cookie banners & GDPR modals ════════════════════ */
+      // 1️⃣  Pre-emptive CSS – hide fixed/sticky overlays before site JS runs
+      await page.addStyleTag({
+        content: `
+          /* Hide classic GDPR / cookie selectors */
+          #cookie-banner,
+          #cookieBanner,
+          .cookie-banner,
+          .cookie-consent,
+          .eu-cookie-compliance,
+          .gdpr,
+          .gdpr-banner,
+          .cmp-container,
+          .consent-modal,
+          .cookie-popup,
+          [role="dialog"][aria-label*="cookie"],
+          [aria-modal="true"][data-testid*="consent"],
+          /* Catch-all: any fixed or sticky overlay that hogs the viewport */
+          body > *[style*="position:fixed"],
+          body > *[style*="position:sticky"] {
+            top: 0 !important;
+            left: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            max-height: 0 !important;
+            overflow: hidden !important;
+            visibility: hidden !important;
+          }
+        `,
+      });
+
+      // 2️⃣  One-shot DOM purge – remove banners that ship inline styles
+      await page.evaluate(() => {
+        const KILL_LIST = [
+          '#cookie-banner',
+          '.cookie-banner',
+          '.cookie-consent',
+          '.eu-cookie-compliance',
+          '.cmp-container',
+          '.consent-modal',
+          '[role="dialog"][aria-label*="cookie"]',
+          '[data-testid*="consent"]',
+        ];
+        KILL_LIST.forEach((sel: string) => document.querySelectorAll(sel).forEach((el: Element) => el.remove()));
+        // Re-enable page scroll (many banners set overflow:hidden)
+        document.body.style.overflow = 'visible';
+      });
+
+      // 3️⃣  MutationObserver guard – catch late-injected CMPs for 5 s
+      await page.evaluate(() => {
+        const hide = (root: any = document) => {
+          ['dialog', 'div', 'section'].forEach((tag: string) => {
+            root.querySelectorAll(tag).forEach((el: Element) => {
+              const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+              const cls = (el.className || '').toString().toLowerCase();
+              const id = (el.id || '').toLowerCase();
+              if (
+                aria.includes('cookie') ||
+                aria.includes('consent') ||
+                cls.includes('cookie') ||
+                cls.includes('consent') ||
+                id.includes('cookie')
+              ) {
+                el.remove();
+              }
+            });
+          });
+        };
+
+        hide(); // initial sweep
+
+        const obs = new MutationObserver((muts) => muts.forEach((m) => hide(m.target as HTMLElement)));
+        obs.observe(document.body, { childList: true, subtree: true });
+
+        // Auto-disconnect after 5 s so we don't leak observers
+        setTimeout(() => obs.disconnect(), 5000);
+      });
+
       // Ensure custom fonts are loaded
       await page.evaluateHandle(() => document.fonts.ready);
 
