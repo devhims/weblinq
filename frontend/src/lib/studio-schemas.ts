@@ -13,7 +13,8 @@ export type EndpointAction =
   | 'scrape/elements'
   | 'visual/screenshot'
   | 'structured/json'
-  | 'search/web';
+  | 'search/web'
+  | 'visual/pdf';
 
 /* ──────────────────────────────────────────────────────────────
    Individual request schemas
@@ -54,6 +55,9 @@ export const ScreenshotRequestSchema = z.object({
   url: z.string().url(),
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 
+  // Return format preference - binary for optimal performance by default
+  base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary data'),
+
   // Legacy convenience fields (all optional)
   fullPage: z.boolean().optional(),
   width: z.number().optional(),
@@ -74,6 +78,7 @@ export const ScreenshotRequestSchema = z.object({
           scale: z.number().min(0.1).max(10).optional(),
         })
         .optional(),
+      // Note: API returns binary by default for optimal performance
       encoding: z.enum(['binary', 'base64']).optional().default('binary'),
       fromSurface: z.boolean().optional(),
       fullPage: z.boolean().optional().default(true),
@@ -109,6 +114,13 @@ export const SearchRequestSchema = z.object({
   limit: z.number().int().min(1).max(20).optional().default(10),
 });
 
+export const PdfRequestSchema = z.object({
+  url: z.string().url(),
+  waitTime: z.number().int().min(0).max(5000).optional().default(0),
+  // Return format preference - binary for optimal performance by default
+  base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary data'),
+});
+
 /* ──────────────────────────────────────────────────────────────
    Mapping between endpoint/action and schema
 ──────────────────────────────────────────────────────────────── */
@@ -120,4 +132,5 @@ export const endpointActionSchemas: Record<EndpointAction, z.ZodTypeAny> = {
   'visual/screenshot': ScreenshotRequestSchema,
   'structured/json': JsonExtractionRequestSchema,
   'search/web': SearchRequestSchema,
+  'visual/pdf': PdfRequestSchema,
 };

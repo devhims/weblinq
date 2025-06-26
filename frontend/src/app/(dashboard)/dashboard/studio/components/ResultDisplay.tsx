@@ -6,6 +6,7 @@ import {
   Globe,
   FileText,
   FileDown,
+  Download,
   Link as LinkIcon,
   ChevronDown,
   ChevronRight,
@@ -16,13 +17,16 @@ import {
   ClipboardIcon,
 } from 'lucide-react';
 import { ApiResult, ScreenshotResult, ScrapeResult, LinksResult } from '../types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SearchResultDisplay } from './SearchResultDisplay';
 import { CopyButton } from '@/components/ui/copy-button';
 import { useStudioParams } from '../hooks/useStudioParams';
 import { CodeDisplay } from './CodeDisplay';
 import { ScreenshotDisplay } from './ScreenshotDisplay';
+import { studioApi } from '@/lib/studio-api';
+import { downloadBlob, generateScreenshotFilename, generatePdfFilename, formatFileSize } from '@/lib/utils';
+import { toast } from 'sonner';
 import pretty from 'pretty';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
@@ -159,6 +163,81 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
   const isMobile = params.mobile ?? false;
   const fullPage = isMobile || params.fullPage !== false;
 
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | undefined>();
+  // Download handlers using existing data (no additional HTTP requests)
+  const handleScreenshotDownload = (imageData: Uint8Array, metadata?: any) => {
+    if (!params.url) return;
+
+    try {
+      // Ensure we have a proper Uint8Array for the Blob constructor
+      const uint8Data = new Uint8Array(imageData);
+      const format = metadata?.format || 'png';
+      const blob = new Blob([uint8Data], { type: `image/${format}` });
+      const filename = generateScreenshotFilename(params.url, format);
+      downloadBlob(blob, filename);
+
+      toast.success(`Screenshot downloaded as ${filename} (${formatFileSize(blob.size)})`);
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to download screenshot');
+    }
+  };
+
+  const handlePdfDownload = (pdfData: Uint8Array, metadata?: any) => {
+    if (!params.url) return;
+
+    try {
+      // Ensure we have a proper Uint8Array for the Blob constructor
+      const uint8Data = new Uint8Array(pdfData);
+      const blob = new Blob([uint8Data], { type: 'application/pdf' });
+      const filename = generatePdfFilename(params.url);
+      downloadBlob(blob, filename);
+
+      toast.success(`PDF downloaded as ${filename} (${formatFileSize(blob.size)})`);
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error('Failed to download PDF');
+    }
+  };
+
+  // Update PDF preview URL whenever a new PDF binary data arrives
+  useEffect(() => {
+    if (selectedEndpoint !== 'pdf') {
+      if (pdfPreviewUrl) setPdfPreviewUrl(undefined);
+      return;
+    }
+
+    const pdfResult = result as any;
+    const pdfData = pdfResult && typeof pdfResult === 'object' ? pdfResult.pdf ?? pdfResult.data?.pdf : undefined;
+    const pdfPermanentUrl = pdfResult?.data?.permanentUrl;
+
+    // Prioritize permanent URL for preview if available
+    if (pdfPermanentUrl) {
+      console.log('✅ Using permanent URL for PDF preview:', pdfPermanentUrl);
+      setPdfPreviewUrl(pdfPermanentUrl);
+      return;
+    }
+
+    // Fallback to creating blob URL from binary data
+    if (!pdfData || !(pdfData instanceof Uint8Array)) {
+      setPdfPreviewUrl(undefined);
+      return;
+    }
+
+    try {
+      console.log('⚠️ Using fallback blob URL for PDF preview (no permanent URL available)');
+      // Ensure we have a proper Uint8Array for the Blob constructor
+      const uint8Data = new Uint8Array(pdfData);
+      const blob = new Blob([uint8Data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setPdfPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to create PDF blob URL:', error);
+      setPdfPreviewUrl(undefined);
+    }
+  }, [selectedEndpoint, result]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[400px]">
@@ -234,21 +313,170 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       return <ScrapeResultDisplay result={finalScrapeResult} />;
 
     case 'screenshot':
-      const screenshotResult = result as ScreenshotResult;
+      const screenshotResult = result as {
+        image?: string | Uint8Array;
+        data?: {
+          image?: string | Uint8Array;
+          metadata?: any;
+          permanentUrl?: string;
+          fileId?: string;
+        };
+      };
+      const imageData = screenshotResult?.image ?? screenshotResult?.data?.image;
+      const imageMetadata = screenshotResult?.data?.metadata;
+      const permanentUrl = screenshotResult?.data?.permanentUrl;
+      const fileId = screenshotResult?.data?.fileId;
+
+      console.log('🖼️ Screenshot result data:', {
+        hasImageData: !!imageData,
+        imageDataType: typeof imageData,
+        hasPermanentUrl: !!permanentUrl,
+        permanentUrl,
+        fileId,
+        metadata: imageMetadata,
+      });
+
+      // Create display URL - prioritize permanent URL, fallback to blob URL
+      let imageUrl: string | undefined;
+
+      if (permanentUrl) {
+        // Use permanent URL for both preview and copying
+        imageUrl = permanentUrl;
+        console.log('✅ Using permanent URL for display:', permanentUrl);
+      } else if (imageData) {
+        // Fallback to creating blob URL for preview
+        try {
+          let blob: Blob;
+          if (typeof imageData === 'string') {
+            // Base64 string
+            const binaryString = atob(imageData);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            const format = imageMetadata?.format || 'png';
+            blob = new Blob([bytes], { type: `image/${format}` });
+          } else if (imageData instanceof Uint8Array) {
+            // Binary data
+            const format = imageMetadata?.format || 'png';
+            blob = new Blob([new Uint8Array(imageData)], { type: `image/${format}` });
+          } else {
+            throw new Error('Unsupported image data format');
+          }
+
+          imageUrl = URL.createObjectURL(blob);
+          console.log('⚠️ Using fallback blob URL for display (no permanent URL available)');
+        } catch (error) {
+          console.error('Failed to create image blob URL:', error);
+        }
+      }
+
+      // Determine what to copy - permanent URL if available, otherwise blob URL
+      const copyUrl = permanentUrl || imageUrl;
+
       return (
-        <ScreenshotDisplay imageUrl={screenshotResult.imageUrl ?? undefined} isMobile={isMobile} fullPage={fullPage} />
+        <div className="bg-card p-4 rounded-md border overflow-hidden w-full relative">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-muted-foreground" />
+              <p className="text-base font-medium">
+                Screenshot
+                {permanentUrl && (
+                  <span className="ml-2 text-xs bg-green-500/20 text-green-600 px-2 py-1 rounded-full">
+                    Permanent URL
+                  </span>
+                )}
+              </p>
+            </div>
+            {imageData && (
+              <div className="flex gap-2">
+                {copyUrl && <CopyButton content={copyUrl} inline />}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (typeof imageData === 'string') {
+                      // Convert base64 to Uint8Array for download
+                      const binaryString = atob(imageData);
+                      const bytes = new Uint8Array(binaryString.length);
+                      for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                      }
+                      handleScreenshotDownload(bytes, imageMetadata);
+                    } else if (imageData instanceof Uint8Array) {
+                      handleScreenshotDownload(imageData, imageMetadata);
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              </div>
+            )}
+          </div>
+          <ScreenshotDisplay imageUrl={imageUrl} isMobile={isMobile} fullPage={fullPage} />
+        </div>
       );
 
     case 'pdf':
+      const pdfResult = result as {
+        pdf?: Uint8Array;
+        data?: {
+          pdf?: Uint8Array;
+          metadata?: any;
+          permanentUrl?: string;
+          fileId?: string;
+        };
+      };
+      const pdfData = (pdfResult?.pdf ?? pdfResult?.data?.pdf) as Uint8Array | undefined;
+      const pdfMetadata = pdfResult?.data?.metadata;
+      const pdfPermanentUrl = pdfResult?.data?.permanentUrl;
+      const pdfFileId = pdfResult?.data?.fileId;
+
+      console.log('📄 PDF result data:', {
+        hasPdfData: !!pdfData,
+        pdfDataType: typeof pdfData,
+        hasPermanentUrl: !!pdfPermanentUrl,
+        permanentUrl: pdfPermanentUrl,
+        fileId: pdfFileId,
+        metadata: pdfMetadata,
+      });
+
+      // Determine what to copy - permanent URL if available, otherwise blob URL
+      const copyPdfUrl = pdfPermanentUrl || pdfPreviewUrl;
+
       return (
-        <div className="bg-card p-4 rounded-md border text-center overflow-auto w-full h-[800px] relative">
-          <CopyButton content={'PDF generated successfully'} />
-          <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-          <p>PDF generated successfully</p>
-          <Button variant="outline" size="sm" className="mt-2">
-            <FileDown className="h-4 w-4 mr-2" />
-            Download PDF
-          </Button>
+        <div className="bg-card p-4 rounded-md border overflow-hidden w-full h-[800px] relative flex flex-col">
+          {/* Top bar */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              <p className="text-base font-medium">
+                {pdfData ? 'PDF Preview' : 'No PDF data returned'}
+                {pdfPermanentUrl && (
+                  <span className="ml-2 text-xs bg-green-500/20 text-green-600 px-2 py-1 rounded-full">
+                    Permanent URL
+                  </span>
+                )}
+              </p>
+            </div>
+            {pdfData && (
+              <div className="flex gap-2">
+                {copyPdfUrl && <CopyButton content={copyPdfUrl} inline />}
+                <Button variant="outline" size="sm" onClick={() => handlePdfDownload(pdfData, pdfMetadata)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Preview */}
+          {pdfPreviewUrl ? (
+            <iframe title="PDF preview" src={pdfPreviewUrl} className="flex-1 w-full border rounded" />
+          ) : (
+            <p className="text-center text-muted-foreground flex-1 flex items-center justify-center">No PDF data</p>
+          )}
         </div>
       );
 

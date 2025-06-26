@@ -3,6 +3,11 @@
 
 export interface ScreenshotRequest {
   url: string;
+  waitTime?: number;
+
+  // Return format preference - controls whether response contains base64 string or binary data
+  base64?: boolean;
+
   // Legacy top-level fields (still accepted)
   fullPage?: boolean;
   width?: number;
@@ -11,7 +16,6 @@ export interface ScreenshotRequest {
   quality?: number;
 
   // New unified props
-  waitTime?: number;
   screenshotOptions?: {
     captureBeyondViewport?: boolean;
     clip?: {
@@ -21,7 +25,7 @@ export interface ScreenshotRequest {
       y: number;
       scale?: number;
     };
-    encoding?: 'binary' | 'base64';
+    encoding?: 'binary' | 'base64'; // Note: API always returns base64 regardless of this setting
     fromSurface?: boolean;
     fullPage?: boolean;
     omitBackground?: boolean;
@@ -42,7 +46,7 @@ export interface ScreenshotRequest {
 export interface ScreenshotResponse {
   success: boolean;
   data: {
-    image: string;
+    image: Uint8Array; // Binary data by default for optimal performance
     metadata: {
       width: number;
       height: number;
@@ -51,6 +55,8 @@ export interface ScreenshotResponse {
       url: string;
       timestamp: string;
     };
+    permanentUrl?: string; // Permanent R2 storage URL for the image
+    fileId?: string; // Unique file ID for tracking
   };
   creditsCost: number;
 }
@@ -190,15 +196,158 @@ export interface SearchResponse {
   creditsCost: number;
 }
 
-// Base API request function with error handling
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export interface PdfRequest {
+  url: string;
+  waitTime?: number;
+  // Return format preference - controls whether response contains base64 string or binary data
+  base64?: boolean;
+}
+
+export interface PdfResponse {
+  success: boolean;
+  data: {
+    pdf: Uint8Array; // Binary data by default for optimal performance
+    metadata: {
+      size: number;
+      url: string;
+      timestamp: string;
+    };
+    permanentUrl?: string; // Permanent R2 storage URL for the PDF
+    fileId?: string; // Unique file ID for tracking
+  };
+  creditsCost: number;
+}
+
+// Generic binary API request function for images, PDFs and binary content
+async function apiBinaryRequest(
+  endpoint: string,
+  options: RequestInit = {},
+  expectedContentType?: string,
+): Promise<any> {
+  // Check if we're in preview mode and need API key auth
+  const headers: Record<string, string> = {
+    Accept: expectedContentType || 'application/pdf', // Default to PDF for backward compatibility
+  };
+
+  // Merge existing headers
+  if (options.headers) {
+    Object.entries(options.headers).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        headers[key] = value;
+      }
+    });
+  }
+
+  // Add API key for preview environments
+  if (isVercelPreview()) {
+    const apiKey = getApiKeyFromStorage();
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+  }
+
   const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    credentials: 'include', // Include session cookies
+    headers,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`API Error ${response.status}: ${error}`);
+  }
+
+  // Check if we got binary or JSON response
+  const contentType = response.headers.get('content-type');
+
+  if (contentType && (contentType.includes('application/pdf') || contentType.includes('image/'))) {
+    // Binary response (PDF or Image)
+    const data = new Uint8Array(await response.arrayBuffer());
+    const metadata = JSON.parse(response.headers.get('X-Metadata') || '{}');
+    const creditsCost = parseInt(response.headers.get('X-Credits-Cost') || '0');
+    const permanentUrl = response.headers.get('X-Permanent-Url')?.trim() || undefined;
+    const fileId = response.headers.get('X-File-Id')?.trim() || undefined;
+
+    const responseData = contentType.includes('application/pdf')
+      ? { pdf: data, metadata, permanentUrl, fileId }
+      : { image: data, metadata, permanentUrl, fileId };
+
+    return {
+      success: true,
+      data: responseData,
+      creditsCost,
+    };
+  } else {
+    // JSON response (likely an error or base64 fallback)
+    const result = await response.json();
+    if (result.success && typeof result.data.pdf === 'string') {
+      // Convert base64 PDF to binary
+      const byteCharacters = atob(result.data.pdf);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const uint8Array = new Uint8Array(byteNumbers);
+
+      return {
+        ...result,
+        data: {
+          ...result.data,
+          pdf: uint8Array,
+        },
+      };
+    } else if (result.success && typeof result.data.image === 'string') {
+      // Convert base64 image to binary
+      const base64Data = result.data.image.replace(/^data:image\/[a-z]+;base64,/, '');
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const uint8Array = new Uint8Array(byteNumbers);
+
+      return {
+        ...result,
+        data: {
+          ...result.data,
+          image: uint8Array,
+        },
+      };
+    }
+    return result;
+  }
+}
+
+import { isVercelPreview, getApiKeyFromStorage } from '@/lib/utils';
+
+// Base API request function with error handling
+async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  // Check if we're in preview mode and need API key auth
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Merge existing headers
+  if (options.headers) {
+    Object.entries(options.headers).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        headers[key] = value;
+      }
+    });
+  }
+
+  // Add API key for preview environments
+  if (isVercelPreview()) {
+    const apiKey = getApiKeyFromStorage();
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}${endpoint}`, {
+    ...options,
+    headers,
+    credentials: 'include', // Include session cookies (for production)
   });
 
   if (!response.ok) {
@@ -217,12 +366,21 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
 // Studio API functions
 export const studioApi = {
-  // Take a screenshot
-  screenshot: (data: ScreenshotRequest): Promise<ScreenshotResponse> =>
-    apiRequest('/web/screenshot', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+  // Take a screenshot (Binary response by default for optimal performance)
+  screenshot: (data: ScreenshotRequest): Promise<ScreenshotResponse> => {
+    const format = data.format || data.screenshotOptions?.type || 'png';
+    return apiBinaryRequest(
+      '/web/screenshot',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...data, base64: false }),
+      },
+      `image/${format}`,
+    );
+  },
 
   // Extract markdown
   markdown: (data: MarkdownRequest): Promise<MarkdownResponse> =>
@@ -265,4 +423,18 @@ export const studioApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Generate PDF (Binary response by default for optimal performance)
+  pdf: (data: PdfRequest): Promise<PdfResponse> =>
+    apiBinaryRequest(
+      '/web/pdf',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...data, base64: false }),
+      },
+      'application/pdf',
+    ),
 };

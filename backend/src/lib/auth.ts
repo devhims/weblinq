@@ -6,6 +6,8 @@ import { apiKey } from 'better-auth/plugins';
 import { createDb } from '@/db';
 import * as schema from '@/db/schema';
 
+import { getTrustedOrigins } from './auth-utils';
+
 export function createAuth(env: CloudflareBindings) {
   /* ---------- environment detection ---------- */
   const isLocal = env.BETTER_AUTH_URL?.startsWith('http://localhost');
@@ -30,10 +32,8 @@ export function createAuth(env: CloudflareBindings) {
     /* Same secret as the front-end */
     secret: env.BETTER_AUTH_SECRET,
 
-    /* CSRF / open-redirect guard */
-    trustedOrigins: isLocal
-      ? ['http://localhost:3000', 'http://localhost:8787']
-      : ['https://www.weblinq.dev'], // Fixed: added 'www' to match frontend
+    /* CSRF / open-redirect guard - now supports Vercel previews */
+    trustedOrigins: getTrustedOrigins(env),
 
     /* Share the cookie in prod, host-only in dev */
     advanced: {
@@ -52,8 +52,7 @@ export function createAuth(env: CloudflareBindings) {
     plugins: [
       apiKey({
         enableMetadata: true,
-        customAPIKeyGetter: (ctx) =>
-          ctx.headers?.get('Authorization')?.split(' ')[1] ?? null,
+        customAPIKeyGetter: (ctx) => ctx.headers?.get('Authorization')?.split(' ')[1] ?? null,
         rateLimit: {
           enabled: true,
           timeWindow: 86_400_000,

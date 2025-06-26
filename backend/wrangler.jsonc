@@ -10,7 +10,10 @@
   },
   "vars": {
     "FRONTEND_URL": "https://www.weblinq.dev",
-    "BETTER_AUTH_URL": "https://api.weblinq.dev"
+    "BETTER_AUTH_URL": "https://api.weblinq.dev",
+    "CDN_DOMAIN": "cdn.weblinq.dev",
+    "CDN_PREVIEW_DOMAIN": "cdn-preview.weblinq.dev",
+    "NODE_ENV": "production"
   },
   "d1_databases": [
     {
@@ -50,5 +53,12 @@
   },
   "browser": {
     "binding": "BROWSER"
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "R2_BUCKET",
+      "bucket_name": "weblinq",
+      "preview_bucket_name": "weblinq-preview"
+    }
+  ]
 }

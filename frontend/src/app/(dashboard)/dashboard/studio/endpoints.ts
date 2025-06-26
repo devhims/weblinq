@@ -29,7 +29,7 @@ import {
   ScrapeLinksActions,
   ScrapeMarkdownActions,
 } from './components/ScrapeActions';
-import { ScreenshotActions } from './components/VisualActions';
+import { ScreenshotActions, PdfActions } from './components/VisualActions';
 import { JsonActions } from './components/StructuredActions';
 import { SearchActions } from './components/SearchActions';
 
@@ -54,7 +54,6 @@ export type ApiEndpoint = {
 /* -------------------------------------------------------------
  * Placeholder component(s)
  * -----------------------------------------------------------*/
-const PdfActions: React.FC = () => null;
 
 /* -------------------------------------------------------------
  * Endpoint configuration (single source of truth)

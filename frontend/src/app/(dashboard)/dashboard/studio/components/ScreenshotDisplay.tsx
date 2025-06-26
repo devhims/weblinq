@@ -1,8 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { FileDown } from 'lucide-react';
+
 import { ResultContainer } from './ResultContainer';
 
 interface ScreenshotDisplayProps {
@@ -48,19 +47,11 @@ export function ScreenshotDisplay({
               height={800}
               className="rounded-md shadow max-w-full max-h-full object-contain"
               style={{ width: 'auto', height: 'auto' }}
+              unoptimized
               priority
             />
           )}
         </div>
-
-        {/* Download button bottom right */}
-        {imageUrl && (
-          <a href={imageUrl} download className="absolute bottom-4 right-4">
-            <Button size="sm" variant="outline" className="flex items-center gap-1">
-              <FileDown className="h-4 w-4" /> Download
-            </Button>
-          </a>
-        )}
       </div>
     </ResultContainer>
   );
