@@ -47,6 +47,7 @@ export function ScreenshotDisplay({
               height={800}
               className="rounded-md shadow max-w-full max-h-full object-contain"
               style={{ width: 'auto', height: 'auto' }}
+              unoptimized
               priority
             />
           )}

@@ -23,7 +23,14 @@ export default function createAuthCors(c: Context<AppBindings>) {
     // ✅ CRITICAL: Allow basic headers needed for Better Auth + API keys
     allowHeaders: ['Content-Type', 'Authorization'],
     // ✅ CRITICAL: Expose cookies in response for cross-domain
-    exposeHeaders: ['Content-Length'],
+    exposeHeaders: [
+      'Content-Length',
+      // Custom binary endpoint headers
+      'X-Permanent-Url',
+      'X-File-Id',
+      'X-Metadata',
+      'X-Credits-Cost',
+    ],
     // ✅ CRITICAL: Set max age for preflight caching
     maxAge: 600,
   });
