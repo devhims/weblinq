@@ -113,6 +113,8 @@ const screenshotOutputSchema = z.object({
       url: z.string(),
       timestamp: z.string(),
     }),
+    permanentUrl: z.string().optional().describe('Permanent R2 storage URL for the image'),
+    fileId: z.string().optional().describe('Unique file ID for tracking'),
   }),
   creditsCost: z.number(),
 });
@@ -240,6 +242,8 @@ const pdfOutputSchema = z.object({
       url: z.string(),
       timestamp: z.string(),
     }),
+    permanentUrl: z.string().optional().describe('Permanent R2 storage URL for the PDF'),
+    fileId: z.string().optional().describe('Unique file ID for tracking'),
   }),
   creditsCost: z.number(),
 });

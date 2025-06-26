@@ -55,6 +55,8 @@ export interface ScreenshotResponse {
       url: string;
       timestamp: string;
     };
+    permanentUrl?: string; // Permanent R2 storage URL for the image
+    fileId?: string; // Unique file ID for tracking
   };
   creditsCost: number;
 }
@@ -210,6 +212,8 @@ export interface PdfResponse {
       url: string;
       timestamp: string;
     };
+    permanentUrl?: string; // Permanent R2 storage URL for the PDF
+    fileId?: string; // Unique file ID for tracking
   };
   creditsCost: number;
 }
@@ -261,10 +265,16 @@ async function apiBinaryRequest(
     const data = new Uint8Array(await response.arrayBuffer());
     const metadata = JSON.parse(response.headers.get('X-Metadata') || '{}');
     const creditsCost = parseInt(response.headers.get('X-Credits-Cost') || '0');
+    const permanentUrl = response.headers.get('X-Permanent-Url')?.trim() || undefined;
+    const fileId = response.headers.get('X-File-Id')?.trim() || undefined;
+
+    const responseData = contentType.includes('application/pdf')
+      ? { pdf: data, metadata, permanentUrl, fileId }
+      : { image: data, metadata, permanentUrl, fileId };
 
     return {
       success: true,
-      data: contentType.includes('application/pdf') ? { pdf: data, metadata } : { image: data, metadata },
+      data: responseData,
       creditsCost,
     };
   } else {
