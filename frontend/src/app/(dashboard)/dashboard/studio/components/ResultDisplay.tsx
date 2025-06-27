@@ -381,11 +381,11 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
               <Globe className="h-5 w-5 text-muted-foreground" />
               <p className="text-base font-medium">
                 Screenshot
-                {permanentUrl && (
+                {/* {permanentUrl && (
                   <span className="ml-2 text-xs bg-green-500/20 text-green-600 px-2 py-1 rounded-full">
                     Permanent URL
                   </span>
-                )}
+                )} */}
               </p>
             </div>
             {imageData && (
@@ -453,11 +453,11 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
               <FileText className="h-5 w-5 text-muted-foreground" />
               <p className="text-base font-medium">
                 {pdfData ? 'PDF Preview' : 'No PDF data returned'}
-                {pdfPermanentUrl && (
+                {/* {pdfPermanentUrl && (
                   <span className="ml-2 text-xs bg-green-500/20 text-green-600 px-2 py-1 rounded-full">
                     Permanent URL
                   </span>
-                )}
+                )} */}
               </p>
             </div>
             {pdfData && (
