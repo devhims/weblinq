@@ -21,34 +21,34 @@ export function ResultContainer({
   error = null,
   empty = false,
   emptyMessage = 'Enter a URL and select an endpoint to see results',
-  emptyIcon = <Globe className="h-12 w-12 text-muted-foreground mb-3" />,
+  emptyIcon = <Globe className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground mb-3" />,
   children,
   copyContent,
   darkBackground = false,
   className = 'bg-card rounded-md border overflow-auto w-full relative',
-  height = 'h-[800px]',
+  height = 'max-h-[60vh] sm:max-h-[70vh] lg:h-[800px]',
 }: ResultContainerProps) {
   if (loading) {
     return (
-      <div className={`flex items-center justify-center ${height}`}>
-        <div className="animate-spin rounded-full h-14 w-14 border-b-2 border-primary"></div>
+      <div className={`flex items-center justify-center h-[200px] sm:h-[300px] lg:h-[400px]`}>
+        <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-destructive/10 p-5 rounded-md border border-destructive/20 overflow-hidden break-words">
-        <p className="text-destructive text-base font-medium">{error}</p>
+      <div className="bg-destructive/10 p-4 sm:p-5 rounded-md border border-destructive/20 overflow-hidden break-words">
+        <p className="text-destructive text-sm sm:text-base font-medium">{error}</p>
       </div>
     );
   }
 
   if (empty) {
     return (
-      <div className={`flex flex-col items-center justify-center ${height} text-center`}>
+      <div className={`flex flex-col items-center justify-center h-[200px] sm:h-[300px] lg:h-[400px] text-center px-4`}>
         {emptyIcon}
-        <p className="text-muted-foreground text-lg">{emptyMessage}</p>
+        <p className="text-muted-foreground text-sm sm:text-base lg:text-lg">{emptyMessage}</p>
       </div>
     );
   }

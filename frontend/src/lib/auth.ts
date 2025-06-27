@@ -10,21 +10,19 @@ import {
   sendPasswordResetEmail,
 } from './email';
 
-// Vercel sets NODE_ENV="production" for preview deployments as well, so we
-// need a separate flag for them. In preview we *do not* want cross-sub-domain
-// cookies or a fixed ".weblinq.dev" cookie domain because the preview host is
-// something like "weblinq-pr-123-devhims-projects.vercel.app".
+// Use VERCEL_ENV when it exists, otherwise fall back to NODE_ENV
+const runtimeEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
 
-const isPreview = process.env.VERCEL_ENV === 'preview';
-const isProd = process.env.NODE_ENV === 'production' && !isPreview; // real prod only
+const isPreview = runtimeEnv === 'preview';
+const isProd = runtimeEnv === 'production';
 
-/* ------------------------------------------------------------------ */
-/* 1.  Values you share with the Cloudflare-Worker back-end            */
-/* ------------------------------------------------------------------ */
+const previewHost = process.env.VERCEL_URL;
+const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || 'www.weblinq.dev';
+
 const FRONTEND_URL = isPreview
-  ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` // e.g. weblinq-pr-123-devhims-projects.vercel.app
+  ? `https://${previewHost}`
   : isProd
-  ? 'https://www.weblinq.dev'
+  ? `https://${productionHost}`
   : 'http://localhost:3000';
 const BACKEND_URL = isProd ? 'https://api.weblinq.dev' : 'http://localhost:8787';
 const SECRET = process.env.BETTER_AUTH_SECRET!;
@@ -58,7 +56,7 @@ export const auth = betterAuth({
     defaultCookieAttributes: {
       domain: isProd ? '.weblinq.dev' : undefined,
       sameSite: 'lax',
-      secure: isProd, // secure if we are on HTTPS (prod)
+      secure: isProd || isPreview, // secure if we are on HTTPS (prod or preview)
       httpOnly: true,
       path: '/',
     },

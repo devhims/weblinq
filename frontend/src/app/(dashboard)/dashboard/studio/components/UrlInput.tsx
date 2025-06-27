@@ -3,8 +3,9 @@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useTransition, useEffect } from 'react';
+import { useTransition, useEffect, useState } from 'react';
 import React from 'react';
+import { Loader2, CircleCheck, X, Play } from 'lucide-react';
 
 import { studioApi } from '@/lib/studio-api';
 import type {
@@ -64,6 +65,11 @@ const MAIN_CONTENT_SELECTORS = [
 ];
 
 /* ──────────────────────────────────────────────────────────────
+   Types for button state
+──────────────────────────────────────────────────────────────── */
+type ButtonState = 'idle' | 'loading' | 'success' | 'error';
+
+/* ──────────────────────────────────────────────────────────────
    Component
 ──────────────────────────────────────────────────────────────── */
 interface UrlInputProps {
@@ -78,9 +84,10 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   const { url, setUrl, query, setQuery, limit, setLimit, endpoint, action, getApiPayload, params } = useStudioParams();
 
   /* ———————————————————————————————————————————
-     Loading state
+     Loading state and button status
   ——————————————————————————————————————————— */
   const [loading, startTransition] = useTransition();
+  const [buttonState, setButtonState] = useState<ButtonState>('idle');
 
   /* ———————————————————————————————————————————
      Notify parent about loading changes
@@ -88,6 +95,25 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   useEffect(() => {
     onLoadingChange?.(loading);
   }, [loading, onLoadingChange]);
+
+  /* ———————————————————————————————————————————
+     Update button state based on loading
+  ——————————————————————————————————————————— */
+  useEffect(() => {
+    if (loading) {
+      setButtonState('loading');
+    }
+  }, [loading]);
+
+  /* ———————————————————————————————————————————
+     Helper to show status briefly then return to idle
+  ——————————————————————————————————————————— */
+  const showStatusBriefly = (status: 'success' | 'error') => {
+    setButtonState(status);
+    setTimeout(() => {
+      setButtonState('idle');
+    }, 1500); // Show status for 1.5 seconds
+  };
 
   /* ———————————————————————————————————————————
      Helpers to update URL state from inputs
@@ -100,6 +126,40 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
     } else {
       const n = Number(v);
       if (!Number.isNaN(n) && n > 0) setLimit(n);
+    }
+  };
+
+  /* ———————————————————————————————————————————
+     Button content based on state
+  ——————————————————————————————————————————— */
+  const getButtonContent = (isSearch: boolean = false) => {
+    // const baseText = isSearch ? 'Search' : 'Run';
+
+    switch (buttonState) {
+      case 'loading':
+        return (
+          <>
+            <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+          </>
+        );
+      case 'success':
+        return (
+          <>
+            <CircleCheck className="h-3 w-3 sm:h-4 sm:w-4" />
+          </>
+        );
+      case 'error':
+        return (
+          <>
+            <X className="h-3 w-3 sm:h-4 sm:w-4" />
+          </>
+        );
+      default:
+        return (
+          <>
+            <Play className="h-3 w-3 sm:h-4 sm:w-4" />
+          </>
+        );
     }
   };
 
@@ -128,6 +188,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
                 sources: res.data.metadata.sources,
               };
               onApiResult(transformed, null);
+              showStatusBriefly('success');
             } else {
               throw new Error('Search failed');
             }
@@ -174,6 +235,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             if (results.length === 0) throw new Error('Failed to scrape elements: No data received');
             if (results.length === 1) onApiResult(results[0].data, null);
             else onApiResult({ combinedResults: results }, null);
+            showStatusBriefly('success');
             break;
           }
 
@@ -181,6 +243,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             const res = await studioApi.markdown(payload as MarkdownRequest);
             if (res?.success && res.data?.markdown) {
               onApiResult(res.data.markdown, null);
+              showStatusBriefly('success');
             } else {
               throw new Error('Failed to extract markdown');
             }
@@ -191,6 +254,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             const res = await studioApi.content(payload as ContentRequest);
             if (res?.success && res.data?.content) {
               onApiResult(res.data.content, null);
+              showStatusBriefly('success');
             } else {
               throw new Error('Failed to fetch HTML content');
             }
@@ -201,6 +265,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             const res = await studioApi.links(payload as LinksRequest);
             if (res?.success && res.data?.links) {
               onApiResult(res.data.links, null);
+              showStatusBriefly('success');
             } else {
               throw new Error('Failed to retrieve links');
             }
@@ -211,6 +276,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             const res = await studioApi.screenshot(payload as ScreenshotRequest);
             if (res?.success && res.data?.image) {
               onApiResult({ image: res.data.image, data: res.data }, null);
+              showStatusBriefly('success');
             } else {
               throw new Error('Failed to capture screenshot');
             }
@@ -221,6 +287,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             const res = await studioApi.pdf(payload as PdfRequest);
             if (res?.success && res.data?.pdf) {
               onApiResult({ pdf: res.data.pdf, data: res.data }, null);
+              showStatusBriefly('success');
             } else {
               throw new Error('Failed to generate PDF');
             }
@@ -231,6 +298,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             const res = await studioApi.jsonExtraction(payload as JsonExtractionRequest);
             if (res) {
               onApiResult(res, null);
+              showStatusBriefly('success');
             } else {
               throw new Error('Failed to extract JSON');
             }
@@ -239,10 +307,12 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
 
           default:
             onApiResult({ message: `${action} operation completed successfully` }, null);
+            showStatusBriefly('success');
         }
       } catch (err: any) {
         console.error('API call error:', err);
         onApiResult(null, err?.message || 'An error occurred during the API call');
+        showStatusBriefly('error');
       }
     });
   };
@@ -255,7 +325,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
-            <Label htmlFor="search-query" className="text-base font-medium">
+            <Label htmlFor="search-query" className="text-sm sm:text-base font-medium">
               Search Query
             </Label>
             <Input
@@ -263,7 +333,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
               value={query ?? ''}
               onChange={(e) => onQueryChange(e.target.value)}
               placeholder="Enter your search terms..."
-              className="text-base h-11"
+              className="text-sm sm:text-base h-9 sm:h-11"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -274,7 +344,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
           </div>
 
           <div className="flex flex-col">
-            <Label htmlFor="search-limit" className="text-base font-medium">
+            <Label htmlFor="search-limit" className="text-sm sm:text-base font-medium">
               Results
             </Label>
             <div className="flex space-x-2">
@@ -286,15 +356,15 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
                 placeholder="15"
                 min="1"
                 max="50"
-                className="text-base h-11"
+                className="text-sm sm:text-base h-9 sm:h-11"
               />
               <Button
                 onClick={handleApiCall}
                 type="button"
-                className="h-11 px-6"
+                className="h-9 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm"
                 disabled={loading || !(query ?? '').trim()}
               >
-                {loading ? 'Searching...' : 'Search'}
+                {getButtonContent(true)}
               </Button>
             </div>
           </div>
@@ -305,7 +375,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="url-input" className="text-base font-medium">
+      <Label htmlFor="url-input" className="text-sm sm:text-base font-medium">
         URL
       </Label>
       <div className="flex space-x-2">
@@ -314,7 +384,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
           value={url ?? ''}
           onChange={(e) => onUrlChange(e.target.value)}
           placeholder="https://example.com"
-          className="flex-1 text-base h-9"
+          className="flex-1 text-sm sm:text-base h-8 sm:h-9"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -322,8 +392,13 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             }
           }}
         />
-        <Button onClick={handleApiCall} type="button" className="h-9 px-4" disabled={loading}>
-          {loading ? 'Loading...' : 'Run'}
+        <Button
+          onClick={handleApiCall}
+          type="button"
+          className="h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
+          disabled={loading}
+        >
+          {getButtonContent(false)}
         </Button>
       </div>
     </div>

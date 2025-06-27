@@ -31,7 +31,9 @@ export function CopyButton({ content, darkBackground = false, inline = false, cl
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const baseClasses = inline ? '' : 'absolute top-3 right-6 z-10 h-8 w-8 p-0';
+  const baseClasses = inline
+    ? ''
+    : 'sticky top-3 right-3 sm:right-6 z-10 h-7 w-7 sm:h-8 sm:w-8 p-0 ml-auto float-right';
 
   const colorClasses = 'text-muted-foreground hover:text-foreground hover:bg-muted/70';
 
@@ -45,11 +47,15 @@ export function CopyButton({ content, darkBackground = false, inline = false, cl
             className={`${baseClasses} ${colorClasses} ${className}`.trim()}
             onClick={handleCopy}
           >
-            {copied ? <CheckIcon className="h-4 w-4 text-primary" /> : <ClipboardIcon className="h-4 w-4" />}
+            {copied ? (
+              <CheckIcon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+            ) : (
+              <ClipboardIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+            )}
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{copied ? 'Copied!' : 'Copy to clipboard'}</p>
+          <p className="text-xs">{copied ? 'Copied!' : 'Copy to clipboard'}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
