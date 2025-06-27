@@ -66,17 +66,12 @@ export const API_ENDPOINTS = [
     description: 'Extract content and data from a webpage',
     subActions: [
       {
-        id: 'elements',
-        name: 'Selective Scrape',
-        description: 'Scrape specific HTML elements using CSS selectors',
-        Component: ScrapeElementsActions,
-      },
-      {
         id: 'markdown',
         name: 'Markdown',
         description: 'Extract content as Markdown from a webpage',
         Component: ScrapeMarkdownActions,
       },
+
       {
         id: 'html',
         name: 'HTML Content',
@@ -88,6 +83,12 @@ export const API_ENDPOINTS = [
         name: 'Links',
         description: 'Extract all links from a webpage',
         Component: ScrapeLinksActions,
+      },
+      {
+        id: 'elements',
+        name: 'Selective Scrape',
+        description: 'Scrape specific HTML elements using CSS selectors',
+        Component: ScrapeElementsActions,
       },
     ],
   },

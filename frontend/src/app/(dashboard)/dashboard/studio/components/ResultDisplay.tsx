@@ -258,7 +258,7 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
     return (
       <div className="flex flex-col items-center justify-center h-[400px] text-center">
         <Globe className="h-12 w-12 text-muted-foreground mb-3" />
-        <p className="text-muted-foreground text-lg">Enter a URL and select an endpoint to see results</p>
+        <p className="text-muted-foreground text-md">Enter a URL and select an endpoint to see results</p>
       </div>
     );
   }

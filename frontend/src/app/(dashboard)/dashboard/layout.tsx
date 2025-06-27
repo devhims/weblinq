@@ -4,76 +4,98 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import {
-  Users,
-  Settings,
-  Shield,
-  Activity,
-  Menu,
-  Code,
-  CircleIcon,
-} from 'lucide-react';
+import { Key, Settings, CreditCard, Activity, Menu, Code, X } from 'lucide-react';
+import { Logo } from '@/components/logo';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navItems = [
-    { href: '/dashboard', icon: Users, label: 'Team' },
-    { href: '/dashboard/general', icon: Settings, label: 'General' },
-    { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
-    { href: '/dashboard/security', icon: Shield, label: 'Security' },
     { href: '/dashboard/studio', icon: Code, label: 'Studio' },
+    { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
+    { href: '/dashboard/api-keys', icon: Key, label: 'API Keys' },
+    { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
+    { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
   ];
 
   return (
-    <div className='flex flex-col min-h-[calc(100vh-68px)] w-full'>
+    <div className="flex flex-col min-h-[calc(100vh-68px)] w-full">
       {/* Mobile header */}
-      <div className='lg:hidden flex items-center justify-between bg-background border-b border-border p-4'>
-        <div className='flex items-center'>
-          <span className='font-medium text-xl'>Settings</span>
+      <div className="lg:hidden flex items-center justify-between bg-background border-b border-border p-4">
+        <div className="flex items-center">
+          <Button className="mr-3 -ml-2" variant="ghost" size="sm" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+            <Menu className="h-6 w-6" />
+            <span className="sr-only">Toggle sidebar</span>
+          </Button>
+          {/* <span className="font-medium text-xl">Dashboard</span> */}
         </div>
-        <Button
-          className='-mr-3'
-          variant='ghost'
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        >
-          <Menu className='h-6 w-6' />
-          <span className='sr-only'>Toggle sidebar</span>
-        </Button>
       </div>
 
-      <div className='flex flex-1 h-full min-h-[calc(100vh-68px)] lg:min-h-0'>
-        {/* Sidebar */}
-        <aside
-          className='hidden lg:flex flex-col fixed left-0 top-0 h-screen w-52 bg-sidebar flex-shrink-0 border-r border-sidebar-border z-40'
-          style={{ boxShadow: '0px 0 0 1px var(--color-sidebar-border)' }}
-        >
-          <nav className='h-full overflow-y-auto p-3 flex flex-col'>
+      {/* Mobile overlay */}
+      {isSidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
+      )}
+
+      <div className="flex flex-1 h-full min-h-[calc(100vh-68px)] lg:min-h-0">
+        {/* Desktop Sidebar */}
+        <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-52 bg-sidebar flex-shrink-0 border-r z-40">
+          <nav className="h-full overflow-y-auto p-3 flex flex-col">
             {/* Logo at the top of sidebar */}
-            <Link href='/' className='flex items-center mb-6 px-2 py-3'>
-              <CircleIcon className='h-6 w-6 text-primary' />
-              <span className='ml-2 text-xl font-semibold text-sidebar-foreground'>
-                HIMA
-              </span>
+            <Link
+              href="/"
+              className="flex items-center mb-6 px-3 py-3 hover:bg-sidebar-accent/30 rounded-lg transition-colors duration-200"
+            >
+              <Logo />
             </Link>
 
             {navItems.map((item) => (
               <Link key={item.href} href={item.href} passHref>
                 <Button
                   variant={pathname === item.href ? 'secondary' : 'ghost'}
-                  className={`shadow-none my-2 w-full justify-start text-lg ${
+                  className={`shadow-none my-1 w-full justify-start text-lg transition-all duration-200 ease-in-out hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-sm hover:scale-[1.02] active:scale-[0.98] ${
                     pathname === item.href
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm border border-sidebar-border/30'
+                      : 'text-sidebar-foreground'
                   }`}
                   onClick={() => setIsSidebarOpen(false)}
                 >
-                  <item.icon className='h-6 w-6 mr-3' />
+                  <item.icon className="h-5 w-5 mr-3" />
+                  {item.label}
+                </Button>
+              </Link>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Mobile Sidebar */}
+        <aside
+          className={`lg:hidden fixed left-0 top-0 h-screen w-64 bg-sidebar flex-shrink-0 border-r z-50 transform transition-transform duration-300 ease-in-out ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <nav className="h-full overflow-y-auto p-3 flex flex-col">
+            {/* Mobile header with close button */}
+            <Button variant="ghost" size="sm" onClick={() => setIsSidebarOpen(false)} className="h-8 w-8 p-0 self-end">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close sidebar</span>
+            </Button>
+            <div className="flex items-center justify-between mb-4 px-3 pb-3">
+              <Logo />
+            </div>
+
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href} passHref>
+                <Button
+                  variant={pathname === item.href ? 'secondary' : 'ghost'}
+                  className={`shadow-none my-1 w-full justify-start text-lg transition-all duration-200 ease-in-out hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-sm hover:scale-[1.02] active:scale-[0.98] ${
+                    pathname === item.href
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm border border-sidebar-border/30'
+                      : 'text-sidebar-foreground'
+                  }`}
+                  onClick={() => setIsSidebarOpen(false)}
+                >
+                  <item.icon className="h-5 w-5 mr-3" />
                   {item.label}
                 </Button>
               </Link>
@@ -82,9 +104,7 @@ export default function DashboardLayout({
         </aside>
 
         {/* Main content */}
-        <main className='flex-1 p-0 lg:p-6 lg:ml-52 overflow-auto'>
-          {children}
-        </main>
+        <main className="flex-1 p-0 lg:p-6 lg:ml-52 overflow-auto">{children}</main>
       </div>
     </div>
   );

@@ -55,7 +55,7 @@ export default function StudioClientContainer() {
 
         {/* Results ----------------------------------------------------------- */}
         <div className="w-full overflow-hidden">
-          <Label className="text-lg font-medium">Result</Label>
+          <Label className="text-base font-medium">Result</Label>
           <div className="w-full overflow-hidden mt-2">
             <ResultDisplay
               loading={loading}

@@ -5,7 +5,9 @@ import StudioClientContainer from './components/StudioClientContainer';
 
 export default function StudioPage() {
   return (
-    <div className="w-full overflow-hidden">
+    <section className="flex-1 p-2 lg:p-4">
+      {/* <h1 className="text-lg lg:text-2xl font-medium mb-4">Studio</h1> */}
+
       <Card className="mb-6 w-full overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-2xl">Studio</CardTitle>
@@ -20,8 +22,9 @@ export default function StudioPage() {
           </Suspense>
         </CardContent>
       </Card>
+
       {/* API Reference Component */}
       <ApiReference />
-    </div>
+    </section>
   );
 }

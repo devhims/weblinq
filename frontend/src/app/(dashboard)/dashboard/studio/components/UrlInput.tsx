@@ -314,7 +314,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
           value={url ?? ''}
           onChange={(e) => onUrlChange(e.target.value)}
           placeholder="https://example.com"
-          className="flex-1 text-base h-11"
+          className="flex-1 text-base h-9"
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -322,7 +322,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             }
           }}
         />
-        <Button onClick={handleApiCall} type="button" className="h-11 px-6" disabled={loading}>
+        <Button onClick={handleApiCall} type="button" className="h-9 px-4" disabled={loading}>
           {loading ? 'Loading...' : 'Run'}
         </Button>
       </div>
