@@ -152,9 +152,35 @@ class DuckDuckGoHandler extends BaseSearchHandler {
   }
 
   public cleanUrl(url: string): string {
+    // Handle DuckDuckGo redirect URLs in various formats:
+    // - https://duckduckgo.com/l/?uddg=...
+    // - //duckduckgo.com/l/?uddg=...
+    // - http://duckduckgo.com/l/?uddg=...
     if (url.includes('duckduckgo.com/l/?uddg=')) {
-      return decodeURIComponent(url.split('uddg=')[1]?.split('&')[0] || url);
+      try {
+        const uddgParam = url.split('uddg=')[1]?.split('&')[0];
+        if (uddgParam) {
+          const decodedUrl = decodeURIComponent(uddgParam);
+          // Ensure the decoded URL has a protocol
+          if (decodedUrl.startsWith('//')) {
+            return `https:${decodedUrl}`;
+          }
+          if (!decodedUrl.startsWith('http://') && !decodedUrl.startsWith('https://')) {
+            return `https://${decodedUrl}`;
+          }
+          return decodedUrl;
+        }
+      } catch (error) {
+        console.warn('Failed to decode DuckDuckGo URL:', url, error);
+        return url;
+      }
     }
+
+    // Handle protocol-relative URLs
+    if (url.startsWith('//')) {
+      return `https:${url}`;
+    }
+
     return url;
   }
 
