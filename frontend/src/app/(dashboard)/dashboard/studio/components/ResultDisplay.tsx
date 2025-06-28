@@ -16,7 +16,7 @@ import {
   CheckIcon,
   ClipboardIcon,
 } from 'lucide-react';
-import { ApiResult, ScreenshotResult, ScrapeResult, LinksResult } from '../types';
+import { ApiResult, ScreenshotResult, ScrapeResult, LinksResult, SearchResponse } from '../types';
 import { useState, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SearchResultDisplay } from './SearchResultDisplay';
@@ -495,7 +495,18 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
     case 'web':
     case 'search':
       console.log('Search result data:', result);
-      return <SearchResultDisplay result={result} />;
+      // Type guard to ensure we have a proper SearchResponse
+      if (result && typeof result === 'object' && !Array.isArray(result) && 'results' in result) {
+        return <SearchResultDisplay result={result as SearchResponse} />;
+      }
+      // Fallback for unexpected result format
+      return (
+        <div className="bg-card p-3 sm:p-4 rounded-md border h-full w-full flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm">{JSON.stringify(result, null, 2)}</pre>
+          </div>
+        </div>
+      );
 
     default:
       return (

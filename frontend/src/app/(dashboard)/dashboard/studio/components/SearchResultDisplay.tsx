@@ -4,49 +4,10 @@ import { Label } from '@/components/ui/label';
 import { Globe, Clock, Search } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Badge } from '@/components/ui/badge';
-
-interface SearchResult {
-  title: string;
-  url: string;
-  snippet: string;
-  source: 'duckduckgo' | 'startpage' | 'bing';
-  // score removed as not required in simplified response schema
-}
-
-interface SearchMetadata {
-  query: string;
-  totalResults: number;
-  searchTime: number;
-  sources: string[];
-  timestamp: string;
-  debug?: {
-    engines: Record<
-      string,
-      {
-        count: number;
-        searchTime: number;
-        success: boolean;
-      }
-    >;
-    totalEngines: number;
-    deduplicationStats: {
-      rawResults: number;
-      uniqueResults: number;
-      finalResults: number;
-    };
-    // Removed score-based debug metrics
-  };
-}
+import { SearchResult, SearchMetadata, SearchResponse } from '../types';
 
 interface SearchResultDisplayProps {
-  result: {
-    results: SearchResult[];
-    metadata?: SearchMetadata;
-    // Legacy support for direct properties
-    totalResults?: number;
-    searchTime?: number;
-    sources?: string[];
-  };
+  result: SearchResponse;
 }
 
 export function SearchResultDisplay({ result }: SearchResultDisplayProps) {
