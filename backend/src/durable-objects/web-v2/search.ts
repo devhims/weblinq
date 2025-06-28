@@ -581,6 +581,25 @@ class MultiEngineSearchHandler {
   }
 
   /**
+   * Extract root domain from hostname for secure domain matching
+   * Examples:
+   * - "www.cloudflare.com" → "cloudflare"
+   * - "api.cloudflare.com" → "cloudflare"
+   * - "cloudflare-fake.com" → "cloudflare-fake"
+   */
+  private extractRootDomain(hostname: string): string {
+    // Remove www. prefix if present
+    const cleaned = hostname.replace(/^www\./, '');
+
+    // Split by dots and get second-to-last part (root domain)
+    const parts = cleaned.split('.');
+    if (parts.length >= 2) {
+      return parts[parts.length - 2]; // Second-to-last part is root domain
+    }
+    return cleaned; // Fallback to original if parsing fails
+  }
+
+  /**
    * Enhanced recency detection with tiered bonuses based on content age
    */
   private calculateRecencyBonus(result: RawSearchLink): number {
@@ -755,21 +774,24 @@ class MultiEngineSearchHandler {
         score += W.snippetPartial; // Substring match (lower score)
       }
 
-      // 🌐 URL/DOMAIN MATCHES: Critical for brand searches
-      if (urlHost.includes(word) || urlPath.includes(word)) {
+      // 🌐 URL/DOMAIN MATCHES: Critical for brand searches with security
+      const rootDomain = this.extractRootDomain(urlHost);
+      const hasUrlMatch = rootDomain.includes(word) || urlPath.includes(word);
+
+      if (hasUrlMatch) {
         urlMatchFound = true;
         urlMatches++;
         urlMatchedWords.add(word);
 
-        // Domain match hierarchy
-        if (urlHost === word || urlHost === `${word}.com` || urlHost === `${word}.org` || urlHost === `${word}.net`) {
-          score += W.urlExactDomain; // Exact domain match
-        } else if (urlHost.startsWith(word) || urlHost.endsWith(word)) {
-          score += W.urlPrefixSuffix; // Domain prefix/suffix match
-        } else if (urlHost.includes(word)) {
-          score += W.urlSubstring; // Domain substring match
+        // 🔒 SECURE Domain match hierarchy (root domain only)
+        if (rootDomain === word) {
+          score += W.urlExactDomain; // Exact root domain match (e.g., "cloudflare" matches cloudflare.com)
+        } else if (rootDomain.startsWith(word) || rootDomain.endsWith(word)) {
+          score += W.urlPrefixSuffix; // Root domain prefix/suffix match
+        } else if (rootDomain.includes(word)) {
+          score += W.urlSubstring; // Root domain substring match
         } else if (urlPath.includes(word)) {
-          score += W.urlPath; // URL path match
+          score += W.urlPath; // URL path match (lower priority)
         }
       }
 
