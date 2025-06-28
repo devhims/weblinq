@@ -506,46 +506,99 @@ class MultiEngineSearchHandler {
   }
 
   /**
-   * Calculate relevance score based on query keyword matches
+   * Enhanced relevance scoring that rewards comprehensive matches in both title and snippet
    */
   private calculateScore(result: RawSearchLink, query: string): number {
     const queryWords = query
       .toLowerCase()
       .split(/\s+/)
       .filter((word) => word.length > 2);
+
+    if (queryWords.length === 0) return 0;
+
     const titleLower = result.title.toLowerCase();
+    const snippetLower = result.snippet?.toLowerCase() || '';
 
     let score = 0;
+    let titleMatches = 0;
+    let snippetMatches = 0;
+    const titleMatchedWords = new Set<string>();
+    const snippetMatchedWords = new Set<string>();
 
-    // Count exact keyword matches in title
+    // Calculate matches for each query word
     for (const word of queryWords) {
-      if (titleLower.includes(word)) {
-        score += 10; // Base score per keyword match
+      let titleMatchFound = false;
+      let snippetMatchFound = false;
 
-        // Bonus for word boundaries (more precise matches)
+      // Title matches with enhanced scoring
+      if (titleLower.includes(word)) {
+        titleMatchFound = true;
+        titleMatches++;
+        titleMatchedWords.add(word);
+
+        // Word boundary bonus (more precise matches)
         const regex = new RegExp(`\\b${word}\\b`, 'i');
         if (regex.test(result.title)) {
-          score += 5;
+          score += 12; // Base score for precise title match
+        } else {
+          score += 8; // Partial title match
         }
+      }
+
+      // Snippet matches with improved weighting
+      if (snippetLower.includes(word)) {
+        snippetMatchFound = true;
+        snippetMatches++;
+        snippetMatchedWords.add(word);
+
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        if (regex.test(result.snippet || '')) {
+          score += 6; // Precise snippet match (increased from 2)
+        } else {
+          score += 4; // Partial snippet match
+        }
+      }
+
+      // 🎯 SYNERGY BONUS: Extra points when the same word appears in BOTH title and snippet
+      if (titleMatchFound && snippetMatchFound) {
+        score += 8; // Significant bonus for comprehensive relevance
       }
     }
 
-    // Bonus for snippet relevance
-    if (result.snippet) {
-      const snippetLower = result.snippet.toLowerCase();
-      for (const word of queryWords) {
-        if (snippetLower.includes(word)) {
-          score += 2; // Lower weight for snippet matches
-        }
+    // 🚀 COMPREHENSIVE MATCH BONUS: When both title and snippet have matches
+    if (titleMatches > 0 && snippetMatches > 0) {
+      const matchCoverage = (titleMatches + snippetMatches) / (queryWords.length * 2);
+      score += Math.floor(matchCoverage * 15); // Scale bonus based on coverage
+
+      // Extra bonus for high query coverage in both areas
+      if (titleMatches >= queryWords.length * 0.5 && snippetMatches >= queryWords.length * 0.5) {
+        score += 10; // Both title and snippet cover significant portion of query
       }
     }
 
+    // 📈 DIVERSITY BONUS: Reward when different query words match in title vs snippet
+    const uniqueWords = new Set([...titleMatchedWords, ...snippetMatchedWords]);
+    if (uniqueWords.size > 1) {
+      score += (uniqueWords.size - 1) * 3; // Bonus for keyword diversity
+    }
+
+    // 📏 QUALITY ADJUSTMENTS
     // Penalty for very long titles (often less relevant)
     if (result.title.length > 100) {
-      score -= 2;
+      score -= 3;
     }
 
-    return score;
+    // Bonus for substantial snippets (more informative)
+    if (result.snippet && result.snippet.length > 50 && result.snippet.length < 300) {
+      score += 2;
+    }
+
+    // Small penalty for very short snippets (less informative)
+    if (result.snippet && result.snippet.length < 20) {
+      score -= 1;
+    }
+
+    return Math.max(0, score); // Ensure non-negative scores
   }
 
   /**
