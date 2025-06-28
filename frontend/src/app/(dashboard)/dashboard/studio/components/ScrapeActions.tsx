@@ -29,9 +29,9 @@ export function ScrapeMarkdownActions() {
     <div className="space-y-4">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="advanced-options">
-          <AccordionTrigger className="text-base">
+          <AccordionTrigger className="text-sm">
             <span className="flex items-center">
-              <Settings className="h-5 w-5 mr-2" />
+              <Settings className="h-4 w-4 mr-2" />
               Advanced Options
               {waitTime && waitTime > 0 && (
                 <Badge variant="outline" className="ml-2">
@@ -44,7 +44,7 @@ export function ScrapeMarkdownActions() {
             <div className="space-y-4 pt-2">
               <div className="flex items-start space-x-2">
                 <div className="flex-1">
-                  <Label htmlFor="wait-time" className="text-base font-medium leading-none">
+                  <Label htmlFor="wait-time" className="text-sm font-medium leading-none">
                     Wait Time (ms)
                   </Label>
                   <Input
@@ -55,9 +55,9 @@ export function ScrapeMarkdownActions() {
                     placeholder="0"
                     min="0"
                     max="5000"
-                    className="mt-2 text-base h-11 max-w-sm"
+                    className="mt-2 text-base h-9 max-w-sm"
                   />
-                  <p className="text-sm text-muted-foreground mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Additional time to wait for content to load before extracting markdown (0-5000ms)
                   </p>
                 </div>
@@ -89,9 +89,9 @@ export function ScrapeHtmlActions() {
     <div className="space-y-4">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="advanced-options">
-          <AccordionTrigger className="text-base">
+          <AccordionTrigger className="text-sm">
             <span className="flex items-center">
-              <Settings className="h-5 w-5 mr-2" />
+              <Settings className="h-4 w-4 mr-2" />
               Advanced Options
               {waitTime && waitTime > 0 && (
                 <Badge variant="outline" className="ml-2">
@@ -104,7 +104,7 @@ export function ScrapeHtmlActions() {
             <div className="space-y-4 pt-2">
               <div className="flex items-start space-x-2">
                 <div className="flex-1">
-                  <Label htmlFor="wait-time-html" className="text-base font-medium leading-none">
+                  <Label htmlFor="wait-time-html" className="text-sm font-medium leading-none">
                     Wait Time (ms)
                   </Label>
                   <Input
@@ -115,9 +115,9 @@ export function ScrapeHtmlActions() {
                     placeholder="0"
                     min="0"
                     max="5000"
-                    className="mt-2 text-base h-11 max-w-sm"
+                    className="mt-2 text-base h-9 max-w-sm"
                   />
-                  <p className="text-sm text-muted-foreground mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Additional time to wait for content to load before fetching HTML (0-5000ms)
                   </p>
                 </div>
@@ -165,9 +165,9 @@ export function ScrapeLinksActions() {
     <div className="space-y-4">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="advanced-options">
-          <AccordionTrigger className="text-base">
+          <AccordionTrigger className="text-sm">
             <span className="flex items-center">
-              <Settings className="h-5 w-5 mr-2" />
+              <Settings className="h-4 w-4 mr-2" />
               Advanced Options
               {((waitTime && waitTime > 0) || !effectiveIncludeExternal || visibleLinksOnly) && (
                 <Badge variant="outline" className="ml-2">
@@ -187,7 +187,7 @@ export function ScrapeLinksActions() {
               {/* Wait Time */}
               <div className="flex items-start space-x-2">
                 <div className="flex-1">
-                  <Label htmlFor="wait-time-links" className="text-base font-medium leading-none">
+                  <Label htmlFor="wait-time-links" className="text-sm font-medium leading-none">
                     Wait Time (ms)
                   </Label>
                   <Input
@@ -198,9 +198,9 @@ export function ScrapeLinksActions() {
                     placeholder="0"
                     min="0"
                     max="5000"
-                    className="mt-2 text-base h-11 max-w-sm"
+                    className="mt-2 text-base h-9 max-w-sm"
                   />
-                  <p className="text-sm text-muted-foreground mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Additional time to wait for links to load before extraction (0-5000ms)
                   </p>
                 </div>
@@ -212,13 +212,13 @@ export function ScrapeLinksActions() {
                   id="include-external-links"
                   checked={effectiveIncludeExternal}
                   onCheckedChange={(c) => handleIncludeExternalChange(c === true)}
-                  className="h-5 w-5 mt-1"
+                  className="h-4 w-4 mt-1"
                 />
                 <div>
-                  <Label htmlFor="include-external-links" className="text-base font-medium leading-none cursor-pointer">
+                  <Label htmlFor="include-external-links" className="text-sm font-medium leading-none cursor-pointer">
                     Include External Links
                   </Label>
-                  <p className="text-base text-muted-foreground mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     When unchecked, only links to the same domain will be returned
                   </p>
                 </div>
@@ -230,13 +230,13 @@ export function ScrapeLinksActions() {
                   id="visible-links-only"
                   checked={visibleLinksOnly ?? false}
                   onCheckedChange={(c) => handleVisibleLinksChange(c === true)}
-                  className="h-5 w-5 mt-1"
+                  className="h-4 w-4 mt-1"
                 />
                 <div>
-                  <Label htmlFor="visible-links-only" className="text-base font-medium leading-none cursor-pointer">
+                  <Label htmlFor="visible-links-only" className="text-sm font-medium leading-none cursor-pointer">
                     Visible Links Only
                   </Label>
-                  <p className="text-base text-muted-foreground mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Filters out links hidden via CSS/display properties
                   </p>
                 </div>
@@ -359,7 +359,7 @@ export function ScrapeElementsActions() {
             value={selectorInput}
             onChange={(e) => setSelectorInput(e.target.value)}
             placeholder="h1, .main-content, #header"
-            className="flex-1 h-11 text-base"
+            className="flex-1 h-9 text-base"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -367,7 +367,7 @@ export function ScrapeElementsActions() {
               }
             }}
           />
-          <Button onClick={addElement} type="button" className="h-11 w-11 p-0">
+          <Button onClick={addElement} type="button" className="h-9 w-9 p-0">
             <Plus className="h-5 w-5" />
           </Button>
         </div>
@@ -378,7 +378,7 @@ export function ScrapeElementsActions() {
               key={preset.label}
               variant="outline"
               size="sm"
-              className="text-base py-2 px-3 h-auto"
+              className="text-sm py-1 px-3 h-auto"
               onClick={() => handlePresetClick(preset.selector)}
             >
               {preset.label}
@@ -387,7 +387,7 @@ export function ScrapeElementsActions() {
         </div>
 
         {/* Row 3 — example helper text spans both columns */}
-        <p className="text-sm text-muted-foreground mt-1.5 md:col-span-2">
+        <p className="text-xs text-muted-foreground mt-1.5 md:col-span-2">
           Examples:&nbsp;“h1”, “.product-title”, “nav a”, “#main-content”
         </p>
       </div>
@@ -410,9 +410,9 @@ export function ScrapeElementsActions() {
 
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="advanced-options">
-          <AccordionTrigger className="text-base">
+          <AccordionTrigger className="text-sm">
             <span className="flex items-center">
-              <Settings className="h-5 w-5 mr-2" />
+              <Settings className="h-4 w-4 mr-2" />
               Advanced Options
               {(onlyMainContent || includeMarkdown) && (
                 <Badge variant="outline" className="ml-2">
@@ -429,18 +429,18 @@ export function ScrapeElementsActions() {
                 <Checkbox
                   id="only-main-content"
                   checked={onlyMainContent ?? false}
-                  className="h-5 w-5 mt-[2px]"
+                  className="h-4 w-4 mt-[2px]"
                   onCheckedChange={(c: boolean | 'indeterminate') => handleOptionChange('onlyMainContent', c === true)}
                 />
                 <div>
-                  <Label htmlFor="only-main-content" className="text-base font-medium leading-none cursor-pointer">
+                  <Label htmlFor="only-main-content" className="text-sm font-medium leading-none cursor-pointer">
                     Only Main Content
                   </Label>
-                  <p className="text-sm text-muted-foreground mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Intelligently filters results to focus on main content areas, removing elements from headers,
                     footers, navigation, sidebars, and ads.
                   </p>
-                  <div className="mt-2 text-sm bg-accent/50 p-2.5 rounded border border-border">
+                  <div className="mt-2 text-xs bg-accent/50 p-2.5 rounded border border-border">
                     <p className="text-foreground">
                       <InfoIcon className="h-4 w-4 inline-block mr-1.5" />
                       This is a client-side feature that analyzes the returned results to identify and display only main
@@ -453,14 +453,14 @@ export function ScrapeElementsActions() {
                 <Checkbox
                   id="include-markdown"
                   checked={includeMarkdown ?? false}
-                  className="h-5 w-5 mt-[2px]"
+                  className="h-4 w-4 mt-[2px]"
                   onCheckedChange={(c: boolean | 'indeterminate') => handleOptionChange('includeMarkdown', c === true)}
                 />
                 <div>
-                  <Label htmlFor="include-markdown" className="text-base font-medium leading-none cursor-pointer">
+                  <Label htmlFor="include-markdown" className="text-sm font-medium leading-none cursor-pointer">
                     Include Markdown
                   </Label>
-                  <p className="text-sm text-muted-foreground mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Extract the page content as Markdown along with the selected elements
                   </p>
                 </div>

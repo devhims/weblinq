@@ -76,12 +76,26 @@ export function formatFileSize(bytes: number): string {
 }
 
 // Preview environment detection and API key utilities
+/**
+ * Detect whether the code is running inside a Vercel *preview* deployment.
+ *
+ * Priority order:
+ *   1. Browser-exposed env-var `NEXT_PUBLIC_VERCEL_ENV` (requires the
+ *      "Automatically expose system env vars" checkbox to be enabled).
+ *   2. Legacy hostname heuristic (kept for safety + local `vercel dev`).
+ */
 export function isVercelPreview(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') return false; // only browser needs this
 
-  const hostname = window.location.hostname;
-  // Match our Vercel preview patterns
-  return hostname.includes('-devhims-projects.vercel.app') && hostname.startsWith('weblinq-');
+  // Preferred: env variable injected at build time by Vercel
+  const env = process.env.NEXT_PUBLIC_VERCEL_ENV;
+  if (env) {
+    return env === 'preview';
+  }
+
+  // Fallback: hostname pattern matching (legacy behaviour)
+  const host = window.location.hostname;
+  return host.startsWith('weblinq-') && host.endsWith('-devhims-projects.vercel.app');
 }
 
 export function getApiKeyFromStorage(): string | null {

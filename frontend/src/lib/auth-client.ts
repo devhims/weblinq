@@ -1,17 +1,30 @@
 import { createAuthClient } from 'better-auth/react';
 
-/* Detect where the front-end is running.
-   - In production we'll be behind `https://www.weblinq.dev` (fixed: was missing 'www')
-   - In dev we fall back to localhost so "vercel dev" just works.           */
-const BASE_URL =
-  process.env.NEXT_PUBLIC_FRONTEND_URL ?? 'http://localhost:3000';
+/* -------------------------------------------------------------------------
+   Determine the correct baseURL for Better-Auth REST calls.
 
-/* 1.  Create the client.
-      `credentials:"include"` is essential; without it the browser drops
-      the `ba_session` cookie on every cross-sub-domain fetch.             */
+   Rules
+   • In production: https://www.weblinq.dev
+   • In Vercel preview / local dev in the browser:  window.location.origin
+   • In unit tests / SSR fallback:  process.env.NEXT_PUBLIC_FRONTEND_URL
+--------------------------------------------------------------------------- */
+
+function resolveBaseURL(): string | undefined {
+  // Build-time / SSR: no window global
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_FRONTEND_URL;
+  }
+
+  // Browser: use current origin so previews work automatically
+  return window.location.origin;
+}
+
+/* 1. Create the Better-Auth client.  Leaving baseURL `undefined` makes it
+      fall back to relative URLs when running in the browser, which is what
+      we want in Vercel previews.                                         */
 export const authClient = createAuthClient({
-  baseURL: BASE_URL, // docs: baseURL is optional but recommended
-  fetchOptions: { credentials: 'include' }, // send cookie on every request
+  baseURL: resolveBaseURL(),
+  fetchOptions: { credentials: 'include' },
 });
 
 /* 2.  Re-export the hooks & helpers Better Auth injects. */

@@ -66,8 +66,8 @@ function CombinedResultsDisplay({ results, fullPage = false, isMobile = false }:
         return <LinksResultDisplay links={result.data} />;
       default:
         return (
-          <div className="p-4 text-center">
-            <p className="text-base">Unknown result type: {result.type}</p>
+          <div className="p-3 sm:p-4 text-center">
+            <p className="text-sm sm:text-base">Unknown result type: {result.type}</p>
           </div>
         );
     }
@@ -76,11 +76,11 @@ function CombinedResultsDisplay({ results, fullPage = false, isMobile = false }:
   return (
     <div className="border rounded-md overflow-hidden w-full">
       {/* Tabs for each result type */}
-      <div className="flex border-b bg-card">
+      <div className="flex border-b bg-card overflow-x-auto">
         {results.map((result) => (
           <button
             key={result.type}
-            className={`px-4 py-3 font-medium text-base ${
+            className={`px-3 sm:px-4 py-2 sm:py-3 font-medium text-sm sm:text-base whitespace-nowrap ${
               activeTab === result.type
                 ? 'border-b-2 border-primary text-primary bg-background'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -93,12 +93,12 @@ function CombinedResultsDisplay({ results, fullPage = false, isMobile = false }:
       </div>
 
       {/* Content for active tab */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {results.find((r) => r.type === activeTab) ? (
           getResultComponent(results.find((r) => r.type === activeTab)!)
         ) : (
-          <div className="p-4 text-center">
-            <p className="text-base">No data available</p>
+          <div className="p-3 sm:p-4 text-center">
+            <p className="text-sm sm:text-base">No data available</p>
           </div>
         )}
       </div>
@@ -124,27 +124,31 @@ function LinksResultDisplay({ links }: LinksResultDisplayProps) {
     : [];
 
   return (
-    <div className="bg-card rounded-md border overflow-auto h-[800px] w-full relative">
-      <CopyButton content={links} />
-      <div className="p-4">
-        <div className="flex items-center mb-3">
-          <LinkIcon className="h-5 w-5 mr-2 text-primary" />
-          <Label className="font-medium text-base">Found {normalizedLinks.length} links</Label>
+    <div className="bg-card rounded-md border h-full w-full relative flex flex-col">
+      <div className="bg-card/90 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
+            <Label className="font-medium text-sm sm:text-base">Found {normalizedLinks.length} links</Label>
+          </div>
+          <CopyButton content={links} inline />
         </div>
+      </div>
+      <div className="p-3 sm:p-4 pt-0 flex-1 overflow-y-auto">
         <ul className="space-y-1.5">
           {normalizedLinks.length > 0 &&
             normalizedLinks.map((link, index) => (
-              <li key={index} className="p-2.5 hover:bg-muted rounded-md break-all">
+              <li key={index} className="p-2 sm:p-2.5 hover:bg-muted rounded-md break-all">
                 <a
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline flex items-start text-base"
+                  className="text-primary hover:underline flex items-start text-sm sm:text-base"
                 >
-                  <Globe className="h-5 w-5 mr-2 mt-1 flex-shrink-0" />
-                  <div className="flex-1">
-                    <div className="font-medium">{link.text || link.url}</div>
-                    <div className="text-xs text-muted-foreground">
+                  <Globe className="h-4 w-4 sm:h-5 sm:w-5 mr-2 mt-1 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate sm:whitespace-normal">{link.text || link.url}</div>
+                    <div className="text-xs text-muted-foreground truncate sm:whitespace-normal">
                       {link.type} • {link.url}
                     </div>
                   </div>
@@ -240,25 +244,25 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[400px]">
-        <div className="animate-spin rounded-full h-14 w-14 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center h-[200px] sm:h-[300px] lg:h-[400px]">
+        <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-destructive/10 p-5 rounded-md border border-destructive/20 overflow-hidden break-words">
-        <p className="text-destructive text-base font-medium">{error}</p>
+      <div className="bg-destructive/10 p-4 sm:p-5 rounded-md border border-destructive/20 overflow-hidden break-words">
+        <p className="text-destructive text-sm sm:text-base font-medium">{error}</p>
       </div>
     );
   }
 
   if (!result) {
     return (
-      <div className="flex flex-col items-center justify-center h-[400px] text-center">
-        <Globe className="h-12 w-12 text-muted-foreground mb-3" />
-        <p className="text-muted-foreground text-lg">Enter a URL and select an endpoint to see results</p>
+      <div className="flex flex-col items-center justify-center h-[200px] sm:h-[300px] lg:h-[400px] text-center px-4">
+        <Globe className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground mb-3" />
+        <p className="text-muted-foreground text-sm sm:text-md">Enter a URL and select an endpoint to see results</p>
       </div>
     );
   }
@@ -303,9 +307,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
       if (!finalScrapeResult || !finalScrapeResult.elements) {
         return (
-          <div className="flex items-center justify-center h-[400px] text-center">
+          <div className="flex items-center justify-center h-[200px] sm:h-[300px] lg:h-[400px] text-center px-4">
             <div className="text-muted-foreground">
-              <p>No valid scrape results available</p>
+              <p className="text-sm sm:text-base">No valid scrape results available</p>
             </div>
           </div>
         );
@@ -375,21 +379,14 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       const copyUrl = permanentUrl || imageUrl;
 
       return (
-        <div className="bg-card p-4 rounded-md border overflow-hidden w-full relative">
+        <div className="bg-card p-3 sm:p-4 rounded-md border overflow-hidden w-full relative">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-muted-foreground" />
-              <p className="text-base font-medium">
-                Screenshot
-                {permanentUrl && (
-                  <span className="ml-2 text-xs bg-green-500/20 text-green-600 px-2 py-1 rounded-full">
-                    Permanent URL
-                  </span>
-                )}
-              </p>
+              <Globe className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+              <p className="text-sm sm:text-base font-medium">Preview</p>
             </div>
             {imageData && (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 {copyUrl && <CopyButton content={copyUrl} inline />}
                 <Button
                   variant="outline"
@@ -407,8 +404,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
                       handleScreenshotDownload(imageData, imageMetadata);
                     }
                   }}
+                  className="text-xs sm:text-sm"
                 >
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                   Download
                 </Button>
               </div>
@@ -446,25 +444,23 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       const copyPdfUrl = pdfPermanentUrl || pdfPreviewUrl;
 
       return (
-        <div className="bg-card p-4 rounded-md border overflow-hidden w-full h-[800px] relative flex flex-col">
+        <div className="bg-card p-3 sm:p-4 rounded-md border overflow-hidden w-full relative">
           {/* Top bar */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              <p className="text-base font-medium">
-                {pdfData ? 'PDF Preview' : 'No PDF data returned'}
-                {pdfPermanentUrl && (
-                  <span className="ml-2 text-xs bg-green-500/20 text-green-600 px-2 py-1 rounded-full">
-                    Permanent URL
-                  </span>
-                )}
-              </p>
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+              <p className="text-sm sm:text-base font-medium">{pdfData ? 'Preview' : 'No PDF data returned'}</p>
             </div>
             {pdfData && (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 {copyPdfUrl && <CopyButton content={copyPdfUrl} inline />}
-                <Button variant="outline" size="sm" onClick={() => handlePdfDownload(pdfData, pdfMetadata)}>
-                  <Download className="h-4 w-4 mr-2" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePdfDownload(pdfData, pdfMetadata)}
+                  className="text-xs sm:text-sm"
+                >
+                  <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                   Download
                 </Button>
               </div>
@@ -473,9 +469,15 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
           {/* Preview */}
           {pdfPreviewUrl ? (
-            <iframe title="PDF preview" src={pdfPreviewUrl} className="flex-1 w-full border rounded" />
+            <iframe
+              title="PDF preview"
+              src={pdfPreviewUrl}
+              className="w-full h-[600px] sm:h-[700px] lg:h-[800px] border rounded"
+            />
           ) : (
-            <p className="text-center text-muted-foreground flex-1 flex items-center justify-center">No PDF data</p>
+            <div className="text-center text-muted-foreground h-[400px] flex items-center justify-center">
+              <p className="text-sm sm:text-base">No PDF data</p>
+            </div>
           )}
         </div>
       );
@@ -497,8 +499,10 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
     default:
       return (
-        <div className="bg-card p-4 rounded-md border overflow-auto h-[800px] w-full">
-          <pre className="whitespace-pre-wrap break-words">{JSON.stringify(result, null, 2)}</pre>
+        <div className="bg-card p-3 sm:p-4 rounded-md border h-full w-full flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm">{JSON.stringify(result, null, 2)}</pre>
+          </div>
         </div>
       );
   }
@@ -621,42 +625,47 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
     const jsonFormatted = JSON.stringify(cloned, null, 2);
 
     return (
-      <div className="bg-card rounded-md border overflow-auto h-[800px] w-full">
+      <div className="bg-card rounded-md border h-full w-full flex flex-col">
         {/* header */}
-        <div className="p-4 flex justify-between items-center">
-          <h3 className="font-medium">Raw JSON</h3>
+        <div className="bg-card/90 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4 flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <h3 className="font-medium text-sm sm:text-base">Raw JSON</h3>
           <div className="flex space-x-2">
             {/* inline copy button so it sits left of the toggle */}
             <CopyButton content={jsonFormatted} inline />
-            <Button variant="outline" size="sm" onClick={() => setShowRaw(false)}>
+            <Button variant="outline" size="sm" onClick={() => setShowRaw(false)} className="text-xs sm:text-sm">
               View Structured
             </Button>
           </div>
         </div>
 
         {/* JSON */}
-        <SyntaxHighlighter
-          language="json"
-          style={atomDark}
-          customStyle={{
-            margin: 0,
-            borderRadius: 0,
-            background: 'var(--color-card)',
-          }}
-          wrapLongLines
-          showLineNumbers
-        >
-          {jsonFormatted}
-        </SyntaxHighlighter>
+        <div className="flex-1 overflow-hidden">
+          <SyntaxHighlighter
+            language="json"
+            style={atomDark}
+            customStyle={{
+              margin: 0,
+              borderRadius: 0,
+              background: 'var(--color-card)',
+              fontSize: '12px',
+              height: '100%',
+              overflow: 'auto',
+            }}
+            wrapLongLines
+            showLineNumbers
+          >
+            {jsonFormatted}
+          </SyntaxHighlighter>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-card rounded-md border overflow-auto h-[800px] w-full">
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-medium">Scraped Elements</h3>
+    <div className="bg-card rounded-md border h-full w-full flex flex-col">
+      <div className="bg-card/90 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <h3 className="font-medium text-sm sm:text-base">Scraped Elements</h3>
           <div className="flex space-x-2">
             <TooltipProvider>
               <Tooltip>
@@ -665,47 +674,48 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleCopy(JSON.stringify(result, null, 2), 'all')}
-                    className="h-8 w-8 p-0"
+                    className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                   >
                     {copiedItems['all'] ? (
-                      <CheckIcon className="h-4 w-4 text-primary" />
+                      <CheckIcon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                     ) : (
-                      <ClipboardIcon className="h-4 w-4" />
+                      <ClipboardIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                     )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Copy all scraped data</p>
+                  <p className="text-xs">Copy all scraped data</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <Button variant="outline" size="sm" onClick={() => setShowRaw(true)}>
+            <Button variant="outline" size="sm" onClick={() => setShowRaw(true)} className="text-xs sm:text-sm">
               View Raw JSON
             </Button>
           </div>
         </div>
-
+      </div>
+      <div className="p-3 sm:p-4 pt-0 flex-1 overflow-y-auto">
         {result &&
           result.elements &&
           result.elements.map((item, index) => (
-            <div key={index} className="mb-6 border rounded-md overflow-hidden shadow-sm">
+            <div key={index} className="mb-4 sm:mb-6 border rounded-md overflow-hidden shadow-sm">
               <div
-                className="bg-muted p-3 flex justify-between items-center cursor-pointer"
+                className="bg-muted p-2 sm:p-3 flex justify-between items-center cursor-pointer"
                 onClick={() => toggleSection(item.selector)}
               >
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0 flex-1">
                   <span className="mr-2">
                     {expandedSections[item.selector] ? (
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
                     ) : (
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                     )}
                   </span>
                   {item.selector.includes(':not(') ? (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <code className="text-sm font-mono bg-accent px-2 py-1 rounded cursor-help">
+                          <code className="text-xs sm:text-sm font-mono bg-accent px-1.5 sm:px-2 py-1 rounded cursor-help truncate">
                             {item.selector.split(':not(')[0]} (filtered)
                           </code>
                         </TooltipTrigger>
@@ -715,9 +725,11 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                       </Tooltip>
                     </TooltipProvider>
                   ) : (
-                    <code className="text-sm font-mono bg-accent px-2 py-1 rounded">{item.selector}</code>
+                    <code className="text-xs sm:text-sm font-mono bg-accent px-1.5 sm:px-2 py-1 rounded truncate">
+                      {item.selector}
+                    </code>
                   )}
-                  <span className="ml-2 text-sm text-muted-foreground">
+                  <span className="ml-2 text-xs sm:text-sm text-muted-foreground">
                     ({item.results.length} {item.results.length === 1 ? 'result' : 'results'})
                   </span>
                 </div>
@@ -731,17 +743,17 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                           e.stopPropagation();
                           handleCopy(JSON.stringify(item.results, null, 2), `item-${index}`);
                         }}
-                        className="h-8 w-8 p-0"
+                        className="h-6 w-6 sm:h-8 sm:w-8 p-0 ml-2"
                       >
                         {copiedItems[`item-${index}`] ? (
-                          <CheckIcon className="h-4 w-4 text-primary" />
+                          <CheckIcon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                         ) : (
-                          <ClipboardIcon className="h-4 w-4" />
+                          <ClipboardIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                         )}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Copy results for this selector</p>
+                      <p className="text-xs">Copy results for this selector</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -762,15 +774,15 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                     );
 
                     return (
-                      <div key={resultIndex} className="p-4 bg-background hover:bg-muted/40">
+                      <div key={resultIndex} className="p-3 sm:p-4 bg-background hover:bg-muted/40">
                         {/* Main text highlight section */}
                         {result.text && (
-                          <div className="mb-3 bg-accent/30 p-3 rounded-md border border-border">
+                          <div className="mb-3 bg-accent/30 p-2 sm:p-3 rounded-md border border-border">
                             <div className="flex items-center mb-1">
-                              <Type className="h-4 w-4 text-primary mr-2" />
-                              <span className="text-sm font-medium text-primary">Text Content</span>
+                              <Type className="h-3 w-3 sm:h-4 sm:w-4 text-primary mr-2" />
+                              <span className="text-xs sm:text-sm font-medium text-primary">Text Content</span>
                             </div>
-                            <p className="text-foreground font-medium break-words">
+                            <p className="text-foreground font-medium break-words text-sm sm:text-base">
                               {result.text || <span className="text-muted-foreground italic">No text content</span>}
                             </p>
                           </div>
@@ -781,32 +793,32 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                           <div className="mb-3">
                             <button
                               onClick={() => toggleAttributes(resultId)}
-                              className="flex items-center text-sm text-foreground bg-accent/20 px-3 py-2 rounded-md w-full"
+                              className="flex items-center text-xs sm:text-sm text-foreground bg-accent/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md w-full"
                             >
-                              <Info className="h-4 w-4 mr-2" />
+                              <Info className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                               <span className="font-medium">Attributes of this element</span>
                               <span className="ml-2 text-xs text-muted-foreground">({result.attributes.length})</span>
                               <span className="ml-auto">
                                 {expandedAttributes[resultId] ? (
-                                  <ChevronDown className="h-4 w-4" />
+                                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
                                 ) : (
-                                  <ChevronRight className="h-4 w-4" />
+                                  <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                                 )}
                               </span>
                             </button>
 
                             {expandedAttributes[resultId] && (
-                              <div className="mt-2 bg-muted/50 p-3 rounded-md border border-border">
+                              <div className="mt-2 bg-muted/50 p-2 sm:p-3 rounded-md border border-border">
                                 <div className="grid grid-cols-1 gap-2">
                                   {result.attributes.map((attr, attrIndex) => (
                                     <div key={attrIndex} className="bg-card p-2 rounded border text-xs">
                                       <span className="font-medium text-foreground">{attr.name}:</span>
                                       {attr.name === 'class' ? (
-                                        <div className="mt-1 pl-4 border-l-2 border-primary/20">
+                                        <div className="mt-1 pl-2 sm:pl-4 border-l-2 border-primary/20">
                                           {attr.value.split(' ').map((cls, i) => (
                                             <span
                                               key={i}
-                                              className="inline-block bg-accent/20 text-accent-foreground px-1 py-0.5 rounded mr-1 mb-1"
+                                              className="inline-block bg-accent/20 text-accent-foreground px-1 py-0.5 rounded mr-1 mb-1 text-xs"
                                             >
                                               {cls}
                                             </span>
@@ -825,14 +837,14 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
 
                         {/* HTML Content dropdown */}
                         <details className="text-xs bg-muted rounded-md">
-                          <summary className="cursor-pointer p-2 flex items-center text-sm font-medium text-foreground hover:text-primary">
-                            <Layers className="h-4 w-4 mr-2" />
+                          <summary className="cursor-pointer p-2 flex items-center text-xs sm:text-sm font-medium text-foreground hover:text-primary">
+                            <Layers className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                             Complete HTML (including nested elements)
                           </summary>
                           <div className="bg-card rounded-b-md overflow-x-auto">
-                            <div className="p-3">
+                            <div className="p-2 sm:p-3">
                               <code
-                                className="whitespace-pre-wrap block text-foreground"
+                                className="whitespace-pre-wrap block text-foreground text-xs"
                                 dangerouslySetInnerHTML={{
                                   __html: renderFormattedHtml(result.html),
                                 }}
@@ -849,10 +861,10 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
           ))}
 
         {result && result.elements && result.elements.length === 0 && (
-          <div className="text-center p-6 text-muted-foreground">
-            <Layers className="h-12 w-12 mx-auto mb-2 opacity-30" />
-            <p>No elements found matching your selectors.</p>
-            <p className="text-sm mt-1">Try different selectors or URL parameters.</p>
+          <div className="text-center p-4 sm:p-6 text-muted-foreground">
+            <Layers className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 mx-auto mb-2 opacity-30" />
+            <p className="text-sm sm:text-base">No elements found matching your selectors.</p>
+            <p className="text-xs sm:text-sm mt-1">Try different selectors or URL parameters.</p>
           </div>
         )}
       </div>

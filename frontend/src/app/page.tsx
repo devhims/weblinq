@@ -33,23 +33,20 @@ const transitionVariants = {
 
 export default async function HomePage() {
   return (
-    <div className='min-h-screen'>
+    <div className="min-h-screen">
       <HeroHeader />
 
-      <main className='overflow-hidden'>
+      <main className="overflow-hidden">
         {/* Light beam gradient effects */}
-        <div
-          aria-hidden
-          className='absolute inset-0 isolate hidden opacity-50 lg:block'
-        >
-          <div className='w-[35rem] h-[80rem] absolute left-0 top-0 -translate-y-[21.875rem] -rotate-45 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,hsla(0,0%,85%,.08)_0,hsla(0,0%,55%,.02)_50%,hsla(0,0%,45%,0)_80%)]' />
-          <div className='h-[80rem] absolute left-0 top-0 w-60 -rotate-45 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.06)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)] translate-x-[5%] -translate-y-[50%]' />
-          <div className='h-[80rem] absolute left-0 top-0 w-60 -translate-y-[21.875rem] -rotate-45 bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.04)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)]' />
+        <div aria-hidden className="absolute inset-0 isolate hidden opacity-50 lg:block">
+          <div className="w-[35rem] h-[80rem] absolute left-0 top-0 -translate-y-[21.875rem] -rotate-45 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,hsla(0,0%,85%,.08)_0,hsla(0,0%,55%,.02)_50%,hsla(0,0%,45%,0)_80%)]" />
+          <div className="h-[80rem] absolute left-0 top-0 w-60 -rotate-45 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.06)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)] translate-x-[5%] -translate-y-[50%]" />
+          <div className="h-[80rem] absolute left-0 top-0 w-60 -translate-y-[21.875rem] -rotate-45 bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.04)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)]" />
         </div>
 
         {/* Hero Section */}
         <section>
-          <div className='relative pt-24 md:pt-36'>
+          <div className="relative pt-24 md:pt-36">
             <AnimatedGroup
               variants={{
                 container: {
@@ -75,67 +72,64 @@ export default async function HomePage() {
                   },
                 },
               }}
-              className='absolute inset-0 -z-20'
+              className="absolute inset-0 -z-20"
             >
-              <div className='absolute inset-x-0 top-56 -z-20 lg:top-32'>
-                <div className='absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background' />
+              <div className="absolute inset-x-0 top-56 -z-20 lg:top-32">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
               </div>
             </AnimatedGroup>
 
-            <div className='absolute inset-0 -z-10 size-full [background:radial-gradient(125%_125%_at_50%_100%,transparent_0%,var(--color-background)_75%)]' />
+            <div className="absolute inset-0 -z-10 size-full [background:radial-gradient(125%_125%_at_50%_100%,transparent_0%,var(--color-background)_75%)]" />
 
-            <div className='mx-auto max-w-7xl px-6'>
-              <div className='text-center sm:mx-auto lg:mr-auto lg:mt-0'>
+            <div className="mx-auto max-w-7xl px-6">
+              <div className="text-center sm:mx-auto lg:mr-auto lg:mt-0">
                 <AnimatedGroup variants={transitionVariants}>
-                  <div className='relative overflow-hidden rounded-full w-fit mx-auto'>
+                  <div className="relative overflow-hidden rounded-full w-fit mx-auto">
                     <Link
-                      href='/dashboard/studio'
-                      className='hover:bg-background dark:hover:border-t-border bg-muted group mx-auto flex w-fit items-center gap-4 rounded-full border p-1 pl-4 shadow-md shadow-zinc-950/5 transition-colors duration-300 dark:border-t-white/5 dark:shadow-zinc-950'
+                      href="/dashboard/studio"
+                      className="hover:bg-background dark:hover:border-t-border bg-muted group mx-auto flex w-fit items-center gap-4 rounded-full border p-1 pl-4 shadow-md shadow-zinc-950/5 transition-colors duration-300 dark:border-t-white/5 dark:shadow-zinc-950"
                     >
-                      <span className='text-foreground text-sm'>
-                        Explore Studio
-                      </span>
-                      <span className='dark:border-background block h-4 w-0.5 border-l bg-white dark:bg-zinc-700' />
-                      <div className='bg-background group-hover:bg-muted size-6 overflow-hidden rounded-full duration-500'>
-                        <div className='flex w-12 -translate-x-1/2 duration-500 ease-in-out group-hover:translate-x-0'>
-                          <span className='flex size-6'>
-                            <ArrowRight className='m-auto size-3' />
+                      <span className="text-foreground text-sm">Explore Studio</span>
+                      <span className="dark:border-background block h-4 w-0.5 border-l bg-white dark:bg-zinc-700" />
+                      <div className="bg-background group-hover:bg-muted size-6 overflow-hidden rounded-full duration-500">
+                        <div className="flex w-12 -translate-x-1/2 duration-500 ease-in-out group-hover:translate-x-0">
+                          <span className="flex size-6">
+                            <ArrowRight className="m-auto size-3" />
                           </span>
-                          <span className='flex size-6'>
-                            <ArrowRight className='m-auto size-3' />
+                          <span className="flex size-6">
+                            <ArrowRight className="m-auto size-3" />
                           </span>
                         </div>
                       </div>
                     </Link>
                     <BorderBeam
-                      duration={8}
-                      size={50}
-                      colorFrom='#f97316'
-                      colorTo='#ea580c'
-                      delay={0}
+                      duration={5}
+                      size={60}
+                      reverse
+                      className="from-transparent via-orange-400 to-transparent"
                     />
                   </div>
                 </AnimatedGroup>
 
                 <TextEffect
-                  preset='fade-in-blur'
+                  preset="fade-in-blur"
                   speedSegment={0.3}
-                  as='h1'
-                  className='mt-8 text-balance text-6xl md:text-7xl lg:mt-16 xl:text-[5.25rem]'
+                  as="h1"
+                  className="mt-8 font-medium text-balance text-5xl md:text-6xl lg:mt-16 xl:text-7xl"
                 >
                   Linking AI agents to the web
                 </TextEffect>
 
                 <TextEffect
-                  per='line'
-                  preset='fade-in-blur'
+                  per="line"
+                  preset="fade-in-blur"
                   speedSegment={0.3}
                   delay={0.5}
-                  as='p'
-                  className='mx-auto mt-8 max-w-4xl text-balance text-lg'
+                  as="p"
+                  className="mx-auto mt-8 max-w-4xl text-balance text-lg"
                 >
-                  Extract web data, capture screenshots, and search the internet
-                  with our web scraping and data extraction platform.
+                  Extract web data, capture screenshots, and search the internet with our web scraping and data
+                  extraction platform.
                 </TextEffect>
 
                 <AnimatedGroup
@@ -150,28 +144,19 @@ export default async function HomePage() {
                     },
                     ...transitionVariants,
                   }}
-                  className='mt-12 flex flex-col items-center justify-center gap-2 md:flex-row'
+                  className="mt-12 flex flex-col items-center justify-center gap-2 md:flex-row"
                 >
-                  <div className='bg-foreground/10 rounded-[calc(var(--radius-xl)+0.125rem)] border p-0.5'>
-                    <Button
-                      asChild
-                      size='lg'
-                      className='rounded-xl px-5 text-base'
-                    >
-                      <Link href='/dashboard/studio'>
-                        <Code className='mr-2 h-5 w-5' />
-                        <span className='text-nowrap'>Try API Studio</span>
+                  <div className="bg-foreground/10 rounded-[calc(var(--radius-xl)+0.125rem)] border p-0.5">
+                    <Button asChild size="lg" className="rounded-xl px-5 text-base">
+                      <Link href="/dashboard/studio">
+                        <Code className="mr-2 h-5 w-5" />
+                        <span className="text-nowrap">Try API Studio</span>
                       </Link>
                     </Button>
                   </div>
-                  <Button
-                    asChild
-                    size='lg'
-                    variant='ghost'
-                    className='h-10.5 rounded-xl px-5'
-                  >
-                    <Link href='#features'>
-                      <span className='text-nowrap'>View API Features</span>
+                  <Button asChild size="lg" variant="ghost" className="h-10.5 rounded-xl px-5">
+                    <Link href="#features">
+                      <span className="text-nowrap">View API Features</span>
                     </Link>
                   </Button>
                 </AnimatedGroup>
@@ -191,60 +176,46 @@ export default async function HomePage() {
                 ...transitionVariants,
               }}
             >
-              <div className='relative -mr-56 mt-8 overflow-hidden px-2 sm:mr-0 sm:mt-12 md:mt-20'>
+              <div className="relative -mr-56 mt-8 overflow-hidden px-2 sm:mr-0 sm:mt-12 md:mt-20">
                 <div
                   aria-hidden
-                  className='bg-linear-to-b to-background absolute inset-0 z-10 from-transparent from-35%'
+                  className="bg-linear-to-b to-background absolute inset-0 z-10 from-transparent from-35%"
                 />
-                <div className='inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background relative mx-auto max-w-6xl overflow-hidden rounded-2xl border p-4 shadow-lg shadow-zinc-950/15 ring-1'>
+                <div className="inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background relative mx-auto max-w-6xl overflow-hidden rounded-2xl border p-4 shadow-lg shadow-zinc-950/15 ring-1">
                   {/* API Demo */}
-                  <div className='bg-background rounded-2xl p-8'>
-                    <div className='flex items-center space-x-2 mb-6'>
-                      <div className='flex space-x-2'>
-                        <div className='w-3 h-3 bg-red-500 rounded-full' />
-                        <div className='w-3 h-3 bg-yellow-500 rounded-full' />
-                        <div className='w-3 h-3 bg-green-500 rounded-full' />
+                  <div className="bg-background rounded-2xl p-8">
+                    <div className="flex items-center space-x-2 mb-6">
+                      <div className="flex space-x-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full" />
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full" />
+                        <div className="w-3 h-3 bg-green-500 rounded-full" />
                       </div>
-                      <span className='text-muted-foreground text-sm ml-4'>
-                        api.weblinq.dev
-                      </span>
+                      <span className="text-muted-foreground text-sm ml-4">api.weblinq.dev</span>
                     </div>
-                    <div className='bg-black rounded-lg p-6 text-left border border-border'>
-                      <div className='text-green-400 font-mono text-sm'>
-                        <div className='text-gray-500 mb-2'>
-                          {`// Scrape any website`}
-                        </div>
+                    <div className="bg-black rounded-lg p-6 text-left border border-border">
+                      <div className="text-green-400 font-mono text-sm">
+                        <div className="text-gray-500 mb-2">{`// Scrape any website`}</div>
                         <div>
-                          <span className='text-blue-400'>POST</span>{' '}
-                          <span className='text-gray-300'>
-                            https://api.weblinq.dev/v1/
-                          </span>
-                          <span className='text-yellow-400'>scrape</span>
+                          <span className="text-blue-400">POST</span>{' '}
+                          <span className="text-gray-300">https://api.weblinq.dev/v1/</span>
+                          <span className="text-yellow-400">scrape</span>
                         </div>
-                        <div className='mt-2 ml-4'>
-                          <span className='text-gray-300'>{'{'}</span>
+                        <div className="mt-2 ml-4">
+                          <span className="text-gray-300">{'{'}</span>
                         </div>
-                        <div className='ml-8'>
-                          <span className='text-blue-400'>&quot;url&quot;</span>
-                          <span className='text-gray-300'>: </span>
-                          <span className='text-green-400'>
-                            &quot;https://example.com&quot;
-                          </span>
-                          <span className='text-gray-300'>,</span>
+                        <div className="ml-8">
+                          <span className="text-blue-400">&quot;url&quot;</span>
+                          <span className="text-gray-300">: </span>
+                          <span className="text-green-400">&quot;https://example.com&quot;</span>
+                          <span className="text-gray-300">,</span>
                         </div>
-                        <div className='ml-8'>
-                          <span className='text-blue-400'>
-                            &quot;format&quot;
-                          </span>
-                          <span className='text-gray-300'>: </span>
-                          <span className='text-green-400'>
-                            &quot;markdown&quot;
-                          </span>
+                        <div className="ml-8">
+                          <span className="text-blue-400">&quot;format&quot;</span>
+                          <span className="text-gray-300">: </span>
+                          <span className="text-green-400">&quot;markdown&quot;</span>
                         </div>
-                        <div className='ml-4 text-gray-300'>{'}'}</div>
-                        <div className='mt-4 text-orange-400'>
-                          ✓ Content extracted successfully
-                        </div>
+                        <div className="ml-4 text-gray-300">{'}'}</div>
+                        <div className="mt-4 text-orange-400">✓ Content extracted successfully</div>
                       </div>
                     </div>
                   </div>
@@ -257,114 +228,99 @@ export default async function HomePage() {
         <FeaturesSection />
 
         {/* Pricing Section */}
-        <section id='pricing' className='py-20'>
-          <div className='mx-auto max-w-7xl px-6'>
-            <div className='text-center mb-16'>
-              <TextEffect
-                preset='fade-in-blur'
-                speedSegment={0.3}
-                as='h2'
-                className='text-4xl font-bold mb-4'
-              >
+        <section id="pricing" className="py-20">
+          <div className="mx-auto max-w-7xl px-6">
+            <div className="text-center mb-16">
+              <TextEffect preset="fade-in-blur" speedSegment={0.3} as="h2" className="text-4xl font-bold mb-4">
                 Simple, Transparent Pricing
               </TextEffect>
-              <p className='text-muted-foreground text-lg'>
-                Choose the plan that fits your needs
-              </p>
+              <p className="text-muted-foreground text-lg">Choose the plan that fits your needs</p>
             </div>
 
-            <div className='grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto'>
+            <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
               {/* Free Plan */}
-              <div className='bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm'>
-                <div className='text-center mb-8'>
-                  <h3 className='text-2xl font-bold mb-2'>Free</h3>
-                  <div className='text-4xl font-bold'>
+              <div className="bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm">
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-bold mb-2">Free</h3>
+                  <div className="text-4xl font-bold">
                     $0
-                    <span className='text-lg text-muted-foreground'>
-                      /month
-                    </span>
+                    <span className="text-lg text-muted-foreground">/month</span>
                   </div>
-                  <p className='text-muted-foreground mt-2'>
-                    1,000 API requests
-                  </p>
+                  <p className="text-muted-foreground mt-2">1,000 API requests</p>
                 </div>
-                <ul className='space-y-3 mb-8'>
-                  <li className='flex items-center'>
-                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
                     <span>Basic scraping tools</span>
                   </li>
-                  <li className='flex items-center'>
-                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
                     <span>Community support</span>
                   </li>
-                  <li className='flex items-center'>
-                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
                     <span>Rate limiting</span>
                   </li>
                 </ul>
-                <Button variant='outline' className='w-full'>
+                <Button variant="outline" className="w-full">
                   Get Started
                 </Button>
               </div>
 
               {/* Pro Plan */}
-              <div className='bg-primary/10 rounded-2xl border border-primary/30 p-8 backdrop-blur-sm relative'>
-                <div className='absolute -top-4 left-1/2 transform -translate-x-1/2'>
-                  <span className='bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium'>
+              <div className="bg-primary/10 rounded-2xl border border-primary/30 p-8 backdrop-blur-sm relative">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium">
                     Most Popular
                   </span>
                 </div>
-                <div className='text-center mb-8'>
-                  <h3 className='text-2xl font-bold mb-2'>Pro</h3>
-                  <div className='text-4xl font-bold'>
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-bold mb-2">Pro</h3>
+                  <div className="text-4xl font-bold">
                     $20
-                    <span className='text-lg text-muted-foreground'>
-                      /month
-                    </span>
+                    <span className="text-lg text-muted-foreground">/month</span>
                   </div>
-                  <p className='text-muted-foreground mt-2'>
-                    Everything in Free, plus...
-                  </p>
+                  <p className="text-muted-foreground mt-2">Everything in Free, plus...</p>
                 </div>
-                <ul className='space-y-3 mb-8'>
-                  <li className='flex items-center'>
-                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
                     <span>Advanced scraping & monitoring</span>
                   </li>
-                  <li className='flex items-center'>
-                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
                     <span>Browser profiles</span>
                   </li>
-                  <li className='flex items-center'>
-                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
                     <span>24/7 customer support</span>
                   </li>
                 </ul>
-                <Button className='w-full'>Subscribe →</Button>
+                <Button className="w-full">Subscribe →</Button>
               </div>
 
               {/* Enterprise Plan */}
-              <div className='bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm'>
-                <div className='text-center mb-8'>
-                  <h3 className='text-2xl font-bold mb-2'>Enterprise</h3>
-                  <div className='text-4xl font-bold'>Contact us</div>
-                  <p className='text-muted-foreground mt-2'>Unlimited usage</p>
+              <div className="bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm">
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-bold mb-2">Enterprise</h3>
+                  <div className="text-4xl font-bold">Contact us</div>
+                  <p className="text-muted-foreground mt-2">Unlimited usage</p>
                 </div>
-                <ul className='space-y-3 mb-8'>
-                  <li className='flex items-center'>
-                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
                     <span>Most powerful agent modules</span>
                   </li>
-                  <li className='flex items-center'>
-                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
                     <span>24/7 premium support</span>
                   </li>
-                  <li className='flex items-center'>
-                    <Check className='h-5 w-5 text-green-400 mr-3' />
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
                     <span>Custom integrations</span>
                   </li>
                 </ul>
-                <Button variant='outline' className='w-full'>
+                <Button variant="outline" className="w-full">
                   Contact Sales →
                 </Button>
               </div>
@@ -376,43 +332,33 @@ export default async function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className='border-t'>
-        <div className='mx-auto max-w-7xl px-6 py-12'>
-          <div className='grid lg:grid-cols-4 gap-8'>
+      <footer className="border-t">
+        <div className="mx-auto max-w-7xl px-6 py-12">
+          <div className="grid lg:grid-cols-4 gap-8">
             <div>
-              <div className='flex items-center space-x-2 mb-4'>
-                <Logo className='h-8' />
+              <div className="flex items-center space-x-2 mb-4">
+                <Logo className="h-8" />
               </div>
-              <p className='text-muted-foreground mb-4'>
-                Professional web scraping API platform built for developers and
-                enterprises.
+              <p className="text-muted-foreground mb-4">
+                Professional web scraping API platform built for developers and enterprises.
               </p>
             </div>
 
             <div>
-              <h3 className='font-semibold mb-4'>Legal</h3>
-              <ul className='space-y-2 text-muted-foreground'>
+              <h3 className="font-semibold mb-4">Legal</h3>
+              <ul className="space-y-2 text-muted-foreground">
                 <li>
-                  <Link
-                    href='#'
-                    className='hover:text-foreground transition-colors'
-                  >
+                  <Link href="#" className="hover:text-foreground transition-colors">
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href='#'
-                    className='hover:text-foreground transition-colors'
-                  >
+                  <Link href="#" className="hover:text-foreground transition-colors">
                     Terms of Service
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href='#'
-                    className='hover:text-foreground transition-colors'
-                  >
+                  <Link href="#" className="hover:text-foreground transition-colors">
                     Refund Policy
                   </Link>
                 </li>
@@ -420,29 +366,20 @@ export default async function HomePage() {
             </div>
 
             <div>
-              <h3 className='font-semibold mb-4'>Links</h3>
-              <ul className='space-y-2 text-muted-foreground'>
+              <h3 className="font-semibold mb-4">Links</h3>
+              <ul className="space-y-2 text-muted-foreground">
                 <li>
-                  <Link
-                    href='#'
-                    className='hover:text-foreground transition-colors'
-                  >
+                  <Link href="#" className="hover:text-foreground transition-colors">
                     Support
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href='#'
-                    className='hover:text-foreground transition-colors'
-                  >
+                  <Link href="#" className="hover:text-foreground transition-colors">
                     Documentation
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    href='/dashboard/studio'
-                    className='hover:text-foreground transition-colors'
-                  >
+                  <Link href="/dashboard/studio" className="hover:text-foreground transition-colors">
                     API Studio
                   </Link>
                 </li>
@@ -450,9 +387,7 @@ export default async function HomePage() {
             </div>
 
             <div>
-              <p className='text-muted-foreground text-sm'>
-                © 2025 Weblinq. All rights reserved.
-              </p>
+              <p className="text-muted-foreground text-sm">© 2025 Weblinq. All rights reserved.</p>
             </div>
           </div>
         </div>

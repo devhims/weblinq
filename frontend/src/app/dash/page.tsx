@@ -4,8 +4,6 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { ApiKeyManagerWithSuspense } from '@/components/dashboard/ApiKeyManagerWithSuspense';
 import { ApiKeyManagerLoading } from '@/components/dashboard/ApiKeyManagerLoading';
-import { TaskManagerWithSuspense } from '@/components/dashboard/TaskManagerWithSuspense';
-import { TaskManagerLoading } from '@/components/dashboard/TaskManagerLoading';
 import { SignOutButton } from '@/components/dashboard/SignOutButton';
 import { VerificationSuccessToast } from '@/components/dashboard/VerificationSuccessToast';
 
@@ -21,73 +19,45 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50'>
+    <div className="min-h-screen bg-gray-50">
       <Suspense fallback={null}>
         <VerificationSuccessToast />
       </Suspense>
-      <div className='container mx-auto px-4 py-8 max-w-7xl'>
-        <div className='flex justify-between items-center mb-8'>
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className='text-3xl font-bold text-gray-900'>Dashboard</h1>
-            <p className='text-gray-600 mt-2'>
-              Welcome back, {session.user.name || session.user.email}!
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-600 mt-2">Welcome back, {session.user.name || session.user.email}!</p>
           </div>
           <SignOutButton />
         </div>
 
-        <div className='grid gap-6'>
-          <div className='bg-white p-6 rounded-lg shadow-sm border border-gray-200'>
-            <h2 className='text-xl font-semibold mb-4 text-gray-900'>
-              Account Information
-            </h2>
-            <div className='space-y-3'>
-              <p className='text-sm'>
-                <span className='font-medium text-gray-700'>Email:</span>
-                <span className='text-gray-600 ml-2'>{session.user.email}</span>
+        <div className="grid gap-6">
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">Account Information</h2>
+            <div className="space-y-3">
+              <p className="text-sm">
+                <span className="font-medium text-gray-700">Email:</span>
+                <span className="text-gray-600 ml-2">{session.user.email}</span>
               </p>
               {session.user.name && (
-                <p className='text-sm'>
-                  <span className='font-medium text-gray-700'>Name:</span>
-                  <span className='text-gray-600 ml-2'>
-                    {session.user.name}
-                  </span>
+                <p className="text-sm">
+                  <span className="font-medium text-gray-700">Name:</span>
+                  <span className="text-gray-600 ml-2">{session.user.name}</span>
                 </p>
               )}
-              <p className='text-sm'>
-                <span className='font-medium text-gray-700'>User ID:</span>
-                <span className='text-gray-600 ml-2 font-mono text-xs'>
-                  {session.user.id}
-                </span>
+              <p className="text-sm">
+                <span className="font-medium text-gray-700">User ID:</span>
+                <span className="text-gray-600 ml-2 font-mono text-xs">{session.user.id}</span>
               </p>
             </div>
-          </div>
-
-          {/* Task Manager Section */}
-          <div className='bg-white p-6 rounded-lg shadow-sm border border-gray-200'>
-            <div className='mb-6'>
-              <h2 className='text-2xl font-semibold text-gray-900 mb-2'>
-                Task Manager
-              </h2>
-              <p className='text-gray-600'>
-                Powered by Durable Objects for per-user task isolation
-              </p>
-            </div>
-
-            <Suspense fallback={<TaskManagerLoading />}>
-              <TaskManagerWithSuspense />
-            </Suspense>
           </div>
 
           {/* API Keys Section */}
-          <div className='bg-white p-6 rounded-lg shadow-sm border border-gray-200'>
-            <div className='mb-6'>
-              <h2 className='text-2xl font-semibold text-gray-900 mb-2'>
-                API Keys
-              </h2>
-              <p className='text-gray-600'>
-                Manage your API keys to access our services programmatically
-              </p>
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">API Keys</h2>
+              <p className="text-gray-600">Manage your API keys to access our services programmatically</p>
             </div>
 
             <Suspense fallback={<ApiKeyManagerLoading />}>

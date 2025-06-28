@@ -33,12 +33,12 @@ export function ScreenshotDisplay({
     <ResultContainer loading={loading} error={error} className="border rounded-md w-full relative overflow-hidden">
       <div className="relative h-full flex flex-col">
         {/* Header */}
-        <div className="bg-muted/60 p-2 text-base text-center border-b flex-shrink-0">
+        <div className="bg-muted/60 p-1.5 sm:p-2 text-xs sm:text-sm lg:text-base text-center border-b flex-shrink-0">
           {isMobile ? 'Mobile preview' : `This is a ${fullPage ? 'full page' : 'viewport'} screenshot.`}
         </div>
 
         {/* Image container - takes remaining space */}
-        <div className="flex-1 flex items-center justify-center p-4 min-h-0">
+        <div className="flex-1 flex items-center justify-center p-2 sm:p-3 lg:p-4 min-h-0">
           {imageUrl && (
             <Image
               src={imageUrl}

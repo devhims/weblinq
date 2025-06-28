@@ -45,23 +45,15 @@ export const createApiKey = createRoute({
   method: 'post',
   tags,
   summary: 'Create a new API key',
-  description: 'Create a new API key for the authenticated user. System defaults: wq_ prefix, 1000 requests per 24 hours rate limit, no expiration, free plan metadata.',
+  description:
+    'Create a new API key for the authenticated user. System defaults: wq_ prefix, 1000 requests per 24 hours rate limit, no expiration, free plan metadata.',
   request: {
     body: jsonContent(createApiKeySchema, 'API key creation parameters'),
   },
   responses: {
-    [HttpStatusCodes.CREATED]: jsonContent(
-      apiKeyCreationResponseSchema,
-      'API key created successfully',
-    ),
-    [HttpStatusCodes.BAD_REQUEST]: jsonContent(
-      errorSchema,
-      'Invalid request data',
-    ),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      errorSchema,
-      'Authentication required',
-    ),
+    [HttpStatusCodes.CREATED]: jsonContent(apiKeyCreationResponseSchema, 'API key created successfully'),
+    [HttpStatusCodes.BAD_REQUEST]: jsonContent(errorSchema, 'Invalid request data'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(errorSchema, 'Authentication required'),
   },
 });
 
@@ -80,10 +72,7 @@ export const listApiKeys = createRoute({
       }),
       'List of API keys',
     ),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      errorSchema,
-      'Authentication required',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(errorSchema, 'Authentication required'),
   },
 });
 
@@ -100,18 +89,9 @@ export const getApiKey = createRoute({
     }),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(
-      apiKeyResponseSchema,
-      'API key details',
-    ),
-    [HttpStatusCodes.NOT_FOUND]: jsonContent(
-      errorSchema,
-      'API key not found',
-    ),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      errorSchema,
-      'Authentication required',
-    ),
+    [HttpStatusCodes.OK]: jsonContent(apiKeyResponseSchema, 'API key details'),
+    [HttpStatusCodes.NOT_FOUND]: jsonContent(errorSchema, 'API key not found'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(errorSchema, 'Authentication required'),
   },
 });
 
@@ -135,14 +115,8 @@ export const deleteApiKey = createRoute({
       }),
       'API key deleted successfully',
     ),
-    [HttpStatusCodes.NOT_FOUND]: jsonContent(
-      errorSchema,
-      'API key not found',
-    ),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      errorSchema,
-      'Authentication required',
-    ),
+    [HttpStatusCodes.NOT_FOUND]: jsonContent(errorSchema, 'API key not found'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(errorSchema, 'Authentication required'),
   },
 });
 

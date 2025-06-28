@@ -17,31 +17,20 @@ export function maskApiKey(key: string, showLength: number = 4): string {
 }
 
 /**
- * Format API key display with prefix and start characters
+ * Format API key display showing start characters followed by dots
+ * Shows in format: abcd••••••••••••
  */
-export function formatApiKeyDisplay(
-  prefix: string | null,
-  start: string | null
-): string {
-  const displayPrefix = prefix || 'wq_';
-  const displayStart = start || '****';
-  return `${displayPrefix}•••${displayStart}`;
+export function formatApiKeyDisplay(prefix: string | null, start: string | null): string {
+  const displayStart = start || 'xxxx';
+  // Show just the start characters followed by dots to indicate more content
+  return `${displayStart}${'•'.repeat(12)}`;
 }
 
 /**
  * Generate a secure random API key name suggestion
  */
 export function generateKeyNameSuggestion(): string {
-  const adjectives = [
-    'Production',
-    'Development',
-    'Testing',
-    'Staging',
-    'Personal',
-    'Mobile',
-    'Web',
-    'Server',
-  ];
+  const adjectives = ['Production', 'Development', 'Testing', 'Staging', 'Personal', 'Mobile', 'Web', 'Server'];
   const nouns = ['API', 'Key', 'Access', 'Token', 'Client', 'Service', 'App'];
 
   const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
@@ -53,7 +42,10 @@ export function generateKeyNameSuggestion(): string {
 /**
  * Validate API key name
  */
-export function validateApiKeyName(name: string): {
+export function validateApiKeyName(
+  name: string,
+  existingNames?: string[],
+): {
   isValid: boolean;
   error?: string;
 } {
@@ -73,8 +65,18 @@ export function validateApiKeyName(name: string): {
   if (!validPattern.test(name)) {
     return {
       isValid: false,
-      error:
-        'Name can only contain letters, numbers, spaces, hyphens, and underscores',
+      error: 'Name can only contain letters, numbers, spaces, hyphens, and underscores',
+    };
+  }
+
+  // Check for duplicate names if existing names are provided
+  if (
+    existingNames &&
+    existingNames.some((existingName) => existingName?.toLowerCase().trim() === name.toLowerCase().trim())
+  ) {
+    return {
+      isValid: false,
+      error: 'An API key with this name already exists. Please choose a different name.',
     };
   }
 
@@ -84,10 +86,7 @@ export function validateApiKeyName(name: string): {
 /**
  * Format usage statistics
  */
-export function formatUsageStats(
-  requests: number,
-  remaining: number | null
-): string {
+export function formatUsageStats(requests: number, remaining: number | null): string {
   if (remaining === null) {
     return `${requests.toLocaleString()} requests`;
   }
@@ -103,7 +102,7 @@ export function formatUsageStats(
  */
 export function getApiKeyStatusColor(
   enabled: boolean,
-  expiresAt: Date | null
+  expiresAt: Date | null,
 ): {
   bg: string;
   text: string;

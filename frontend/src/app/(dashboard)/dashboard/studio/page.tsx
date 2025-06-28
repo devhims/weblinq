@@ -1,11 +1,25 @@
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Suspense } from 'react';
 import { ApiReference } from './components/ApiReference';
 import StudioClientContainer from './components/StudioClientContainer';
 
-export default function StudioPage() {
+export default async function StudioPage() {
+  // Server-side auth check
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect('/sign-in');
+  }
+
   return (
-    <div className="w-full overflow-hidden">
+    <section className="flex-1 p-2 lg:p-4">
+      {/* <h1 className="text-lg lg:text-2xl font-medium mb-4">Studio</h1> */}
+
       <Card className="mb-6 w-full overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-2xl">Studio</CardTitle>
@@ -20,8 +34,9 @@ export default function StudioPage() {
           </Suspense>
         </CardContent>
       </Card>
+
       {/* API Reference Component */}
       <ApiReference />
-    </div>
+    </section>
   );
 }

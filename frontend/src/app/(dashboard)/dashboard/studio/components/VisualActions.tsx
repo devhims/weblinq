@@ -57,17 +57,17 @@ export function ScreenshotActions() {
 
   /* ───── UI ─────────────────────────────────────────── */
   return (
-    <div className="flex flex-col gap-6 mb-4 p-4 border rounded-lg bg-muted/30">
+    <div className="space-y-4">
       {/* ① Image format + quality */}
       <section>
-        <Label className="text-base font-semibold mb-1 block">Image Format</Label>
+        <Label className="text-sm font-medium mb-2 block">Image Format</Label>
         <div className="flex flex-row gap-3 mt-2">
           {formats.map((f) => (
             <Button
               key={f.value}
               variant={format === f.value ? 'default' : 'outline'}
               size="sm"
-              className="text-base py-2 px-4"
+              className="text-sm py-1 px-3 h-auto"
               onClick={() => setFormat(f.value)}
             >
               {f.label}
@@ -77,7 +77,7 @@ export function ScreenshotActions() {
 
         {(format === 'jpeg' || format === 'webp') && (
           <div className="mt-4 max-w-xs">
-            <Label htmlFor="quality" className="text-base font-medium mb-1 block">
+            <Label htmlFor="quality" className="text-sm font-medium mb-2 block">
               Image Quality
             </Label>
             <Slider
@@ -88,7 +88,7 @@ export function ScreenshotActions() {
               value={[quality]}
               onValueChange={(v) => setQuality(v[0])} // debounce if needed
             />
-            <div className="flex justify-between text-sm mt-1">
+            <div className="flex justify-between text-xs mt-1">
               <span>1</span>
               <span className="text-center">Current: {quality}</span>
               <span>100</span>
@@ -99,14 +99,14 @@ export function ScreenshotActions() {
 
       {/* ② Capture range (applies everywhere) */}
       <section className="max-w-xs">
-        <Label className="text-base font-semibold block mb-1">Capture range</Label>
+        <Label className="text-sm font-medium block mb-2">Capture range</Label>
         <div className="flex gap-3 mt-2">
           {(['fullpage', 'viewport'] as const).map((r) => (
             <Button
               key={r}
               variant={fullPage === (r === 'fullpage') ? 'default' : 'outline'}
               size="sm"
-              className="text-base py-2 px-4"
+              className="text-sm py-1 px-3 h-auto"
               onClick={() => setCaptureRange(r)}
             >
               {r === 'viewport' ? 'Viewport' : 'Full page'}
@@ -119,9 +119,9 @@ export function ScreenshotActions() {
       <section className="w-full">
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="advanced-options">
-            <AccordionTrigger className="text-base">
+            <AccordionTrigger className="text-sm">
               <span className="flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
+                <Settings className="h-4 w-4 mr-2" />
                 Advanced Options
                 {(waitTime && waitTime > 0) || mobile || width || height ? (
                   <Badge variant="outline" className="ml-2">
@@ -142,7 +142,7 @@ export function ScreenshotActions() {
                 {/* Wait Time */}
                 <div className="flex items-start space-x-2">
                   <div className="flex-1">
-                    <Label htmlFor="wait-time-screenshot" className="text-base font-medium leading-none">
+                    <Label htmlFor="wait-time-screenshot" className="text-sm font-medium leading-none">
                       Wait Time (ms)
                     </Label>
                     <Input
@@ -160,9 +160,9 @@ export function ScreenshotActions() {
                       placeholder="0"
                       min="0"
                       max="5000"
-                      className="mt-2 text-base h-11 max-w-sm"
+                      className="mt-2 text-base h-9 max-w-sm"
                     />
-                    <p className="text-sm text-muted-foreground mt-1.5">
+                    <p className="text-xs text-muted-foreground mt-1.5">
                       Additional delay before capturing the screenshot (0-5000 ms)
                     </p>
                   </div>
@@ -174,13 +174,13 @@ export function ScreenshotActions() {
                     id="mobile-preview"
                     checked={mobile}
                     onCheckedChange={(c) => toggleMobile(c === true)}
-                    className="h-5 w-5 mt-[3px]"
+                    className="h-4 w-4 mt-1"
                   />
                   <div>
-                    <Label htmlFor="mobile-preview" className="text-base font-medium leading-none cursor-pointer">
+                    <Label htmlFor="mobile-preview" className="text-sm font-medium leading-none cursor-pointer">
                       Mobile preview
                     </Label>
-                    <p className="text-sm text-muted-foreground mt-1.5">Select mobile device </p>
+                    <p className="text-xs text-muted-foreground mt-1">Select mobile device </p>
                   </div>
                 </div>
 
@@ -211,11 +211,11 @@ export function ScreenshotActions() {
                 {!mobile && (
                   <div className="space-y-4 max-w-sm">
                     <div>
-                      <Label className="text-base font-medium leading-none mb-3 block">Custom Dimensions</Label>
-                      <p className="text-sm text-muted-foreground mb-3">Leave empty to use defaults (1920×1080)</p>
+                      <Label className="text-sm font-medium leading-none mb-1 block">Custom Dimensions</Label>
+                      <p className="text-xs text-muted-foreground mb-3">Leave empty to use defaults (1920×1080)</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label htmlFor="width-input" className="text-sm font-medium">
+                          <Label htmlFor="width-input" className="text-xs font-medium">
                             Width (px)
                           </Label>
                           <Input
@@ -240,7 +240,7 @@ export function ScreenshotActions() {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="height-input" className="text-sm font-medium">
+                          <Label htmlFor="height-input" className="text-xs font-medium">
                             Height (px)
                           </Label>
                           <Input
@@ -280,31 +280,58 @@ export function ScreenshotActions() {
 export function PdfActions() {
   const [waitTime, setWaitTime] = useQueryState('waitTime', parseAsInteger);
 
+  const handleWaitTimeChange = (value: string) => {
+    if (value.trim() === '') {
+      setWaitTime(0);
+    } else {
+      const num = Number(value);
+      if (!isNaN(num) && num >= 0 && num <= 5000) {
+        setWaitTime(num);
+      }
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-6 mb-4 p-4 border rounded-lg bg-muted/30">
-      {/* Wait Time (Advanced) */}
-      <section className="max-w-xs">
-        <Label htmlFor="wait-time-pdf" className="text-base font-medium mb-1 block">
-          Wait Time (ms)
-        </Label>
-        <Input
-          id="wait-time-pdf"
-          type="number"
-          value={waitTime?.toString() ?? ''}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v.trim() === '') setWaitTime(0);
-            else {
-              const n = Number(v);
-              if (!Number.isNaN(n) && n >= 0 && n <= 5000) setWaitTime(n);
-            }
-          }}
-          placeholder="0"
-          min="0"
-          max="5000"
-          className="mt-2 text-base h-11"
-        />
-      </section>
+    <div className="space-y-4">
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="advanced-options">
+          <AccordionTrigger className="text-sm">
+            <span className="flex items-center">
+              <Settings className="h-4 w-4 mr-2" />
+              Advanced Options
+              {waitTime && waitTime > 0 && (
+                <Badge variant="outline" className="ml-2">
+                  Wait: {waitTime}ms
+                </Badge>
+              )}
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-4 pt-2">
+              <div className="flex items-start space-x-2">
+                <div className="flex-1">
+                  <Label htmlFor="wait-time-pdf" className="text-sm font-medium leading-none">
+                    Wait Time (ms)
+                  </Label>
+                  <Input
+                    id="wait-time-pdf"
+                    type="number"
+                    value={waitTime?.toString() ?? ''}
+                    onChange={(e) => handleWaitTimeChange(e.target.value)}
+                    placeholder="0"
+                    min="0"
+                    max="5000"
+                    className="mt-2 text-base h-9 max-w-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Additional time to wait for content to load before generating PDF (0-5000ms)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }

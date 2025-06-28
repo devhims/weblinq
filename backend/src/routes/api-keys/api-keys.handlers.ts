@@ -3,12 +3,7 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { AppRouteHandler } from '@/lib/types';
 
-import type {
-  CreateApiKeyRoute,
-  DeleteApiKeyRoute,
-  GetApiKeyRoute,
-  ListApiKeysRoute,
-} from './api-keys.routes';
+import type { CreateApiKeyRoute, DeleteApiKeyRoute, GetApiKeyRoute, ListApiKeysRoute } from './api-keys.routes';
 
 export const createApiKey: AppRouteHandler<CreateApiKeyRoute> = async (c) => {
   try {
@@ -59,19 +54,13 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
           .from({ id: 'test' })
           .limit(1)
           .catch((err: any) => {
-            console.log(
-              'ListApiKeys - Database connectivity test result:',
-              err.message || 'Unknown error',
-            );
+            console.log('ListApiKeys - Database connectivity test result:', err.message || 'Unknown error');
             return [];
           });
         console.log('ListApiKeys - Database test completed');
       }
     } catch (dbError) {
-      console.error(
-        'ListApiKeys - Database connectivity test failed:',
-        dbError,
-      );
+      console.error('ListApiKeys - Database connectivity test failed:', dbError);
     }
 
     // Try to access the API key functionality
@@ -79,17 +68,11 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
 
     // Test if auth.api exists and has the listApiKeys method
     console.log('ListApiKeys - auth.api exists:', !!(auth as any).api);
-    console.log(
-      'ListApiKeys - auth.api.listApiKeys exists:',
-      typeof (auth as any).api?.listApiKeys,
-    );
+    console.log('ListApiKeys - auth.api.listApiKeys exists:', typeof (auth as any).api?.listApiKeys);
 
     if (!(auth as any).api?.listApiKeys) {
       console.error('ListApiKeys - listApiKeys method not found on auth.api');
-      return c.json(
-        { error: 'API key functionality not available', apiKeys: [], total: 0 },
-        HttpStatusCodes.OK,
-      );
+      return c.json({ error: 'API key functionality not available', apiKeys: [], total: 0 }, HttpStatusCodes.OK);
     }
 
     const result = await (auth.api as any).listApiKeys({
@@ -97,23 +80,14 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
     });
 
     console.log('ListApiKeys - Success, result type:', typeof result);
-    console.log(
-      'ListApiKeys - Success, result is array:',
-      Array.isArray(result),
-    );
-    console.log(
-      'ListApiKeys - Success, result length:',
-      Array.isArray(result) ? result.length : 'not-array',
-    );
+    console.log('ListApiKeys - Success, result is array:', Array.isArray(result));
+    console.log('ListApiKeys - Success, result length:', Array.isArray(result) ? result.length : 'not-array');
 
     // More detailed result inspection
     if (result) {
       console.log('ListApiKeys - Result keys:', Object.keys(result));
       if (Array.isArray(result) && result.length > 0) {
-        console.log(
-          'ListApiKeys - First result item keys:',
-          Object.keys(result[0]),
-        );
+        console.log('ListApiKeys - First result item keys:', Object.keys(result[0]));
       }
     }
 

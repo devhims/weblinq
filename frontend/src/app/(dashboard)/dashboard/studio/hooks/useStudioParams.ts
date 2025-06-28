@@ -23,7 +23,7 @@ const deviceParser = parseAsStringLiteral(['iphone15', 'galaxyS24']).withDefault
 // Type-safe endpoint and action parsers
 const endpointParser = parseAsStringLiteral(ENDPOINT_IDS).withDefault('scrape');
 
-const actionParser = parseAsStringLiteral(ACTION_IDS).withDefault('elements');
+const actionParser = parseAsStringLiteral(ACTION_IDS).withDefault('markdown');
 
 // ---------------------------------------------------------------------------
 //  1️⃣  Central list of query-param parsers (single source of truth)
