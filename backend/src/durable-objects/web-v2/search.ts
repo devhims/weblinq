@@ -496,6 +496,7 @@ class BingHandler extends BaseSearchHandler {
 
 class MultiEngineSearchHandler {
   private handlers: Map<SearchEngine, BaseSearchHandler>;
+  private recentMonthRegexCache: Record<number, RegExp> = {};
 
   constructor() {
     this.handlers = new Map<SearchEngine, BaseSearchHandler>([
@@ -508,14 +509,195 @@ class MultiEngineSearchHandler {
   /**
    * Enhanced relevance scoring that rewards comprehensive matches in both title and snippet
    */
+  // Configurable scoring weights for easy tuning and A/B testing
+  private static readonly SCORING_WEIGHTS = {
+    // Core matching scores
+    titleExact: 12,
+    titlePartial: 6, // Reduced for word-boundary preference
+    snippetExact: 6,
+    snippetPartial: 3, // Reduced for word-boundary preference
+
+    // URL/Domain scoring
+    urlExactDomain: 25,
+    urlPrefixSuffix: 15,
+    urlSubstring: 10,
+    urlPath: 8,
+
+    // Synergy and coverage bonuses
+    synergyPerArea: 6,
+    coverageScale: 20,
+    allThreeAreas: 15,
+    twoAreasWithUrl: 10,
+    titleAndSnippet: 8,
+    keywordDiversity: 4,
+
+    // Quality adjustments
+    authorityDomain: 3,
+    longTitlePenalty: -3,
+    tinySnippetPenalty: -1,
+    goodSnippetBonus: 2,
+
+    // Recency bonuses (progressive tiers)
+    recencyVeryRecent: 20, // < 48 hours
+    recencyRecent: 15, // < 1 week
+    recencyModerate: 10, // < 1 month
+    recencyFairly: 5, // < 6 months
+
+    // Caps to prevent score inflation
+    maxSynergyBonus: 30,
+    maxTotalScore: 150,
+  };
+
+  /**
+   * Escape special regex characters in search terms
+   */
+  private escapeRegex(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Helper to get recent months with wrap-around for year boundaries
+   */
+  private getRecentMonths(currentMonth: number): string[] {
+    const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const result: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      // Last 4 months including current
+      const monthIndex = (currentMonth - i + 12) % 12; // Handle wrap-around
+      result.push(monthNames[monthIndex]);
+    }
+    return result;
+  }
+
+  /**
+   * Cached regex compilation for recent month patterns (performance optimization)
+   */
+  private getRecentMonthRegex(currentMonth: number, currentYear: number): RegExp {
+    if (!this.recentMonthRegexCache[currentMonth]) {
+      const months = this.getRecentMonths(currentMonth).join('|');
+      this.recentMonthRegexCache[currentMonth] = new RegExp(`\\b(${months})[a-z]*\\s+${currentYear}\\b`, 'i');
+    }
+    return this.recentMonthRegexCache[currentMonth];
+  }
+
+  /**
+   * Enhanced recency detection with tiered bonuses based on content age
+   */
+  private calculateRecencyBonus(result: RawSearchLink): number {
+    const snippet = result.snippet?.toLowerCase() || '';
+    const url = result.url.toLowerCase();
+    const W = MultiEngineSearchHandler.SCORING_WEIGHTS;
+
+    // 🎯 ABSOLUTE DATE PARSING: Catch explicit dates like "2024-12-05", "28 Jun 2025"
+    const absoluteDateISO =
+      snippet.match(/\b(20\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b/) ||
+      url.match(/\/(20\d{2})\/(0?[1-9]|1[0-2])\/(0?[1-9]|[12]\d|3[01])\//);
+
+    const absoluteDateText = snippet.match(
+      /\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(20\d{2})\b/i,
+    );
+
+    if (absoluteDateISO || absoluteDateText) {
+      try {
+        let pubDate: Date | null = null;
+        if (absoluteDateISO) {
+          pubDate = new Date(
+            `${absoluteDateISO[1]}-${absoluteDateISO[2].padStart(2, '0')}-${absoluteDateISO[3].padStart(2, '0')}`,
+          );
+        } else if (absoluteDateText) {
+          const monthMap: Record<string, number> = {
+            jan: 0,
+            feb: 1,
+            mar: 2,
+            apr: 3,
+            may: 4,
+            jun: 5,
+            jul: 6,
+            aug: 7,
+            sep: 8,
+            oct: 9,
+            nov: 10,
+            dec: 11,
+          };
+          const monthName = absoluteDateText[2].toLowerCase().slice(0, 3);
+          pubDate = new Date(
+            Number.parseInt(absoluteDateText[3]),
+            monthMap[monthName],
+            Number.parseInt(absoluteDateText[1]),
+          );
+        }
+
+        if (pubDate && !Number.isNaN(pubDate.getTime())) {
+          const ageDays = (Date.now() - pubDate.getTime()) / (1000 * 60 * 60 * 24);
+          if (ageDays < 2) return W.recencyVeryRecent;
+          if (ageDays < 7) return W.recencyRecent;
+          if (ageDays < 30) return W.recencyModerate;
+          if (ageDays < 180) return W.recencyFairly;
+        }
+      } catch {
+        // Fall through to relative date patterns
+      }
+    }
+
+    // Very recent (< 48 hours) - highest priority
+    const veryRecentPatterns = [
+      /\b([1-9]|1\d|2[0-4])\s*(hours?|hrs?)\s+ago\b/,
+      /\b(today|this morning|this afternoon)\b/,
+      /\byesterday\b/,
+    ];
+
+    if (veryRecentPatterns.some((pattern) => pattern.test(snippet))) {
+      return W.recencyVeryRecent;
+    }
+
+    // Recent (< 1 week)
+    const recentPatterns = [/\b([1-6])\s*(days?)\s+ago\b/, /\b(this week|few days ago)\b/];
+
+    if (recentPatterns.some((pattern) => pattern.test(snippet))) {
+      return W.recencyRecent;
+    }
+
+    // Moderate (< 1 month)
+    const moderatePatterns = [/\b([1-3])\s*(weeks?)\s+ago\b/, /\b(this month|last week)\b/];
+
+    if (moderatePatterns.some((pattern) => pattern.test(snippet))) {
+      return W.recencyModerate;
+    }
+
+    // Fairly recent (< 6 months) - look for current year or recent months
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth(); // 0-based (0=Jan, 11=Dec)
+
+    // Current year in URL is a good recency signal
+    if (url.includes(`/${currentYear}/`) || url.includes(`-${currentYear}-`)) {
+      return W.recencyFairly;
+    }
+
+    // 🔧 OPTIMIZED: Use cached regex for recent month patterns
+    const recentMonthPattern = this.getRecentMonthRegex(currentMonth, currentYear);
+
+    if (recentMonthPattern.test(snippet)) {
+      return W.recencyFairly;
+    }
+
+    return 0; // No recency bonus
+  }
+
+  /**
+   * Enhanced scoring with word-boundary matching and configurable weights
+   */
   private calculateScore(result: RawSearchLink, query: string): number {
+    // Tokenize query into words (improved word boundary detection)
+    // Allow important 2-character terms like "AI", "UK", "JS", "Go"
+    const importantShortTerms = new Set(['ai', 'uk', 'js', 'go', 'ui', 'ux', 'vr', 'ar', 'ml', 'dl', 'it', 'io']);
     const queryWords = query
       .toLowerCase()
       .split(/\s+/)
-      .filter((word) => word.length > 2);
+      .filter((word) => word.length > 2 || importantShortTerms.has(word));
 
     if (queryWords.length === 0) return 0;
 
+    const W = MultiEngineSearchHandler.SCORING_WEIGHTS;
     const titleLower = result.title.toLowerCase();
     const snippetLower = result.snippet?.toLowerCase() || '';
 
@@ -531,6 +713,7 @@ class MultiEngineSearchHandler {
     }
 
     let score = 0;
+    let synergyBonus = 0;
     let titleMatches = 0;
     let snippetMatches = 0;
     let urlMatches = 0;
@@ -538,39 +721,38 @@ class MultiEngineSearchHandler {
     const snippetMatchedWords = new Set<string>();
     const urlMatchedWords = new Set<string>();
 
-    // Calculate matches for each query word
+    // Calculate matches for each query word with improved word-boundary detection
     for (const word of queryWords) {
       let titleMatchFound = false;
       let snippetMatchFound = false;
       let urlMatchFound = false;
 
-      // Title matches with enhanced scoring
-      if (titleLower.includes(word)) {
+      // 🎯 TITLE MATCHES: Word-boundary preference
+      const titleWordBoundary = new RegExp(`\\b${this.escapeRegex(word)}\\b`, 'i');
+      if (titleWordBoundary.test(result.title)) {
         titleMatchFound = true;
         titleMatches++;
         titleMatchedWords.add(word);
-
-        // Word boundary bonus (more precise matches)
-        const regex = new RegExp(`\\b${word}\\b`, 'i');
-        if (regex.test(result.title)) {
-          score += 12; // Base score for precise title match
-        } else {
-          score += 8; // Partial title match
-        }
+        score += W.titleExact; // Precise word match
+      } else if (titleLower.includes(word)) {
+        titleMatchFound = true;
+        titleMatches++;
+        titleMatchedWords.add(word);
+        score += W.titlePartial; // Substring match (lower score)
       }
 
-      // Snippet matches with improved weighting
-      if (snippetLower.includes(word)) {
+      // 🎯 SNIPPET MATCHES: Word-boundary preference
+      const snippetWordBoundary = new RegExp(`\\b${this.escapeRegex(word)}\\b`, 'i');
+      if (snippetWordBoundary.test(result.snippet || '')) {
         snippetMatchFound = true;
         snippetMatches++;
         snippetMatchedWords.add(word);
-
-        const regex = new RegExp(`\\b${word}\\b`, 'i');
-        if (regex.test(result.snippet || '')) {
-          score += 6; // Precise snippet match
-        } else {
-          score += 4; // Partial snippet match
-        }
+        score += W.snippetExact; // Precise word match
+      } else if (snippetLower.includes(word)) {
+        snippetMatchFound = true;
+        snippetMatches++;
+        snippetMatchedWords.add(word);
+        score += W.snippetPartial; // Substring match (lower score)
       }
 
       // 🌐 URL/DOMAIN MATCHES: Critical for brand searches
@@ -579,69 +761,78 @@ class MultiEngineSearchHandler {
         urlMatches++;
         urlMatchedWords.add(word);
 
-        // 🎯 EXACT DOMAIN MATCH: Massive bonus for brand searches
+        // Domain match hierarchy
         if (urlHost === word || urlHost === `${word}.com` || urlHost === `${word}.org` || urlHost === `${word}.net`) {
-          score += 25; // Huge bonus for exact domain match (e.g., devhims.com for "devhims")
+          score += W.urlExactDomain; // Exact domain match
         } else if (urlHost.startsWith(word) || urlHost.endsWith(word)) {
-          score += 15; // Strong bonus for domain prefix/suffix match
+          score += W.urlPrefixSuffix; // Domain prefix/suffix match
         } else if (urlHost.includes(word)) {
-          score += 10; // Good bonus for domain substring match
+          score += W.urlSubstring; // Domain substring match
         } else if (urlPath.includes(word)) {
-          score += 8; // Bonus for path match
+          score += W.urlPath; // URL path match
         }
       }
 
-      // 🎯 SYNERGY BONUSES: Extra points for multi-area matches
+      // 🎯 SYNERGY BONUSES: Extra points for multi-area matches (with cap)
       const matchAreas = [titleMatchFound, snippetMatchFound, urlMatchFound].filter(Boolean).length;
       if (matchAreas >= 2) {
-        score += matchAreas * 6; // Bonus scales with number of areas matched
+        synergyBonus += matchAreas * W.synergyPerArea;
       }
     }
+
+    // Apply synergy bonus with cap
+    score += Math.min(synergyBonus, W.maxSynergyBonus);
 
     // 🚀 COMPREHENSIVE MATCH BONUS: When multiple areas have matches
     const totalMatches = titleMatches + snippetMatches + urlMatches;
     if (totalMatches > 0) {
       const matchCoverage = totalMatches / (queryWords.length * 3); // 3 areas: title, snippet, URL
-      score += Math.floor(matchCoverage * 20); // Scale bonus based on coverage
+      score += Math.floor(matchCoverage * W.coverageScale);
 
-      // Extra bonus for high coverage across all areas
+      // Area combination bonuses
       if (titleMatches > 0 && snippetMatches > 0 && urlMatches > 0) {
-        score += 15; // All three areas have matches
+        score += W.allThreeAreas; // All three areas match
       } else if ((titleMatches > 0 && urlMatches > 0) || (snippetMatches > 0 && urlMatches > 0)) {
-        score += 10; // Two areas including URL
+        score += W.twoAreasWithUrl; // Two areas including URL
       } else if (titleMatches > 0 && snippetMatches > 0) {
-        score += 8; // Title and snippet both match
+        score += W.titleAndSnippet; // Title and snippet both match
       }
     }
 
     // 📈 DIVERSITY BONUS: Reward when different query words match across areas
     const uniqueWords = new Set([...titleMatchedWords, ...snippetMatchedWords, ...urlMatchedWords]);
     if (uniqueWords.size > 1) {
-      score += (uniqueWords.size - 1) * 4; // Increased bonus for keyword diversity
+      score += (uniqueWords.size - 1) * W.keywordDiversity;
     }
 
     // 🏆 AUTHORITY SIGNALS: Domain quality indicators
     if (urlHost.split('.').length === 2 && !urlHost.includes('-') && !urlHost.includes('_')) {
-      score += 3; // Clean, short domain bonus
+      score += W.authorityDomain;
+    }
+
+    // ⏰ RECENCY BONUS: Scaled bonus to prevent fresh-but-irrelevant from beating quality
+    const rawRecencyBonus = this.calculateRecencyBonus(result);
+    if (rawRecencyBonus > 0) {
+      // Scale recency by quality: higher-quality content gets larger recency boost
+      const qualityFactor = Math.min(1.0, Math.max(0.3, score / 50)); // 30%-100% scaling
+      score += Math.floor(rawRecencyBonus * qualityFactor);
     }
 
     // 📏 QUALITY ADJUSTMENTS
-    // Penalty for very long titles (often less relevant)
     if (result.title.length > 100) {
-      score -= 3;
+      score += W.longTitlePenalty;
     }
 
-    // Bonus for substantial snippets (more informative)
     if (result.snippet && result.snippet.length > 50 && result.snippet.length < 300) {
-      score += 2;
+      score += W.goodSnippetBonus;
     }
 
-    // Small penalty for very short snippets (less informative)
     if (result.snippet && result.snippet.length < 20) {
-      score -= 1;
+      score += W.tinySnippetPenalty;
     }
 
-    return Math.max(0, score); // Ensure non-negative scores
+    // Apply maximum score cap and ensure non-negative
+    return Math.max(0, Math.min(score, W.maxTotalScore));
   }
 
   /**
