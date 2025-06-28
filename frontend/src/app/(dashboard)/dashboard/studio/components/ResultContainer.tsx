@@ -54,7 +54,7 @@ export function ResultContainer({
   }
 
   return (
-    <div className={`${className} ${height}`}>
+    <div className={`${className} h-full`}>
       {copyContent && <CopyButton content={copyContent} darkBackground={darkBackground} />}
       {children}
     </div>

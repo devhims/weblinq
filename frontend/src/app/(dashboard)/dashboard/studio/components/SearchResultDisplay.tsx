@@ -17,9 +17,9 @@ export function SearchResultDisplay({ result }: SearchResultDisplayProps) {
   const results = result?.results || [];
 
   return (
-    <div className="bg-card rounded-md border overflow-auto h-[400px] w-full relative">
+    <div className="bg-card rounded-md border h-full w-full relative flex flex-col">
       <CopyButton content={result} />
-      <div className="p-4">
+      <div className="p-4 flex-1 overflow-y-auto">
         <div className="flex items-center mb-3">
           <Globe className="h-5 w-5 mr-2 text-primary" />
           <Label className="font-medium text-base">

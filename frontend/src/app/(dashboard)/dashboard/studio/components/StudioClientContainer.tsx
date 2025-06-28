@@ -44,19 +44,23 @@ export default function StudioClientContainer() {
 
   return (
     <>
-      <div className="grid gap-5 w-full">
+      <div className="flex flex-col gap-5 w-full h-full min-h-[800px]">
         {/* URL Input Component – handles API calls and returns data via callback */}
-        <UrlInput onApiResult={handleApiResult} onLoadingChange={setLoading} />
+        <div className="flex-shrink-0">
+          <UrlInput onApiResult={handleApiResult} onLoadingChange={setLoading} />
+        </div>
 
         {/* Endpoint selector including action-specific parameter inputs */}
-        <EndpointSelector>
-          <EndpointActions />
-        </EndpointSelector>
+        <div className="flex-shrink-0">
+          <EndpointSelector>
+            <EndpointActions />
+          </EndpointSelector>
+        </div>
 
         {/* Results ----------------------------------------------------------- */}
-        <div className="w-full overflow-hidden">
+        <div className="w-full flex flex-col min-h-0 flex-1">
           <Label className="text-base font-medium">Result</Label>
-          <div className="w-full overflow-hidden mt-2">
+          <div className="w-full mt-2 flex-1 min-h-0">
             <ResultDisplay
               loading={loading}
               error={error}

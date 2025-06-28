@@ -124,8 +124,8 @@ function LinksResultDisplay({ links }: LinksResultDisplayProps) {
     : [];
 
   return (
-    <div className="bg-card rounded-md border overflow-auto max-h-[60vh] sm:max-h-[70vh] lg:h-[800px] w-full relative">
-      <div className="sticky top-0 bg-card/90 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4 z-20">
+    <div className="bg-card rounded-md border h-full w-full relative flex flex-col">
+      <div className="bg-card/90 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
@@ -134,7 +134,7 @@ function LinksResultDisplay({ links }: LinksResultDisplayProps) {
           <CopyButton content={links} inline />
         </div>
       </div>
-      <div className="p-3 sm:p-4 pt-0">
+      <div className="p-3 sm:p-4 pt-0 flex-1 overflow-y-auto">
         <ul className="space-y-1.5">
           {normalizedLinks.length > 0 &&
             normalizedLinks.map((link, index) => (
@@ -444,9 +444,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       const copyPdfUrl = pdfPermanentUrl || pdfPreviewUrl;
 
       return (
-        <div className="bg-card p-3 sm:p-4 rounded-md border overflow-hidden w-full max-h-[60vh] sm:max-h-[70vh] lg:h-[800px] relative flex flex-col">
+        <div className="bg-card p-3 sm:p-4 rounded-md border overflow-hidden w-full h-full relative flex flex-col">
           {/* Top bar */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
               <p className="text-sm sm:text-base font-medium">{pdfData ? 'Preview' : 'No PDF data returned'}</p>
@@ -469,11 +469,7 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
           {/* Preview */}
           {pdfPreviewUrl ? (
-            <iframe
-              title="PDF preview"
-              src={pdfPreviewUrl}
-              className="flex-1 w-full border rounded min-h-[300px] sm:min-h-[400px]"
-            />
+            <iframe title="PDF preview" src={pdfPreviewUrl} className="flex-1 w-full border rounded" />
           ) : (
             <p className="text-center text-muted-foreground flex-1 flex items-center justify-center text-sm sm:text-base">
               No PDF data
@@ -499,8 +495,10 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
     default:
       return (
-        <div className="bg-card p-3 sm:p-4 rounded-md border overflow-auto max-h-[60vh] sm:max-h-[70vh] lg:h-[800px] w-full">
-          <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm">{JSON.stringify(result, null, 2)}</pre>
+        <div className="bg-card p-3 sm:p-4 rounded-md border h-full w-full flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm">{JSON.stringify(result, null, 2)}</pre>
+          </div>
         </div>
       );
   }
@@ -623,9 +621,9 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
     const jsonFormatted = JSON.stringify(cloned, null, 2);
 
     return (
-      <div className="bg-card rounded-md border overflow-auto max-h-[60vh] sm:max-h-[70vh] lg:h-[800px] w-full">
+      <div className="bg-card rounded-md border h-full w-full flex flex-col">
         {/* header */}
-        <div className="sticky top-0 bg-card/90 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4 z-20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div className="bg-card/90 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4 flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <h3 className="font-medium text-sm sm:text-base">Raw JSON</h3>
           <div className="flex space-x-2">
             {/* inline copy button so it sits left of the toggle */}
@@ -637,7 +635,7 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
         </div>
 
         {/* JSON */}
-        <div className="p-0">
+        <div className="flex-1 overflow-hidden">
           <SyntaxHighlighter
             language="json"
             style={atomDark}
@@ -646,6 +644,8 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
               borderRadius: 0,
               background: 'var(--color-card)',
               fontSize: '12px',
+              height: '100%',
+              overflow: 'auto',
             }}
             wrapLongLines
             showLineNumbers
@@ -658,8 +658,8 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
   }
 
   return (
-    <div className="bg-card rounded-md border overflow-auto max-h-[60vh] sm:max-h-[70vh] lg:h-[800px] w-full">
-      <div className="sticky top-0 bg-card/90 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4 z-20">
+    <div className="bg-card rounded-md border h-full w-full flex flex-col">
+      <div className="bg-card/90 backdrop-blur-sm border-b border-border/50 p-3 sm:p-4 flex-shrink-0">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <h3 className="font-medium text-sm sm:text-base">Scraped Elements</h3>
           <div className="flex space-x-2">
@@ -690,7 +690,7 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
           </div>
         </div>
       </div>
-      <div className="p-3 sm:p-4 pt-0">
+      <div className="p-3 sm:p-4 pt-0 flex-1 overflow-y-auto">
         {result &&
           result.elements &&
           result.elements.map((item, index) => (
