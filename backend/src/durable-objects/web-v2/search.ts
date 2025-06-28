@@ -519,16 +519,30 @@ class MultiEngineSearchHandler {
     const titleLower = result.title.toLowerCase();
     const snippetLower = result.snippet?.toLowerCase() || '';
 
+    // Extract URL components for scoring
+    let urlHost = '';
+    let urlPath = '';
+    try {
+      const urlObj = new URL(result.url);
+      urlHost = urlObj.hostname.replace('www.', '').toLowerCase();
+      urlPath = urlObj.pathname.toLowerCase();
+    } catch {
+      urlHost = result.url.toLowerCase();
+    }
+
     let score = 0;
     let titleMatches = 0;
     let snippetMatches = 0;
+    let urlMatches = 0;
     const titleMatchedWords = new Set<string>();
     const snippetMatchedWords = new Set<string>();
+    const urlMatchedWords = new Set<string>();
 
     // Calculate matches for each query word
     for (const word of queryWords) {
       let titleMatchFound = false;
       let snippetMatchFound = false;
+      let urlMatchFound = false;
 
       // Title matches with enhanced scoring
       if (titleLower.includes(word)) {
@@ -553,33 +567,62 @@ class MultiEngineSearchHandler {
 
         const regex = new RegExp(`\\b${word}\\b`, 'i');
         if (regex.test(result.snippet || '')) {
-          score += 6; // Precise snippet match (increased from 2)
+          score += 6; // Precise snippet match
         } else {
           score += 4; // Partial snippet match
         }
       }
 
-      // 🎯 SYNERGY BONUS: Extra points when the same word appears in BOTH title and snippet
-      if (titleMatchFound && snippetMatchFound) {
-        score += 8; // Significant bonus for comprehensive relevance
+      // 🌐 URL/DOMAIN MATCHES: Critical for brand searches
+      if (urlHost.includes(word) || urlPath.includes(word)) {
+        urlMatchFound = true;
+        urlMatches++;
+        urlMatchedWords.add(word);
+
+        // 🎯 EXACT DOMAIN MATCH: Massive bonus for brand searches
+        if (urlHost === word || urlHost === `${word}.com` || urlHost === `${word}.org` || urlHost === `${word}.net`) {
+          score += 25; // Huge bonus for exact domain match (e.g., devhims.com for "devhims")
+        } else if (urlHost.startsWith(word) || urlHost.endsWith(word)) {
+          score += 15; // Strong bonus for domain prefix/suffix match
+        } else if (urlHost.includes(word)) {
+          score += 10; // Good bonus for domain substring match
+        } else if (urlPath.includes(word)) {
+          score += 8; // Bonus for path match
+        }
+      }
+
+      // 🎯 SYNERGY BONUSES: Extra points for multi-area matches
+      const matchAreas = [titleMatchFound, snippetMatchFound, urlMatchFound].filter(Boolean).length;
+      if (matchAreas >= 2) {
+        score += matchAreas * 6; // Bonus scales with number of areas matched
       }
     }
 
-    // 🚀 COMPREHENSIVE MATCH BONUS: When both title and snippet have matches
-    if (titleMatches > 0 && snippetMatches > 0) {
-      const matchCoverage = (titleMatches + snippetMatches) / (queryWords.length * 2);
-      score += Math.floor(matchCoverage * 15); // Scale bonus based on coverage
+    // 🚀 COMPREHENSIVE MATCH BONUS: When multiple areas have matches
+    const totalMatches = titleMatches + snippetMatches + urlMatches;
+    if (totalMatches > 0) {
+      const matchCoverage = totalMatches / (queryWords.length * 3); // 3 areas: title, snippet, URL
+      score += Math.floor(matchCoverage * 20); // Scale bonus based on coverage
 
-      // Extra bonus for high query coverage in both areas
-      if (titleMatches >= queryWords.length * 0.5 && snippetMatches >= queryWords.length * 0.5) {
-        score += 10; // Both title and snippet cover significant portion of query
+      // Extra bonus for high coverage across all areas
+      if (titleMatches > 0 && snippetMatches > 0 && urlMatches > 0) {
+        score += 15; // All three areas have matches
+      } else if ((titleMatches > 0 && urlMatches > 0) || (snippetMatches > 0 && urlMatches > 0)) {
+        score += 10; // Two areas including URL
+      } else if (titleMatches > 0 && snippetMatches > 0) {
+        score += 8; // Title and snippet both match
       }
     }
 
-    // 📈 DIVERSITY BONUS: Reward when different query words match in title vs snippet
-    const uniqueWords = new Set([...titleMatchedWords, ...snippetMatchedWords]);
+    // 📈 DIVERSITY BONUS: Reward when different query words match across areas
+    const uniqueWords = new Set([...titleMatchedWords, ...snippetMatchedWords, ...urlMatchedWords]);
     if (uniqueWords.size > 1) {
-      score += (uniqueWords.size - 1) * 3; // Bonus for keyword diversity
+      score += (uniqueWords.size - 1) * 4; // Increased bonus for keyword diversity
+    }
+
+    // 🏆 AUTHORITY SIGNALS: Domain quality indicators
+    if (urlHost.split('.').length === 2 && !urlHost.includes('-') && !urlHost.includes('_')) {
+      score += 3; // Clean, short domain bonus
     }
 
     // 📏 QUALITY ADJUSTMENTS
