@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Key, Settings, CreditCard, Activity, Menu, Code, X } from 'lucide-react';
 import { Logo } from '@/components/logo';
+import { SidebarFooter } from '@/components/dashboard/SidebarFooter';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,7 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 h-full min-h-[calc(100vh-68px)] lg:min-h-0">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-52 bg-sidebar flex-shrink-0 border-r z-40">
-          <nav className="h-full overflow-y-auto p-3 flex flex-col">
+          <nav className="flex-1 overflow-y-auto p-3 flex flex-col">
             {/* Logo at the top of sidebar */}
             <Link
               href="/"
@@ -66,15 +67,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             ))}
           </nav>
+
+          {/* Sticky Footer */}
+          <div className="p-3 border-sidebar-border">
+            <SidebarFooter />
+          </div>
         </aside>
 
         {/* Mobile Sidebar */}
         <aside
-          className={`lg:hidden fixed left-0 top-0 h-screen w-64 bg-sidebar flex-shrink-0 border-r z-50 transform transition-transform duration-300 ease-in-out ${
+          className={`lg:hidden fixed left-0 top-0 h-screen w-64 bg-sidebar flex-shrink-0 border-r z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <nav className="h-full overflow-y-auto p-3 flex flex-col">
+          <nav className="flex-1 overflow-y-auto p-3 flex flex-col">
             {/* Mobile header with close button */}
             <Button variant="ghost" size="sm" onClick={() => setIsSidebarOpen(false)} className="h-8 w-8 p-0 self-end">
               <X className="h-4 w-4" />
@@ -101,6 +107,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             ))}
           </nav>
+
+          {/* Sticky Footer */}
+          <div className="p-3 border-sidebar-border">
+            <SidebarFooter />
+          </div>
         </aside>
 
         {/* Main content */}

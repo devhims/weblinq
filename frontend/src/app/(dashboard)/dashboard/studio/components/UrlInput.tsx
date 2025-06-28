@@ -324,7 +324,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 space-y-2">
             <Label htmlFor="search-query" className="text-sm sm:text-base font-medium">
               Search Query
             </Label>
@@ -333,7 +333,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
               value={query ?? ''}
               onChange={(e) => onQueryChange(e.target.value)}
               placeholder="Enter your search terms..."
-              className="text-sm sm:text-base h-9 sm:h-11"
+              className="text-sm sm:text-base h-9"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -343,7 +343,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             />
           </div>
 
-          <div className="flex flex-col">
+          <div className="flex flex-col space-y-2">
             <Label htmlFor="search-limit" className="text-sm sm:text-base font-medium">
               Results
             </Label>
@@ -356,15 +356,15 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
                 placeholder="15"
                 min="1"
                 max="50"
-                className="text-sm sm:text-base h-9 sm:h-11"
+                className="text-sm sm:text-base h-9"
               />
               <Button
                 onClick={handleApiCall}
                 type="button"
-                className="h-9 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm"
+                className="h-8 w-12 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
                 disabled={loading || !(query ?? '').trim()}
               >
-                {getButtonContent(true)}
+                {getButtonContent(false)}
               </Button>
             </div>
           </div>
@@ -395,7 +395,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
         <Button
           onClick={handleApiCall}
           type="button"
-          className="h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
+          className="h-8 w-12 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm"
           disabled={loading}
         >
           {getButtonContent(false)}
