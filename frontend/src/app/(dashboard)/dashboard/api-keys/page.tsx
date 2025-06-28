@@ -1,8 +1,20 @@
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Suspense } from 'react';
 import { ApiKeyManagerWithSuspense } from '@/components/dashboard';
 
-export default function ApiKeysPage() {
+export default async function ApiKeysPage() {
+  // Server-side auth check
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect('/sign-in');
+  }
+
   return (
     <section className="flex-1 p-4 lg:p-8">
       <h1 className="text-lg lg:text-2xl font-medium mb-6">API Keys</h1>
