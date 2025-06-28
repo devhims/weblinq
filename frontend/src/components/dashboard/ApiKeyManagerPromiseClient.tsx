@@ -5,6 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Trash2, Copy, Check } from 'lucide-react';
 import {
   createApiKey,
   listApiKeysClient,
@@ -35,13 +38,9 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
   const [nameError, setNameError] = useState('');
   const [createdKey, setCreatedKey] = useState<ApiKeyWithKey | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
-
-  console.log('🏗️ [Client Component - Promise Pattern] Received initial data:', {
-    count: initialApiKeys.apiKeys.length,
-    total: initialApiKeys.total,
-  });
 
   const preview = isVercelPreview();
 
@@ -111,22 +110,20 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
     setNewKeyName(value);
     setNameError('');
 
-    const validation = validateApiKeyName(value);
+    // Get existing API key names for duplicate checking
+    const existingNames = apiKeys.map((key) => key.name).filter(Boolean) as string[];
+    const validation = validateApiKeyName(value, existingNames);
     if (!validation.isValid && value.trim()) {
       setNameError(validation.error || '');
     }
   };
 
-  const generateSuggestion = () => {
-    const suggestion = generateKeyNameSuggestion();
-    setNewKeyName(suggestion);
-    setNameError('');
-  };
-
   const handleCreateApiKey = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const validation = validateApiKeyName(newKeyName);
+    // Get existing API key names for duplicate checking
+    const existingNames = apiKeys.map((key) => key.name).filter(Boolean) as string[];
+    const validation = validateApiKeyName(newKeyName, existingNames);
     if (!validation.isValid) {
       setNameError(validation.error || '');
       return;
@@ -156,9 +153,11 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
     });
   };
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string, id: string) => {
     try {
       await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
     }
@@ -170,32 +169,41 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
   };
 
+  const getStatusBadge = (enabled: boolean, expiresAt: Date | null) => {
+    const statusInfo = getApiKeyStatusColor(enabled, expiresAt);
+    const variant =
+      statusInfo.status === 'Active' ? 'outline' : statusInfo.status === 'Expired' ? 'destructive' : 'secondary';
+
+    return (
+      <Badge variant={variant} className="text-xs">
+        {statusInfo.status}
+      </Badge>
+    );
+  };
+
   return (
-    <div className={`bg-white rounded-lg shadow p-6 ${className}`}>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">API Keys (Promise Pattern)</h3>
-          <p className="text-sm text-gray-600 mt-1">Using React&apos;s use() hook with server-sent promises</p>
-        </div>
+    <div className={`space-y-6 ${className}`}>
+      {/* Header Section */}
+      <div className="flex w-full justify-end items-center">
         <Button onClick={() => setShowCreateForm(!showCreateForm)} disabled={isLoading}>
-          {showCreateForm ? 'Cancel' : 'Create New Key'}
+          <Plus className="h-4 w-4 mr-2" />
+          Create new secret key
         </Button>
       </div>
 
-      {/* The rest of the UI is identical to the regular client component */}
       {/* Create API Key Form */}
       {showCreateForm && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-          <h4 className="font-medium text-gray-900 mb-4">Create New API Key</h4>
-          <form onSubmit={handleCreateApiKey} className="space-y-4">
-            <div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Create New Secret Key</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreateApiKey} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="keyName">Key Name</Label>
+                <Label htmlFor="keyName">Name</Label>
                 <Input
                   id="keyName"
                   type="text"
@@ -210,173 +218,265 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
                   Give your API key a memorable name to identify its purpose
                 </p>
               </div>
-              <Button type="button" variant="ghost" size="sm" onClick={generateSuggestion} className="mt-2">
-                💡 Generate suggestion
-              </Button>
-            </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-              <h5 className="text-sm font-medium text-blue-900 mb-1">Default Settings</h5>
-              <ul className="text-xs text-blue-700 space-y-1">
-                <li>• Prefix: wq_</li>
-                <li>• Rate limit: 1000 requests per 24 hours</li>
-                <li>• No expiration date</li>
-                <li>• Free plan metadata</li>
-              </ul>
-            </div>
-
-            <div className="flex space-x-3">
-              <Button
-                type="submit"
-                isLoading={createApiKeyMutation.isPending}
-                disabled={!newKeyName.trim() || !!nameError}
-              >
-                Create API Key
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setNewKeyName('');
-                  setNameError('');
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </div>
+              <div className="flex space-x-3">
+                <Button type="submit" disabled={!newKeyName.trim() || !!nameError || createApiKeyMutation.isPending}>
+                  {createApiKeyMutation.isPending ? 'Creating...' : 'Create secret key'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setNewKeyName('');
+                    setNameError('');
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
       {/* Error Messages */}
       {queryError && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
           Failed to load API keys: {queryError.message}
         </div>
       )}
 
       {createApiKeyMutation.isError && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
           {createApiKeyMutation.error.message}
         </div>
       )}
 
       {deleteApiKeyMutation.isError && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
           Failed to delete API key: {deleteApiKeyMutation.error.message}
         </div>
       )}
 
       {/* New API Key Display */}
       {createdKey && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h4 className="font-semibold text-blue-900 mb-2">🎉 Your New API Key</h4>
-          <p className="text-sm text-blue-700 mb-3">
-            Please copy your API key now. For security reasons, it won&apos;t be shown again.
-          </p>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-blue-900 mb-1">Full API Key</label>
-              <div className="flex items-center space-x-2 bg-white p-3 rounded border">
-                <code className="flex-1 text-sm font-mono text-gray-800 break-all">{createdKey.key}</code>
-                <Button size="sm" onClick={() => copyToClipboard(createdKey.key)}>
-                  Copy
-                </Button>
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-primary">🎉 Your new secret key</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Please save this secret key somewhere safe and accessible. For security reasons, you won't be able to view
+              it again through your account. If you lose this secret key, you'll need to generate a new one.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-foreground mb-2">Secret Key</Label>
+                <div className="flex items-center space-x-2 bg-background p-3 rounded-lg border">
+                  <code className="flex-1 text-sm font-mono text-foreground break-all">{createdKey.key}</code>
+                  <Button
+                    size="sm"
+                    variant={copiedId === 'new-key' ? 'default' : 'outline'}
+                    onClick={() => copyToClipboard(createdKey.key, 'new-key')}
+                    className={`shrink-0 ${copiedId === 'new-key' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                  >
+                    {copiedId === 'new-key' ? <Check className="h-4 w-4 text-white" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-blue-900 mb-1">Masked Preview</label>
-              <code className="block text-sm font-mono text-gray-600 bg-white p-2 rounded border">
-                {maskApiKey(createdKey.key)}
-              </code>
-            </div>
-          </div>
-          <Button className="mt-3" variant="outline" size="sm" onClick={() => setCreatedKey(null)}>
-            I&apos;ve copied the key
-          </Button>
-        </div>
+            <Button className="mt-4" variant="outline" size="sm" onClick={() => setCreatedKey(null)}>
+              Done
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      {/* API Keys List */}
+      {/* API Keys Table */}
       {!apiKeys || apiKeys.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-12 border rounded-lg bg-muted/20">
           <div className="text-4xl mb-4">🔑</div>
-          <p className="text-lg font-medium mb-2">No API keys found</p>
-          <p className="text-sm">Create your first API key to get started with our API.</p>
+          <h3 className="text-lg font-medium mb-2">No API keys found</h3>
+          <p className="text-sm text-muted-foreground">Create your first API key to get started with our API.</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="text-sm text-gray-600 mb-4">
-            {apiKeys.length} API key{apiKeys.length !== 1 ? 's' : ''} total
-          </div>
-          {apiKeys.map((apiKey) => {
-            const statusColor = getApiKeyStatusColor(apiKey.enabled, apiKey.expiresAt);
-            const isDeleting = deletingIds.has(apiKey.id);
+        <>
+          {/* Desktop Table Layout (lg and up) */}
+          <div className="hidden lg:block border rounded-lg overflow-hidden">
+            {/* Table Header */}
+            <div className="grid grid-cols-[2fr_2.5fr_1.2fr_1.2fr_1.5fr_0.8fr] gap-6 p-4 border-b bg-muted/50 text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              <div className="flex items-center">Name</div>
+              <div className="flex items-center">Secret Key</div>
+              <div className="flex items-center">Created</div>
+              <div className="flex items-center">Last Used</div>
+              <div className="flex items-center">Project Access</div>
+              <div className="flex items-center justify-center">Actions</div>
+            </div>
 
-            return (
-              <div
-                key={apiKey.id}
-                className={`border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors ${
-                  isDeleting ? 'opacity-50' : ''
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h4 className="font-medium text-gray-900 truncate">{apiKey.name || 'Unnamed Key'}</h4>
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor.bg} ${statusColor.text}`}
-                      >
-                        {statusColor.status}
-                      </span>
+            {/* Table Body */}
+            <div className="divide-y">
+              {apiKeys.map((apiKey) => {
+                const isDeleting = deletingIds.has(apiKey.id);
+
+                return (
+                  <div
+                    key={apiKey.id}
+                    className={`grid grid-cols-[2fr_2.5fr_1.2fr_1.2fr_1.5fr_0.8fr] gap-6 p-4 hover:bg-muted/30 transition-colors ${
+                      isDeleting ? 'opacity-50' : ''
+                    }`}
+                  >
+                    {/* Name */}
+                    <div className="flex items-center">
+                      <span className="font-medium truncate">{apiKey.name || 'Unnamed Key'}</span>
                     </div>
 
-                    <div className="text-sm text-gray-600 space-y-2">
+                    {/* Secret Key */}
+                    <div className="flex items-center">
+                      <code className="text-sm font-mono text-muted-foreground truncate">
+                        {formatApiKeyDisplay(apiKey.prefix, apiKey.start)}
+                      </code>
+                    </div>
+
+                    {/* Created */}
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      {formatDate(apiKey.createdAt)}
+                    </div>
+
+                    {/* Last Used */}
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      {formatDate(apiKey.lastRequest)}
+                    </div>
+
+                    {/* Project Access */}
+                    <div className="flex items-center text-sm text-muted-foreground">All projects</div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteApiKey(apiKey.id, apiKey.name)}
+                        disabled={isDeleting}
+                        className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        {isDeleting ? <span className="text-xs">...</span> : <Trash2 className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Tablet Layout (md to lg) */}
+          <div className="hidden md:block lg:hidden border rounded-lg overflow-hidden">
+            {/* Table Header */}
+            <div className="grid grid-cols-[2.5fr_3fr_1.5fr_1fr] gap-4 p-4 border-b bg-muted/50 text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              <div className="flex items-center">Name</div>
+              <div className="flex items-center">Secret Key</div>
+              <div className="flex items-center">Created</div>
+              <div className="flex items-center justify-center">Actions</div>
+            </div>
+
+            {/* Table Body */}
+            <div className="divide-y">
+              {apiKeys.map((apiKey) => {
+                const isDeleting = deletingIds.has(apiKey.id);
+
+                return (
+                  <div
+                    key={apiKey.id}
+                    className={`grid grid-cols-[2.5fr_3fr_1.5fr_1fr] gap-4 p-4 hover:bg-muted/30 transition-colors ${
+                      isDeleting ? 'opacity-50' : ''
+                    }`}
+                  >
+                    {/* Name */}
+                    <div className="flex items-center">
+                      <span className="font-medium truncate">{apiKey.name || 'Unnamed Key'}</span>
+                    </div>
+
+                    {/* Secret Key */}
+                    <div className="flex items-center">
+                      <code className="text-sm font-mono text-muted-foreground truncate">
+                        {formatApiKeyDisplay(apiKey.prefix, apiKey.start)}
+                      </code>
+                    </div>
+
+                    {/* Created */}
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      {formatDate(apiKey.createdAt)}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteApiKey(apiKey.id, apiKey.name)}
+                        disabled={isDeleting}
+                        className="h-9 w-9 p-0 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        {isDeleting ? <span className="text-xs">...</span> : <Trash2 className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile Card Layout (sm and below) */}
+          <div className="block md:hidden space-y-3">
+            {apiKeys.map((apiKey) => {
+              const isDeleting = deletingIds.has(apiKey.id);
+
+              return (
+                <Card key={apiKey.id} className={isDeleting ? 'opacity-50' : ''}>
+                  <CardContent className="px-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 flex min-w-0 space-x-2">
+                        <h4 className="font-medium text-base truncate">{apiKey.name || 'Unnamed Key'}</h4>
+                        <div className="flex items-center space-x-2">
+                          {getStatusBadge(apiKey.enabled, apiKey.expiresAt)}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteApiKey(apiKey.id, apiKey.name)}
+                        disabled={isDeleting}
+                        className="h-9 w-9 p-0 hover:bg-destructive/10 hover:text-destructive ml-2 shrink-0"
+                      >
+                        {isDeleting ? <span className="text-xs">...</span> : <Trash2 className="h-4 w-4" />}
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
                       <div>
-                        <strong>Key:</strong>{' '}
-                        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Secret Key</div>
+                        <code className="text-sm font-mono text-muted-foreground block">
                           {formatApiKeyDisplay(apiKey.prefix, apiKey.start)}
                         </code>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                      <div className="grid grid-cols-2 gap-4 pt-2">
                         <div>
-                          <strong>Requests:</strong> {apiKey.requestCount.toLocaleString()}
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Created</div>
+                          <div className="text-sm">{formatDate(apiKey.createdAt)}</div>
                         </div>
                         <div>
-                          <strong>Remaining:</strong> {apiKey.remaining?.toLocaleString() ?? 'Unlimited'}
-                        </div>
-                        <div>
-                          <strong>Last Used:</strong> {formatDate(apiKey.lastRequest)}
-                        </div>
-                        <div>
-                          <strong>Created:</strong> {formatDate(apiKey.createdAt)}
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Last Used</div>
+                          <div className="text-sm">{formatDate(apiKey.lastRequest)}</div>
                         </div>
                       </div>
-
-                      {apiKey.expiresAt && (
-                        <div>
-                          <strong>Expires:</strong> {formatDate(apiKey.expiresAt)}
-                        </div>
-                      )}
                     </div>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteApiKey(apiKey.id, apiKey.name)}
-                    isLoading={isDeleting}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0 ml-4"
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );

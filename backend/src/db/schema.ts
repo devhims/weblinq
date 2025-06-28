@@ -25,9 +25,7 @@ export const tasks = sqliteTable('tasks', {
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(
-    () => new Date(),
-  ),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' })
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
@@ -38,14 +36,8 @@ export const selectTasksSchema = z.object({
   name: z.string().openapi({ example: 'Learn Hono' }),
   done: z.boolean().openapi({ example: false }),
   userId: z.string().openapi({ example: 'user_123' }),
-  createdAt: z
-    .string()
-    .nullable()
-    .openapi({ example: '2024-01-01T00:00:00.000Z' }),
-  updatedAt: z
-    .string()
-    .nullable()
-    .openapi({ example: '2024-01-01T00:00:00.000Z' }),
+  createdAt: z.string().nullable().openapi({ example: '2024-01-01T00:00:00.000Z' }),
+  updatedAt: z.string().nullable().openapi({ example: '2024-01-01T00:00:00.000Z' }),
 });
 
 // Schema for API responses (excludes userId for security)
@@ -53,14 +45,8 @@ export const publicTaskSchema = z.object({
   id: z.number().openapi({ example: 1 }),
   name: z.string().openapi({ example: 'Learn Hono' }),
   done: z.boolean().openapi({ example: false }),
-  createdAt: z
-    .string()
-    .nullable()
-    .openapi({ example: '2024-01-01T00:00:00.000Z' }),
-  updatedAt: z
-    .string()
-    .nullable()
-    .openapi({ example: '2024-01-01T00:00:00.000Z' }),
+  createdAt: z.string().nullable().openapi({ example: '2024-01-01T00:00:00.000Z' }),
+  updatedAt: z.string().nullable().openapi({ example: '2024-01-01T00:00:00.000Z' }),
 });
 
 export const insertTasksSchema = z.object({
@@ -69,12 +55,7 @@ export const insertTasksSchema = z.object({
 });
 
 export const patchTasksSchema = z.object({
-  name: z
-    .string()
-    .min(1)
-    .max(500)
-    .optional()
-    .openapi({ example: 'Learn Hono' }),
+  name: z.string().min(1).max(500).optional().openapi({ example: 'Learn Hono' }),
   done: z.boolean().optional().openapi({ example: true }),
 });
 
@@ -118,12 +99,8 @@ export const verification = sqliteTable('verification', {
   identifier: text('identifier').notNull(),
   value: text('value').notNull(),
   expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(
-    () => /* @__PURE__ */ new Date(),
-  ),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(
-    () => /* @__PURE__ */ new Date(),
-  ),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => /* @__PURE__ */ new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => /* @__PURE__ */ new Date()),
 });
 
 export const apikey = sqliteTable('apikey', {
@@ -139,9 +116,7 @@ export const apikey = sqliteTable('apikey', {
   refillAmount: integer('refill_amount'),
   lastRefillAt: integer('last_refill_at', { mode: 'timestamp' }),
   enabled: integer('enabled', { mode: 'boolean' }).default(true),
-  rateLimitEnabled: integer('rate_limit_enabled', { mode: 'boolean' }).default(
-    true,
-  ),
+  rateLimitEnabled: integer('rate_limit_enabled', { mode: 'boolean' }).default(true),
   rateLimitTimeWindow: integer('rate_limit_time_window').default(86400000),
   rateLimitMax: integer('rate_limit_max').default(10),
   requestCount: integer('request_count'),
