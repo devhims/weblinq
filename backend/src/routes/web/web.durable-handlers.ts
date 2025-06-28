@@ -300,12 +300,13 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
-    const clientIp = c.req.header('CF-Connecting-IP') || 'unknown';
+    const _clientIp = c.req.header('CF-Connecting-IP') || 'unknown';
 
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.search(body, clientIp);
+    // const result = await webDurableObject.search(body, clientIp);
+    const result = await webDurableObject.searchV2(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Search error:', error);

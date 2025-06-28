@@ -125,7 +125,8 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
       setLimit(null);
     } else {
       const n = Number(v);
-      if (!Number.isNaN(n) && n > 0) setLimit(n);
+      // Allow any valid number input - validation will be done on submit
+      if (!Number.isNaN(n)) setLimit(n);
     }
   };
 
@@ -181,13 +182,8 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
           case 'search/web': {
             const res = await studioApi.search(payload as SearchRequest);
             if (res?.success && res.data?.results) {
-              const transformed = {
-                results: res.data.results,
-                totalResults: res.data.metadata.totalResults,
-                searchTime: res.data.metadata.searchTime,
-                sources: res.data.metadata.sources,
-              };
-              onApiResult(transformed, null);
+              // Pass the full response data structure for SearchResultDisplay
+              onApiResult(res.data, null);
               showStatusBriefly('success');
             } else {
               throw new Error('Search failed');
@@ -345,7 +341,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
 
           <div className="flex flex-col space-y-2">
             <Label htmlFor="search-limit" className="text-sm sm:text-base font-medium">
-              Results
+              Results (1-20)
             </Label>
             <div className="flex space-x-2">
               <Input
@@ -353,9 +349,10 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
                 type="number"
                 value={limit?.toString() ?? ''}
                 onChange={(e) => onLimitChange(e.target.value)}
-                placeholder="15"
+                placeholder="10"
                 min="1"
-                max="50"
+                max="20"
+                title="Enter a number between 1 and 20"
                 className="text-sm sm:text-base h-9"
               />
               <Button

@@ -139,7 +139,7 @@ export function buildApiPayloadFromParams(params: StudioParams): {
           waitTime: undef(p.waitTime),
         } as JsonExtractionRequest),
 
-      'search/web': (p) => ({ query: p.query!, limit: p.limit ?? 15 } as SearchRequest),
+      'search/web': (p) => ({ query: p.query!, limit: p.limit ?? 10 } as SearchRequest),
     } as const;
 
     if (!builders[actionKey]) {

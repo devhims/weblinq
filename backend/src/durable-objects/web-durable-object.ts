@@ -15,6 +15,7 @@ import { pdfV2 as pdfV2Impl } from './web-v2/pdf';
 import { scrapeV2 as scrapeV2Impl } from './web-v2/scrape';
 // v2 operation modules
 import { screenshotV2 as screenshotV2Impl } from './web-v2/screenshot';
+import { searchV2 as searchV2Impl } from './web-v2/search';
 // import { Env } from 'hono';
 
 // export interface Env {
@@ -1449,6 +1450,13 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
           });
         }
 
+        case '/v2/search': {
+          const searchResult = await this.searchV2(body);
+          return new Response(JSON.stringify(searchResult), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
         default:
           return new Response('Not found', { status: 404 });
       }
@@ -1509,5 +1517,9 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
   async pdfV2(params: Parameters<typeof pdfV2Impl>[1]) {
     return pdfV2Impl(this.env, params);
+  }
+
+  async searchV2(params: Parameters<typeof searchV2Impl>[1]) {
+    return searchV2Impl(this.env, params);
   }
 }

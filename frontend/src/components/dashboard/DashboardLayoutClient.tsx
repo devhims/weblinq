@@ -57,14 +57,14 @@ export function DashboardLayoutClient({ children }: DashboardLayoutClientProps) 
               <Link key={item.href} href={item.href} passHref>
                 <Button
                   variant={pathname === item.href ? 'secondary' : 'ghost'}
-                  className={`shadow-none my-1 w-full justify-start text-lg transition-all duration-200 ease-in-out hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-sm hover:scale-[1.02] active:scale-[0.98] ${
+                  className={`shadow-none my-1 w-full justify-start text-md transition-all duration-200 ease-in-out hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground hover:shadow-sm hover:scale-[1.02] active:scale-[0.98] ${
                     pathname === item.href
                       ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm border border-sidebar-border/30'
                       : 'text-sidebar-foreground'
                   }`}
                   onClick={() => setIsSidebarOpen(false)}
                 >
-                  <item.icon className="h-5 w-5 mr-3" />
+                  <item.icon className="h-5 w-5 mr-2" />
                   {item.label}
                 </Button>
               </Link>

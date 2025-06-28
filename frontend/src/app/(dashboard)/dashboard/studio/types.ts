@@ -33,11 +33,53 @@ export type ScrapeResult = {
   }>;
 };
 
+// Search result types
+export interface SearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+  source: 'duckduckgo' | 'startpage' | 'bing' | 'yandex';
+}
+
+export interface SearchMetadata {
+  query: string;
+  totalResults: number;
+  searchTime: number;
+  sources: string[];
+  timestamp: string;
+  debug?: {
+    engines: Record<
+      string,
+      {
+        count: number;
+        searchTime: number;
+        success: boolean;
+      }
+    >;
+    totalEngines: number;
+    deduplicationStats: {
+      rawResults: number;
+      uniqueResults: number;
+      finalResults: number;
+    };
+  };
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  metadata?: SearchMetadata;
+  // Legacy support for direct properties
+  totalResults?: number;
+  searchTime?: number;
+  sources?: string[];
+}
+
 export type ApiResult =
   | string
   | ScreenshotResult
   | ScrapeResult
   | LinksResult
+  | SearchResponse
   | { [key: string]: any }
   | Array<any>
   | null;
