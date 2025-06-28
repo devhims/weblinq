@@ -444,9 +444,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       const copyPdfUrl = pdfPermanentUrl || pdfPreviewUrl;
 
       return (
-        <div className="bg-card p-3 sm:p-4 rounded-md border overflow-hidden w-full h-full relative flex flex-col">
+        <div className="bg-card p-3 sm:p-4 rounded-md border overflow-hidden w-full relative">
           {/* Top bar */}
-          <div className="flex items-center justify-between mb-3 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
               <p className="text-sm sm:text-base font-medium">{pdfData ? 'Preview' : 'No PDF data returned'}</p>
@@ -469,11 +469,15 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
           {/* Preview */}
           {pdfPreviewUrl ? (
-            <iframe title="PDF preview" src={pdfPreviewUrl} className="flex-1 w-full border rounded" />
+            <iframe
+              title="PDF preview"
+              src={pdfPreviewUrl}
+              className="w-full h-[600px] sm:h-[700px] lg:h-[800px] border rounded"
+            />
           ) : (
-            <p className="text-center text-muted-foreground flex-1 flex items-center justify-center text-sm sm:text-base">
-              No PDF data
-            </p>
+            <div className="text-center text-muted-foreground h-[400px] flex items-center justify-center">
+              <p className="text-sm sm:text-base">No PDF data</p>
+            </div>
           )}
         </div>
       );
