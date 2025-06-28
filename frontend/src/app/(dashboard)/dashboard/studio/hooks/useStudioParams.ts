@@ -13,9 +13,46 @@ import { useEffect } from 'react';
 import { buildApiPayloadFromParams, validateParamsObject } from '../utils/api-builder';
 import { ENDPOINT_IDS, ACTION_IDS, type EndpointId, type ActionId } from '../constants';
 
+// Import the settings defaults
+const SETTINGS_STORAGE_KEY = 'weblink-studio-preferences';
+
+// Function to load user preferences from localStorage
+const loadUserPreferences = () => {
+  if (typeof window === 'undefined') return {};
+
+  try {
+    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (stored) {
+      const settings = JSON.parse(stored);
+
+      // Map settings to studio parameters
+      return {
+        waitTime: settings.defaultWaitTime,
+        format: settings.defaultScreenshotFormat,
+        quality: settings.defaultQuality,
+        width: settings.defaultViewportWidth,
+        height: settings.defaultViewportHeight,
+        mobile: settings.defaultMobileMode,
+        fullPage: settings.defaultFullPage,
+        limit: settings.defaultSearchLimit,
+        onlyMainContent: settings.onlyMainContent,
+        includeExternal: settings.includeExternalLinks,
+        visibleLinksOnly: settings.visibleLinksOnly,
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to load user preferences:', error);
+  }
+
+  return {};
+};
+
 // ---------------------------------------------------------------------------
 // Type-safe parsers powered by the centrally-defined ID lists from endpoints.tsx
 // ---------------------------------------------------------------------------
+
+// Get user preferences for default values
+const userPrefs = loadUserPreferences();
 
 // Type-safe device enum
 const deviceParser = parseAsStringLiteral(['iphone15', 'galaxyS24']).withDefault('iphone15');
@@ -37,26 +74,26 @@ export const studioParsers = {
 
   // Search parameters
   query: parseAsString.withDefault(''),
-  limit: parseAsInteger.withDefault(10),
+  limit: parseAsInteger,
 
   // Generic options
-  waitTime: parseAsInteger, // optional – undefined if not present
+  waitTime: parseAsInteger.withDefault(userPrefs.waitTime ?? undefined), // Apply user's preferred wait time
 
   // Scrape options
   selector: parseAsString,
-  onlyMainContent: parseAsBoolean.withDefault(false),
+  onlyMainContent: parseAsBoolean.withDefault(userPrefs.onlyMainContent ?? false),
   includeMarkdown: parseAsBoolean,
-  includeExternal: parseAsBoolean.withDefault(true),
-  visibleLinksOnly: parseAsBoolean.withDefault(false),
+  includeExternal: parseAsBoolean.withDefault(userPrefs.includeExternal ?? true),
+  visibleLinksOnly: parseAsBoolean.withDefault(userPrefs.visibleLinksOnly ?? false),
 
   // Screenshot options
-  format: parseAsString.withDefault('png'),
-  quality: parseAsInteger.withDefault(80),
-  fullPage: parseAsBoolean.withDefault(true),
-  mobile: parseAsBoolean.withDefault(false),
+  format: parseAsString.withDefault(userPrefs.format ?? 'png'),
+  quality: parseAsInteger.withDefault(userPrefs.quality ?? 80),
+  fullPage: parseAsBoolean.withDefault(userPrefs.fullPage ?? true),
+  mobile: parseAsBoolean.withDefault(userPrefs.mobile ?? false),
   device: deviceParser,
-  width: parseAsInteger,
-  height: parseAsInteger,
+  width: parseAsInteger.withDefault(userPrefs.width ?? undefined),
+  height: parseAsInteger.withDefault(userPrefs.height ?? undefined),
 
   // Structured extraction
   jsonPrompt: parseAsString,
@@ -69,6 +106,7 @@ export type StudioParams = inferParserType<typeof studioParsers>;
 /**
  * Simplified studio parameters hook using pure nuqs + utility functions
  * Eliminates the complexity of studio-context.tsx while maintaining type safety
+ * Now integrates with user preferences from localStorage
  */
 export function useStudioParams() {
   const searchParams = useSearchParams();
@@ -111,17 +149,33 @@ export function useStudioParams() {
 
   // Simplified method to switch endpoint/action and reset all other parameters
   const switchAction = (newEndpoint: EndpointId, newAction: ActionId) => {
+    // Load fresh user preferences for the new action
+    const freshPrefs = loadUserPreferences();
+
     // Only preserve: endpoint, action, url
-    // Reset everything else to provide a clean slate for each action
+    // Reset everything else but apply user preferences where available
     const newParams: Partial<StudioParams> = {
       endpoint: newEndpoint,
       action: newAction,
       url: params.url, // Keep the current URL
+
+      // Apply user preferences for the new action
+      ...(freshPrefs.waitTime && { waitTime: freshPrefs.waitTime }),
+      ...(freshPrefs.format && { format: freshPrefs.format }),
+      ...(freshPrefs.quality && { quality: freshPrefs.quality }),
+      ...(freshPrefs.width && { width: freshPrefs.width }),
+      ...(freshPrefs.height && { height: freshPrefs.height }),
+      ...(typeof freshPrefs.mobile === 'boolean' && { mobile: freshPrefs.mobile }),
+      ...(typeof freshPrefs.fullPage === 'boolean' && { fullPage: freshPrefs.fullPage }),
+      ...(freshPrefs.limit && { limit: freshPrefs.limit }),
+      ...(typeof freshPrefs.onlyMainContent === 'boolean' && { onlyMainContent: freshPrefs.onlyMainContent }),
+      ...(typeof freshPrefs.includeExternal === 'boolean' && { includeExternal: freshPrefs.includeExternal }),
+      ...(typeof freshPrefs.visibleLinksOnly === 'boolean' && { visibleLinksOnly: freshPrefs.visibleLinksOnly }),
     };
 
-    // Clear all other parameters by setting them to null
+    // Clear parameters that don't have user preferences by setting them to null
     Object.keys(studioParsers).forEach((key) => {
-      if (!['endpoint', 'action', 'url'].includes(key)) {
+      if (!['endpoint', 'action', 'url'].includes(key) && !(key in newParams)) {
         (newParams as any)[key] = null;
       }
     });

@@ -191,6 +191,22 @@ export interface SearchResponse {
       searchTime: number;
       sources: string[];
       timestamp: string;
+      debug?: {
+        engines: Record<
+          string,
+          {
+            count: number;
+            searchTime: number;
+            success: boolean;
+          }
+        >;
+        totalEngines: number;
+        deduplicationStats: {
+          rawResults: number;
+          uniqueResults: number;
+          finalResults: number;
+        };
+      };
     };
   };
   creditsCost: number;

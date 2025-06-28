@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { ApiKeyManagerWithSuspense } from '@/components/dashboard';
+import { ApiKeysSkeleton } from '@/components/ui/api-keys-skeleton';
 
 export default async function ApiKeysPage() {
   // Server-side auth check
@@ -21,7 +22,7 @@ export default async function ApiKeysPage() {
         <p className="text-muted-foreground">Create and manage your API keys for accessing the web scraping service.</p>
       </div>
 
-      <Suspense fallback={<div className="text-center py-8 text-muted-foreground">Loading API keys...</div>}>
+      <Suspense fallback={<ApiKeysSkeleton />}>
         <ApiKeyManagerWithSuspense />
       </Suspense>
     </section>
