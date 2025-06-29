@@ -133,37 +133,37 @@ export function buildApiPayloadFromParams(params: StudioParams): {
       'visual/pdf': (p) => ({ url: p.url!, waitTime: undef(p.waitTime) } as PdfRequest),
 
       'structured/json': (p) => {
-        const baseRequest = {
+        const baseRequest: any = {
           url: p.url!,
           responseType: 'json' as 'json' | 'text',
           waitTime: undef(p.waitTime),
         };
 
-        // If we have a jsonSchema, use response_format (schema mode)
+        // Always include prompt if provided
+        if (p.jsonPrompt && p.jsonPrompt.trim()) {
+          baseRequest.prompt = p.jsonPrompt;
+        }
+
+        // Also include schema if provided (both can be used together)
         if (p.jsonSchema && p.jsonSchema.trim()) {
           try {
             const parsedSchema = JSON.parse(p.jsonSchema);
-            return {
-              ...baseRequest,
-              response_format: {
-                type: 'json_schema' as const,
-                json_schema: parsedSchema,
-              },
-            } as JsonExtractionRequest;
+            baseRequest.response_format = {
+              type: 'json_schema' as const,
+              json_schema: parsedSchema,
+            };
           } catch (error) {
-            // If schema is invalid, fall back to prompt mode
-            return {
-              ...baseRequest,
-              prompt: p.jsonPrompt || 'Extract the main information from this page',
-            } as JsonExtractionRequest;
+            // If schema is invalid, just ignore it and use prompt only
+            console.warn('Invalid JSON schema provided, using prompt only');
           }
         }
 
-        // Default to prompt mode
-        return {
-          ...baseRequest,
-          prompt: p.jsonPrompt || 'Extract the main information from this page',
-        } as JsonExtractionRequest;
+        // Ensure at least a prompt is provided if no schema
+        if (!baseRequest.prompt && !baseRequest.response_format) {
+          baseRequest.prompt = 'Extract the main information from this page';
+        }
+
+        return baseRequest as JsonExtractionRequest;
       },
 
       'structured/text': (p) => {

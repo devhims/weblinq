@@ -18,7 +18,10 @@ export function JsonActions() {
 
   // Determine response type based on the selected action
   const responseType = action === 'text' ? 'text' : 'json';
-  const [extractionMode, setExtractionMode] = useState<'prompt' | 'schema'>('prompt');
+  const [useSchema, setUseSchema] = useState(() => {
+    // Check if there's already a schema in URL params
+    return searchParams.has('jsonSchema');
+  });
   const [jsonPrompt, setJsonPrompt] = useState(() => {
     const savedPrompt = searchParams.get('jsonPrompt');
     if (savedPrompt) return savedPrompt;
@@ -75,10 +78,10 @@ export function JsonActions() {
     router.replace(`${pathname}?${params.toString()}`);
   };
 
-  // Reset to prompt mode when in text mode and update default prompt
+  // Reset schema usage when in text mode and update default prompt
   useEffect(() => {
     if (responseType === 'text') {
-      setExtractionMode('prompt');
+      setUseSchema(false);
       // Only update prompt if it's still the default for the other mode
       if (jsonPrompt === 'Extract the main sections, links, and important data from this webpage.') {
         setJsonPrompt('Summarize the main points and key information from this webpage.');
@@ -176,97 +179,96 @@ export function JsonActions() {
       jsonPrompt,
     };
 
-    // Only include schema if we're in JSON mode with schema extraction
-    if (responseType === 'json' && extractionMode === 'schema') {
+    // Only include schema if we're in JSON mode and schema is enabled
+    if (responseType === 'json' && useSchema) {
       updates.jsonSchema = jsonSchema;
     }
 
     updateSearchParams(updates);
-  }, [jsonPrompt, responseType, extractionMode, jsonSchema]);
+  }, [jsonPrompt, responseType, useSchema, jsonSchema]);
 
   return (
     <div className="space-y-4 mb-4">
-      {/* JSON Extraction Method (only for JSON mode) */}
-      {responseType === 'json' && (
-        <section>
-          <Label className="text-sm font-medium mb-2 block">Action Type</Label>
-          <div className="flex gap-3 mt-2">
-            {[
-              { value: 'prompt', label: 'Prompt', icon: FileText },
-              { value: 'schema', label: 'Schema', icon: Code2 },
-            ].map((method) => (
-              <Button
-                key={method.value}
-                variant={extractionMode === method.value ? 'default' : 'outline'}
-                size="sm"
-                className="text-sm py-1 px-3 h-auto"
-                onClick={() => setExtractionMode(method.value as 'prompt' | 'schema')}
-              >
-                <method.icon className="h-3 w-3 mr-1.5" />
-                {method.label}
-              </Button>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {extractionMode === 'prompt'
-              ? 'Use natural language to describe what to extract'
-              : 'Define exact JSON structure for precise extraction'}
-          </p>
-        </section>
-      )}
+      {/* Prompt Input (always shown for both text and JSON modes) */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Label htmlFor="jsonPrompt" className="text-sm sm:text-base font-medium">
+            {responseType === 'json' ? 'Extraction Prompt' : 'Analysis Prompt'}
+          </Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Lightbulb className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">
+                  {responseType === 'json'
+                    ? 'Describe what data you want to extract in natural language'
+                    : 'Ask the AI to analyze, summarize, or explain the webpage content'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <Textarea
+          id="jsonPrompt"
+          value={jsonPrompt}
+          onChange={(e) => setJsonPrompt(e.target.value)}
+          placeholder={
+            responseType === 'json'
+              ? 'E.g., "Extract product names, prices, and descriptions from this e-commerce page"'
+              : 'E.g., "Summarize the key points of this article and explain the main arguments"'
+          }
+          className="h-20 text-sm p-3 resize-none"
+          rows={3}
+        />
+        <div className="text-xs text-muted-foreground">
+          {responseType === 'json' ? (
+            <span>
+              <strong>Examples:</strong> "Get all product info", "Extract navigation menu items with URLs", "List team
+              members and their roles"
+            </span>
+          ) : (
+            <span>
+              <strong>Examples:</strong> "What are the main services offered?", "Summarize this company's approach",
+              "Explain the key features mentioned"
+            </span>
+          )}
+        </div>
+      </div>
 
-      {/* Prompt Input (for both text mode and JSON prompt mode) */}
-      {(responseType === 'text' || extractionMode === 'prompt') && (
+      {/* Schema Toggle (only for JSON mode) */}
+      {responseType === 'json' && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Label htmlFor="jsonPrompt" className="text-sm sm:text-base font-medium">
-              {responseType === 'json' ? 'Extraction Prompt' : 'Analysis Prompt'}
+            <input
+              type="checkbox"
+              id="useSchema"
+              checked={useSchema}
+              onChange={(e) => setUseSchema(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            <Label htmlFor="useSchema" className="text-sm font-medium">
+              Also use JSON Schema for precise structure
             </Label>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <Lightbulb className="h-4 w-4 text-muted-foreground" />
+                  <Info className="h-4 w-4 text-muted-foreground" />
                 </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
+                <TooltipContent className="max-w-sm">
                   <p className="text-xs">
-                    {responseType === 'json'
-                      ? 'Describe what data you want to extract in natural language'
-                      : 'Ask the AI to analyze, summarize, or explain the webpage content'}
+                    When enabled, the AI will use both your prompt AND the schema to extract data with exact structure
                   </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
-          <Textarea
-            id="jsonPrompt"
-            value={jsonPrompt}
-            onChange={(e) => setJsonPrompt(e.target.value)}
-            placeholder={
-              responseType === 'json'
-                ? 'E.g., "Extract product names, prices, and descriptions from this e-commerce page"'
-                : 'E.g., "Summarize the key points of this article and explain the main arguments"'
-            }
-            className="h-20 text-sm p-3 resize-none"
-            rows={3}
-          />
-          <div className="text-xs text-muted-foreground">
-            {responseType === 'json' ? (
-              <span>
-                <strong>Examples:</strong> "Get all product info", "Extract navigation menu items with URLs", "List team
-                members and their roles"
-              </span>
-            ) : (
-              <span>
-                <strong>Examples:</strong> "What are the main services offered?", "Summarize this company's approach",
-                "Explain the key features mentioned"
-              </span>
-            )}
-          </div>
         </div>
       )}
 
-      {/* JSON Schema Input (only for JSON schema mode) */}
-      {responseType === 'json' && extractionMode === 'schema' && (
+      {/* JSON Schema Input (only when schema is enabled) */}
+      {responseType === 'json' && useSchema && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

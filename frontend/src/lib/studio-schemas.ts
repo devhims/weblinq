@@ -109,9 +109,9 @@ export const JsonExtractionRequestSchema = z
     waitTime: z.number().int().min(0).max(5000).optional().default(0),
     // Response type: 'json' for structured data, 'text' for natural language
     responseType: z.enum(['json', 'text']).optional().default('json'),
-    // Option 1: Natural language prompt for extraction
+    // Natural language prompt for extraction (required for text responses, optional for JSON with schema)
     prompt: z.string().min(1).max(1000).optional(),
-    // Option 2: Structured JSON schema for extraction (only valid when responseType is 'json')
+    // Structured JSON schema for extraction (only valid when responseType is 'json')
     response_format: z
       .object({
         type: z.literal('json_schema'),
@@ -121,12 +121,12 @@ export const JsonExtractionRequestSchema = z
     // Additional instructions for the AI
     instructions: z.string().max(500).optional(),
   })
-  .refine((data) => data.prompt || data.response_format, {
-    message: "Either 'prompt' or 'response_format' must be provided",
+  .refine((data) => data.responseType !== 'text' || data.prompt, {
+    message: "Text responses require a 'prompt'",
     path: ['prompt'],
   })
   .refine((data) => data.responseType !== 'json' || data.prompt || data.response_format, {
-    message: "For JSON responses, either 'prompt' or 'response_format' must be provided",
+    message: "JSON responses require either 'prompt' or 'response_format' (or both)",
     path: ['responseType'],
   })
   .refine((data) => data.responseType !== 'text' || !data.response_format, {
