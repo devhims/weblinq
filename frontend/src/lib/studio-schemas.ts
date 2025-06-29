@@ -13,6 +13,7 @@ export type EndpointAction =
   | 'scrape/elements'
   | 'visual/screenshot'
   | 'structured/json'
+  | 'structured/text'
   | 'search/web'
   | 'visual/pdf';
 
@@ -155,6 +156,7 @@ export const endpointActionSchemas: Record<EndpointAction, z.ZodTypeAny> = {
   'scrape/elements': ScrapeRequestSchema,
   'visual/screenshot': ScreenshotRequestSchema,
   'structured/json': JsonExtractionRequestSchema,
+  'structured/text': JsonExtractionRequestSchema,
   'search/web': SearchRequestSchema,
   'visual/pdf': PdfRequestSchema,
 };

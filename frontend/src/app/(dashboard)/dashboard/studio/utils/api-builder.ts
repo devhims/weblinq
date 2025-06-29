@@ -36,6 +36,7 @@ export type EndpointAction =
   | 'visual/screenshot'
   | 'visual/pdf'
   | 'structured/json'
+  | 'structured/text'
   | 'search/web';
 
 // Main API payload builder - reads all params and transforms based on action
@@ -134,7 +135,7 @@ export function buildApiPayloadFromParams(params: StudioParams): {
       'structured/json': (p) => {
         const baseRequest = {
           url: p.url!,
-          responseType: (p.responseType ?? 'json') as 'json' | 'text',
+          responseType: 'json' as 'json' | 'text',
           waitTime: undef(p.waitTime),
         };
 
@@ -162,6 +163,15 @@ export function buildApiPayloadFromParams(params: StudioParams): {
         return {
           ...baseRequest,
           prompt: p.jsonPrompt || 'Extract the main information from this page',
+        } as JsonExtractionRequest;
+      },
+
+      'structured/text': (p) => {
+        return {
+          url: p.url!,
+          responseType: 'text' as 'json' | 'text',
+          prompt: p.jsonPrompt || 'Summarize the main points and key information from this webpage.',
+          waitTime: undef(p.waitTime),
         } as JsonExtractionRequest;
       },
 
@@ -219,6 +229,7 @@ export function getAllowedParamsForAction(endpoint: string, action: string): str
     'scrape/elements': ['selector', 'onlyMainContent', 'includeMarkdown'],
     'visual/screenshot': ['mobile', 'device'], // UI params that map to viewport/screenshotOptions
     'structured/json': ['jsonPrompt', 'jsonSchema', 'responseType'], // UI params for structured extraction
+    'structured/text': ['jsonPrompt', 'responseType'], // UI params for text extraction
     'scrape/markdown': [],
     'scrape/html': [],
     'scrape/links': [],

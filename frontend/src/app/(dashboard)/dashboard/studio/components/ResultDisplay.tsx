@@ -484,6 +484,7 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       );
 
     case 'json':
+    case 'text':
       // Handle both new response format and legacy format
       const jsonResult = result as any;
       if (jsonResult && typeof jsonResult === 'object') {

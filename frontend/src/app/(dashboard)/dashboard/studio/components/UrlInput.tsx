@@ -290,13 +290,14 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             break;
           }
 
-          case 'structured/json': {
+          case 'structured/json':
+          case 'structured/text': {
             const res = await studioApi.jsonExtraction(payload as JsonExtractionRequest);
             if (res) {
               onApiResult(res, null);
               showStatusBriefly('success');
             } else {
-              throw new Error('Failed to extract JSON');
+              throw new Error(`Failed to extract ${actionKey === 'structured/text' ? 'text analysis' : 'JSON'}`);
             }
             break;
           }
