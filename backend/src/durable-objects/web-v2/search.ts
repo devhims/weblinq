@@ -517,8 +517,8 @@ class MultiEngineSearchHandler {
     snippetExact: 6,
     snippetPartial: 3, // Reduced for word-boundary preference
 
-    // URL/Domain scoring
-    urlExactDomain: 25,
+    // URL/Domain scoring (enhanced for brand authority)
+    urlExactDomain: 40, // Increased from 25 for stronger brand preference
     urlPrefixSuffix: 15,
     urlSubstring: 10,
     urlPath: 8,
@@ -533,6 +533,7 @@ class MultiEngineSearchHandler {
 
     // Quality adjustments
     authorityDomain: 3,
+    brandAuthorityBonus: 20, // Extra bonus when domain exactly matches prominent query term
     longTitlePenalty: -3,
     tinySnippetPenalty: -1,
     goodSnippetBonus: 2,
@@ -830,6 +831,16 @@ class MultiEngineSearchHandler {
     // 🏆 AUTHORITY SIGNALS: Domain quality indicators
     if (urlHost.split('.').length === 2 && !urlHost.includes('-') && !urlHost.includes('_')) {
       score += W.authorityDomain;
+    }
+
+    // 🎯 BRAND AUTHORITY: Extra bonus when domain exactly matches prominent query term
+    const rootDomain = this.extractRootDomain(urlHost);
+    // Check if domain matches any query word (usually indicates official brand site)
+    for (const word of queryWords) {
+      if (rootDomain === word) {
+        score += W.brandAuthorityBonus;
+        break; // Only apply once per result
+      }
     }
 
     // ⏰ RECENCY BONUS: Scaled bonus to prevent fresh-but-irrelevant from beating quality

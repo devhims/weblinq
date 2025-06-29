@@ -15,6 +15,7 @@ import {
   Type,
   CheckIcon,
   ClipboardIcon,
+  MessageSquareText,
 } from 'lucide-react';
 import { ApiResult, ScreenshotResult, ScrapeResult, LinksResult, SearchResponse } from '../types';
 import { useState, useEffect } from 'react';
@@ -483,6 +484,55 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       );
 
     case 'json':
+    case 'text':
+      // Handle both new response format and legacy format
+      const jsonResult = result as any;
+      if (jsonResult && typeof jsonResult === 'object') {
+        // New format with responseType metadata
+        if (jsonResult.data?.metadata?.responseType === 'text' && jsonResult.data?.text) {
+          // Text response - display as markdown for better formatting
+          return (
+            <div className="bg-card p-3 sm:p-4 rounded-md border overflow-hidden w-full relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquareText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                  <p className="text-sm sm:text-base font-medium">AI Analysis</p>
+                </div>
+                <CopyButton content={jsonResult.data.text} inline />
+              </div>
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">{jsonResult.data.text}</div>
+              </div>
+              {jsonResult.data.metadata && (
+                <div className="mt-4 pt-3 border-t border-border text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <span>Model: {jsonResult.data.metadata.model}</span>
+                    {jsonResult.data.metadata.inputTokens && (
+                      <span>Input: {jsonResult.data.metadata.inputTokens} tokens</span>
+                    )}
+                    {jsonResult.data.metadata.outputTokens && (
+                      <span>Output: {jsonResult.data.metadata.outputTokens} tokens</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        } else if (jsonResult.data?.extracted) {
+          // JSON response - display as formatted JSON
+          return <CodeDisplay content={jsonResult.data.extracted} language="json" />;
+        } else if (jsonResult.success === false) {
+          // Error response
+          return (
+            <div className="bg-destructive/10 p-4 sm:p-5 rounded-md border border-destructive/20 overflow-hidden break-words">
+              <p className="text-destructive text-sm sm:text-base font-medium">
+                {jsonResult.error?.message || 'Unknown error occurred'}
+              </p>
+            </div>
+          );
+        }
+      }
+      // Fallback for any other format
       return <CodeDisplay content={result} language="json" />;
 
     case 'markdown':

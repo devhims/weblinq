@@ -9,6 +9,7 @@ import type { screenshotInputSchema } from '@/routes/web/web.routes';
 import { performWebSearch } from '@/routes/web/web.search-handler';
 
 import { contentV2 as contentV2Impl } from './web-v2/content';
+import { jsonExtractionV2 as jsonExtractionV2Impl } from './web-v2/json-extraction';
 import { linksV2 as linksV2Impl } from './web-v2/links';
 import { markdownV2 as markdownV2Impl } from './web-v2/markdown';
 import { pdfV2 as pdfV2Impl } from './web-v2/pdf';
@@ -1457,6 +1458,13 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
           });
         }
 
+        case '/v2/extract-json': {
+          const jsonResult = await this.jsonExtractionV2(body);
+          return new Response(JSON.stringify(jsonResult), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
         default:
           return new Response('Not found', { status: 404 });
       }
@@ -1521,5 +1529,13 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
   async searchV2(params: Parameters<typeof searchV2Impl>[1]) {
     return searchV2Impl(this.env, params);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /*  v2 – AI-powered JSON extraction                                        */
+  /* ------------------------------------------------------------------------ */
+
+  async jsonExtractionV2(params: Parameters<typeof jsonExtractionV2Impl>[1]) {
+    return jsonExtractionV2Impl(this.env, params);
   }
 }

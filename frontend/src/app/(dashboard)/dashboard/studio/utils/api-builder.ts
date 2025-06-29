@@ -36,6 +36,7 @@ export type EndpointAction =
   | 'visual/screenshot'
   | 'visual/pdf'
   | 'structured/json'
+  | 'structured/text'
   | 'search/web';
 
 // Main API payload builder - reads all params and transforms based on action
@@ -131,13 +132,48 @@ export function buildApiPayloadFromParams(params: StudioParams): {
 
       'visual/pdf': (p) => ({ url: p.url!, waitTime: undef(p.waitTime) } as PdfRequest),
 
-      'structured/json': (p) =>
-        ({
+      'structured/json': (p) => {
+        const baseRequest: any = {
           url: p.url!,
-          schema: {},
-          instructions: p.jsonPrompt || undefined,
+          responseType: 'json' as 'json' | 'text',
           waitTime: undef(p.waitTime),
-        } as JsonExtractionRequest),
+        };
+
+        // Always include prompt if provided
+        if (p.jsonPrompt && p.jsonPrompt.trim()) {
+          baseRequest.prompt = p.jsonPrompt;
+        }
+
+        // Also include schema if provided (both can be used together)
+        if (p.jsonSchema && p.jsonSchema.trim()) {
+          try {
+            const parsedSchema = JSON.parse(p.jsonSchema);
+            baseRequest.response_format = {
+              type: 'json_schema' as const,
+              json_schema: parsedSchema,
+            };
+          } catch (error) {
+            // If schema is invalid, just ignore it and use prompt only
+            console.warn('Invalid JSON schema provided, using prompt only');
+          }
+        }
+
+        // Ensure at least a prompt is provided if no schema
+        if (!baseRequest.prompt && !baseRequest.response_format) {
+          baseRequest.prompt = 'Extract the main information from this page';
+        }
+
+        return baseRequest as JsonExtractionRequest;
+      },
+
+      'structured/text': (p) => {
+        return {
+          url: p.url!,
+          responseType: 'text' as 'json' | 'text',
+          prompt: p.jsonPrompt || 'Summarize the main points and key information from this webpage.',
+          waitTime: undef(p.waitTime),
+        } as JsonExtractionRequest;
+      },
 
       'search/web': (p) => ({ query: p.query!, limit: p.limit ?? 10 } as SearchRequest),
     } as const;
@@ -192,7 +228,8 @@ export function getAllowedParamsForAction(endpoint: string, action: string): str
   const uiSpecificParams: Record<EndpointAction, string[]> = {
     'scrape/elements': ['selector', 'onlyMainContent', 'includeMarkdown'],
     'visual/screenshot': ['mobile', 'device'], // UI params that map to viewport/screenshotOptions
-    'structured/json': ['jsonPrompt'], // UI param that maps to instructions
+    'structured/json': ['jsonPrompt', 'jsonSchema', 'responseType'], // UI params for structured extraction
+    'structured/text': ['jsonPrompt', 'responseType'], // UI params for text extraction
     'scrape/markdown': [],
     'scrape/html': [],
     'scrape/links': [],

@@ -97,6 +97,8 @@ export const studioParsers = {
 
   // Structured extraction
   jsonPrompt: parseAsString,
+  jsonSchema: parseAsString,
+  responseType: parseAsStringLiteral(['json', 'text']).withDefault('json'),
 
   // PDF options – simplified to waitTime only (handled via waitTime generic)
 } as const;
