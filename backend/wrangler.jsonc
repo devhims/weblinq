@@ -60,5 +60,8 @@
       "bucket_name": "weblinq",
       "preview_bucket_name": "weblinq-preview"
     }
-  ]
+  ],
+  "ai": {
+    "binding": "AI"
+  }
 }

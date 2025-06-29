@@ -193,17 +193,26 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
 };
 
 /**
- * JSON extraction endpoint
+ * JSON extraction endpoint - AI-powered extraction using Workers AI
  */
 export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
 
+    console.log('🤖 AI-powered JSON extraction request:', {
+      userId: user.id,
+      url: body.url,
+      responseType: body.responseType || 'json',
+      hasPrompt: !!body.prompt,
+      hasResponseFormat: !!body.response_format,
+    });
+
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.extractJson(body);
+    // Use the new AI-powered v2 implementation
+    const result = await webDurableObject.jsonExtractionV2(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('JSON extraction error:', error);

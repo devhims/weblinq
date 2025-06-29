@@ -124,6 +124,12 @@ export const API_ENDPOINTS = [
         description: 'Extract structured data in JSON format',
         Component: JsonActions,
       },
+      {
+        id: 'text',
+        name: 'Text Analysis',
+        description: 'Get AI analysis and summaries in natural language',
+        Component: JsonActions,
+      },
     ],
   },
   {

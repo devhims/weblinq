@@ -53,7 +53,7 @@ export async function pdfV2(env: CloudflareBindings, params: PdfParams): Promise
       await page.setRequestInterception(true);
       page.on('request', (req: any) => {
         const type = req.resourceType();
-        const shouldAbort = ['image', 'media', 'font', 'stylesheet', 'xhr', 'fetch'].includes(type);
+        const shouldAbort = ['image', 'media', 'font'].includes(type);
         shouldAbort ? req.abort() : req.continue();
       });
 

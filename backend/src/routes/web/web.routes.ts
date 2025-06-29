@@ -64,12 +64,36 @@ export const markdownInputSchema = z.object({
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 });
 
-const jsonExtractionInputSchema = z.object({
-  url: z.string().url('Must be a valid URL'),
-  schema: z.record(z.any()),
-  waitTime: z.number().int().min(0).max(5000).optional().default(0),
-  instructions: z.string().optional(),
-});
+const jsonExtractionInputSchema = z
+  .object({
+    url: z.string().url('Must be a valid URL'),
+    waitTime: z.number().int().min(0).max(5000).optional().default(0),
+    // Response type: 'json' for structured data, 'text' for natural language
+    responseType: z.enum(['json', 'text']).optional().default('json'),
+    // Option 1: Natural language prompt for extraction
+    prompt: z.string().min(1).max(1000).optional(),
+    // Option 2: Structured JSON schema for extraction (only valid when responseType is 'json')
+    response_format: z
+      .object({
+        type: z.literal('json_schema'),
+        json_schema: z.record(z.any()),
+      })
+      .optional(),
+    // Additional instructions for the AI
+    instructions: z.string().max(500).optional(),
+  })
+  .refine((data) => data.prompt || data.response_format, {
+    message: "Either 'prompt' or 'response_format' must be provided",
+    path: ['prompt'],
+  })
+  .refine((data) => data.responseType !== 'json' || data.prompt || data.response_format, {
+    message: "For JSON responses, either 'prompt' or 'response_format' must be provided",
+    path: ['responseType'],
+  })
+  .refine((data) => data.responseType !== 'text' || !data.response_format, {
+    message: "Schema-based 'response_format' is only valid for JSON responses",
+    path: ['response_format'],
+  });
 
 const contentInputSchema = z.object({
   url: z.string().url('Must be a valid URL'),
@@ -137,11 +161,19 @@ const markdownOutputSchema = z.object({
 const jsonExtractionOutputSchema = z.object({
   success: z.boolean(),
   data: z.object({
-    extracted: z.record(z.any()),
+    // For JSON responses: structured data object
+    extracted: z.record(z.any()).optional(),
+    // For text responses: natural language text
+    text: z.string().optional(),
     metadata: z.object({
       url: z.string(),
       timestamp: z.string(),
-      fieldsExtracted: z.number(),
+      model: z.string(),
+      responseType: z.enum(['json', 'text']),
+      extractionType: z.enum(['prompt', 'schema']),
+      fieldsExtracted: z.number().optional(),
+      inputTokens: z.number().optional(),
+      outputTokens: z.number().optional(),
     }),
   }),
   creditsCost: z.number(),

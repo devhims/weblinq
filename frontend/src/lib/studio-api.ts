@@ -83,19 +83,32 @@ export interface MarkdownResponse {
 
 export interface JsonExtractionRequest {
   url: string;
-  schema: Record<string, any>;
   waitTime?: number;
+  responseType?: 'json' | 'text';
+  prompt?: string;
+  response_format?: {
+    type: 'json_schema';
+    json_schema: Record<string, any>;
+  };
   instructions?: string;
 }
 
 export interface JsonExtractionResponse {
   success: boolean;
   data: {
-    extracted: Record<string, any>;
+    // For JSON responses: structured data object
+    extracted?: Record<string, any>;
+    // For text responses: natural language text
+    text?: string;
     metadata: {
       url: string;
       timestamp: string;
-      fieldsExtracted: number;
+      model: string;
+      responseType: 'json' | 'text';
+      extractionType: 'prompt' | 'schema';
+      fieldsExtracted?: number;
+      inputTokens?: number;
+      outputTokens?: number;
     };
   };
   creditsCost: number;

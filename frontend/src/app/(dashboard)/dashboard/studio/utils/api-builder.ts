@@ -131,13 +131,39 @@ export function buildApiPayloadFromParams(params: StudioParams): {
 
       'visual/pdf': (p) => ({ url: p.url!, waitTime: undef(p.waitTime) } as PdfRequest),
 
-      'structured/json': (p) =>
-        ({
+      'structured/json': (p) => {
+        const baseRequest = {
           url: p.url!,
-          schema: {},
-          instructions: p.jsonPrompt || undefined,
+          responseType: (p.responseType ?? 'json') as 'json' | 'text',
           waitTime: undef(p.waitTime),
-        } as JsonExtractionRequest),
+        };
+
+        // If we have a jsonSchema, use response_format (schema mode)
+        if (p.jsonSchema && p.jsonSchema.trim()) {
+          try {
+            const parsedSchema = JSON.parse(p.jsonSchema);
+            return {
+              ...baseRequest,
+              response_format: {
+                type: 'json_schema' as const,
+                json_schema: parsedSchema,
+              },
+            } as JsonExtractionRequest;
+          } catch (error) {
+            // If schema is invalid, fall back to prompt mode
+            return {
+              ...baseRequest,
+              prompt: p.jsonPrompt || 'Extract the main information from this page',
+            } as JsonExtractionRequest;
+          }
+        }
+
+        // Default to prompt mode
+        return {
+          ...baseRequest,
+          prompt: p.jsonPrompt || 'Extract the main information from this page',
+        } as JsonExtractionRequest;
+      },
 
       'search/web': (p) => ({ query: p.query!, limit: p.limit ?? 10 } as SearchRequest),
     } as const;
@@ -192,7 +218,7 @@ export function getAllowedParamsForAction(endpoint: string, action: string): str
   const uiSpecificParams: Record<EndpointAction, string[]> = {
     'scrape/elements': ['selector', 'onlyMainContent', 'includeMarkdown'],
     'visual/screenshot': ['mobile', 'device'], // UI params that map to viewport/screenshotOptions
-    'structured/json': ['jsonPrompt'], // UI param that maps to instructions
+    'structured/json': ['jsonPrompt', 'jsonSchema', 'responseType'], // UI params for structured extraction
     'scrape/markdown': [],
     'scrape/html': [],
     'scrape/links': [],

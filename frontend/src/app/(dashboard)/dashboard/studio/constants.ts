@@ -13,6 +13,7 @@ export const ACTION_IDS = [
   'pdf',
   // Structured
   'json',
+  'text',
   // Search
   'web',
 ] as const;
