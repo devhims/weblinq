@@ -6,6 +6,9 @@ import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['System'];
 
+// Security requirement for all system routes
+const security = [{ bearerAuth: [] }];
+
 /**
  * Input schemas for system operations
  */
@@ -127,12 +130,16 @@ const deleteAllBrowsersOutputSchema = z.object({
 export const browserStatus = createRoute({
   path: '/system/browser-status',
   method: 'post',
+  tags,
+  security,
+  summary: 'Get browser status information',
+  description: 'Retrieve status information about all browser durable objects',
   request: {
     body: jsonContentRequired(browserStatusInputSchema, 'Browser status query parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(browserStatusOutputSchema, 'Browser status retrieved successfully'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(browserStatusInputSchema),
       'Validation error',
@@ -150,12 +157,16 @@ export const browserStatus = createRoute({
 export const sessionHealth = createRoute({
   path: '/system/session-health',
   method: 'post',
+  tags,
+  security,
+  summary: 'Test browser session health',
+  description: 'Test the health and responsiveness of a specific browser session',
   request: {
     body: jsonContentRequired(sessionHealthInputSchema, 'Session health test parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(sessionHealthOutputSchema, 'Session health test completed successfully'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(sessionHealthInputSchema),
       'Validation error',
@@ -173,12 +184,16 @@ export const sessionHealth = createRoute({
 export const createBrowsers = createRoute({
   path: '/system/create-browsers',
   method: 'post',
+  tags,
+  security,
+  summary: 'Create browser instances',
+  description: 'Create one or more browser durable object instances',
   request: {
     body: jsonContentRequired(createBrowsersInputSchema, 'Browser creation parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(createBrowsersOutputSchema, 'Browsers created successfully'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(createBrowsersInputSchema),
       'Validation error',
@@ -196,12 +211,16 @@ export const createBrowsers = createRoute({
 export const cleanupDo = createRoute({
   path: '/system/cleanup-do',
   method: 'post',
+  tags,
+  security,
+  summary: 'Clean up browser durable object',
+  description: 'Clean up and reset a specific browser durable object',
   request: {
     body: jsonContentRequired(cleanupDoInputSchema, 'Browser DO cleanup parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(cleanupDoOutputSchema, 'Browser DO cleaned up successfully'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(cleanupDoInputSchema), 'Validation error'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
@@ -216,12 +235,16 @@ export const cleanupDo = createRoute({
 export const deleteAllBrowsers = createRoute({
   path: '/system/delete-all-browsers',
   method: 'post',
+  tags,
+  security,
+  summary: 'Delete all browser instances',
+  description: 'Delete all browser durable object instances and clear storage',
   request: {
     body: jsonContentRequired(deleteAllBrowsersInputSchema, 'Delete all browsers parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(deleteAllBrowsersOutputSchema, 'All browsers deleted successfully'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(deleteAllBrowsersInputSchema),
       'Validation error',

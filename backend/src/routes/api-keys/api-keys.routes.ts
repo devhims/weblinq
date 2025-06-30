@@ -5,6 +5,9 @@ import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['API Keys'];
 
+// Common security requirement for all API key routes
+const security = [{ bearerAuth: [] }];
+
 // Schema for API key creation request - simplified to only user-configurable fields
 const createApiKeySchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -44,6 +47,7 @@ export const createApiKey = createRoute({
   path: '/create',
   method: 'post',
   tags,
+  security,
   summary: 'Create a new API key',
   description:
     'Create a new API key for the authenticated user. System defaults: wq_ prefix, 1000 requests per 24 hours rate limit, no expiration, free plan metadata.',
@@ -62,6 +66,7 @@ export const listApiKeys = createRoute({
   path: '/list',
   method: 'get',
   tags,
+  security,
   summary: 'List user API keys',
   description: 'Get all API keys for the authenticated user',
   responses: {
@@ -81,6 +86,7 @@ export const getApiKey = createRoute({
   path: '/{id}',
   method: 'get',
   tags,
+  security,
   summary: 'Get API key details',
   description: 'Get details of a specific API key',
   request: {
@@ -100,6 +106,7 @@ export const deleteApiKey = createRoute({
   path: '/{id}',
   method: 'delete',
   tags,
+  security,
   summary: 'Delete API key',
   description: 'Delete an existing API key. Note: API keys cannot be updated - create a new one if needed.',
   request: {

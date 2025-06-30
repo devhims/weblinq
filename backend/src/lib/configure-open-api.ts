@@ -10,7 +10,22 @@ export default function configureOpenAPI(app: AppOpenAPI) {
     info: {
       version: packageJSON.version,
       title: 'WebLinq API',
+      description: 'WebLinq API for web scraping, search, and content extraction',
     },
+    servers: [
+      {
+        url: '/',
+        description: 'API Server',
+      },
+    ],
+  });
+
+  // Register Bearer authentication security scheme
+  app.openAPIRegistry.registerComponent('securitySchemes', 'bearerAuth', {
+    type: 'http',
+    scheme: 'bearer',
+    bearerFormat: 'JWT',
+    description: 'Enter your API token or session token',
   });
 
   app.get(
@@ -18,6 +33,17 @@ export default function configureOpenAPI(app: AppOpenAPI) {
     Scalar({
       theme: 'kepler',
       url: '/doc',
+      defaultHttpClient: {
+        targetKey: 'js',
+        clientKey: 'fetch',
+      },
+      authentication: {
+        preferredSecurityScheme: 'bearerAuth',
+      },
+      metaData: {
+        title: 'WebLinq API Reference',
+        description: 'Interactive API documentation for WebLinq',
+      },
     }),
   );
 }

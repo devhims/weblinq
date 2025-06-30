@@ -5,6 +5,9 @@ import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['User'];
 
+// Security requirement for protected routes
+const security = [{ bearerAuth: [] }];
+
 // Schema for user session response
 const userSessionSchema = z.object({
   user: z.any().nullable(),
@@ -43,18 +46,13 @@ export const getProfile = createRoute({
   path: '/profile',
   method: 'get',
   tags,
+  security,
   summary: 'Get user profile (protected)',
   description:
     'Returns detailed user profile information. Requires authentication via either session cookies or API token (Bearer token in Authorization header).',
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(
-      userProfileSchema,
-      'User profile information',
-    ),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      authErrorSchema,
-      'Authentication required',
-    ),
+    [HttpStatusCodes.OK]: jsonContent(userProfileSchema, 'User profile information'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(authErrorSchema, 'Authentication required'),
   },
 });
 

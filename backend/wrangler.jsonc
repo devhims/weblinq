@@ -44,6 +44,48 @@
       "deleted_classes": ["TaskDurableObject"]
     }
   ],
+  "env": {
+    "dev": {
+      "d1_databases": [
+        {
+          "binding": "D1_DB",
+          "database_name": "weblinq-production",
+          "database_id": "5b3d4cf4-802c-4486-a413-4e94e59175a6",
+          "preview_database_id": "f588bfb9-729c-4fdf-ab68-a07ad0822c09"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          { "name": "WEBLINQ_DURABLE_OBJECT", "class_name": "WebDurableObject" },
+          { "name": "BROWSER_MANAGER_DO", "class_name": "BrowserManagerDO" },
+          { "name": "BROWSER_DO", "class_name": "BrowserDO" }
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "R2_BUCKET",
+          "bucket_name": "weblinq",
+          "preview_bucket_name": "weblinq-preview"
+        }
+      ],
+      "browser": {
+        "binding": "BROWSER"
+      },
+      "ai": {
+        "binding": "AI"
+      },
+      "migrations": [
+        {
+          "tag": "v2",
+          "new_sqlite_classes": ["WebDurableObject"]
+        },
+        {
+          "tag": "v3",
+          "new_sqlite_classes": ["BrowserManagerDO", "BrowserDO"]
+        }
+      ]
+    }
+  },
   "observability": {
     "enabled": true
   },

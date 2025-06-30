@@ -6,6 +6,9 @@ import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Web'];
 
+// Common security requirement for all web routes
+const security = [{ bearerAuth: [] }];
+
 /**
  * request/response contracts (schemas) for web routes
  * any change to the Zod route schemas instantly propagates to handlers
@@ -35,7 +38,7 @@ export const screenshotInputSchema = z.object({
         .optional(),
       // Note: While this option is accepted for Puppeteer compatibility,
       // the API always returns base64-encoded images regardless of this setting
-      encoding: z.enum(['binary', 'base64']).optional().default('base64'),
+      encoding: z.enum(['binary', 'base64']).optional().default('binary'),
       fromSurface: z.boolean().optional(),
       fullPage: z.boolean().optional().default(true),
       omitBackground: z.boolean().optional(),
@@ -49,12 +52,12 @@ export const screenshotInputSchema = z.object({
   // Viewport configuration
   viewport: z
     .object({
-      height: z.number().int().min(100).max(2160),
-      width: z.number().int().min(100).max(3840),
-      deviceScaleFactor: z.number().min(0.1).max(10).optional(),
-      hasTouch: z.boolean().optional(),
-      isLandscape: z.boolean().optional(),
-      isMobile: z.boolean().optional(),
+      height: z.number().int().min(100).max(2160).default(1080),
+      width: z.number().int().min(100).max(3840).default(1920),
+      deviceScaleFactor: z.number().min(0.1).max(10).optional().default(1),
+      hasTouch: z.boolean().optional().default(false),
+      isLandscape: z.boolean().optional().default(false),
+      isMobile: z.boolean().optional().default(false),
     })
     .optional(),
 });
@@ -284,13 +287,17 @@ const pdfOutputSchema = z.object({
 export const screenshot = createRoute({
   path: '/web/screenshot',
   method: 'post',
+  tags,
+  security,
+  summary: 'Take a screenshot of a web page',
+  description: 'Capture a screenshot of the specified URL with optional configuration',
   request: {
     body: jsonContentRequired(screenshotInputSchema, 'Screenshot parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(screenshotOutputSchema, 'Screenshot captured successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(screenshotInputSchema), 'Validation error'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
         success: z.literal(false),
@@ -304,13 +311,17 @@ export const screenshot = createRoute({
 export const markdown = createRoute({
   path: '/web/markdown',
   method: 'post',
+  tags,
+  security,
+  summary: 'Extract markdown from a web page',
+  description: 'Convert web page content to markdown format',
   request: {
     body: jsonContentRequired(markdownInputSchema, 'Markdown extraction parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(markdownOutputSchema, 'Markdown extracted successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(markdownInputSchema), 'Validation error'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
         success: z.literal(false),
@@ -324,16 +335,20 @@ export const markdown = createRoute({
 export const jsonExtraction = createRoute({
   path: '/web/extract-json',
   method: 'post',
+  tags,
+  security,
+  summary: 'Extract structured data from a web page',
+  description: 'Extract JSON data or text content using AI-powered parsing',
   request: {
     body: jsonContentRequired(jsonExtractionInputSchema, 'JSON extraction parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(jsonExtractionOutputSchema, 'JSON data extracted successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(jsonExtractionInputSchema),
       'Validation error',
     ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
         success: z.literal(false),
@@ -347,13 +362,17 @@ export const jsonExtraction = createRoute({
 export const content = createRoute({
   path: '/web/content',
   method: 'post',
+  tags,
+  security,
+  summary: 'Get raw HTML content from a web page',
+  description: 'Retrieve the raw HTML content of the specified URL',
   request: {
     body: jsonContentRequired(contentInputSchema, 'Content extraction parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(contentOutputSchema, 'HTML content retrieved successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(contentInputSchema), 'Validation error'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
         success: z.literal(false),
@@ -367,13 +386,17 @@ export const content = createRoute({
 export const scrape = createRoute({
   path: '/web/scrape',
   method: 'post',
+  tags,
+  security,
+  summary: 'Scrape specific elements from a web page',
+  description: 'Extract specific HTML elements using CSS selectors',
   request: {
     body: jsonContentRequired(scrapeInputSchema, 'Element scraping parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(scrapeOutputSchema, 'Elements scraped successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(scrapeInputSchema), 'Validation error'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
         success: z.literal(false),
@@ -387,13 +410,17 @@ export const scrape = createRoute({
 export const links = createRoute({
   path: '/web/links',
   method: 'post',
+  tags,
+  security,
+  summary: 'Extract links from a web page',
+  description: 'Get all links from the specified URL with optional filtering',
   request: {
     body: jsonContentRequired(linksInputSchema, 'Link extraction parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(linksOutputSchema, 'Links extracted successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(linksInputSchema), 'Validation error'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
         success: z.literal(false),
@@ -407,13 +434,17 @@ export const links = createRoute({
 export const search = createRoute({
   path: '/web/search',
   method: 'post',
+  tags,
+  security,
+  summary: 'Search the web',
+  description: 'Perform a web search and return results',
   request: {
     body: jsonContentRequired(searchInputSchema, 'Search parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(searchOutputSchema, 'Search completed successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(searchInputSchema), 'Validation error'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
         success: z.literal(false),
@@ -427,13 +458,17 @@ export const search = createRoute({
 export const pdf = createRoute({
   path: '/web/pdf',
   method: 'post',
+  tags,
+  security,
+  summary: 'Generate PDF from a web page',
+  description: 'Convert a web page to PDF format',
   request: {
     body: jsonContentRequired(pdfInputSchema, 'PDF generation parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(pdfOutputSchema, 'PDF generated successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(pdfInputSchema), 'Validation error'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
         success: z.literal(false),

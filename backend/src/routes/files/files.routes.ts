@@ -6,6 +6,9 @@ import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Files'];
 
+// Security requirement for all files routes
+const security = [{ bearerAuth: [] }];
+
 /**
  * Input schemas for file management operations
  */
@@ -78,12 +81,16 @@ const deleteFileOutputSchema = z.object({
 export const listFiles = createRoute({
   path: '/files/list',
   method: 'post',
+  tags,
+  security,
+  summary: 'List user files',
+  description: 'List all files (screenshots, PDFs) associated with the authenticated user',
   request: {
     body: jsonContentRequired(listFilesInputSchema, 'File listing parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(listFilesOutputSchema, 'Files listed successfully'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(listFilesInputSchema), 'Validation error'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
@@ -98,12 +105,16 @@ export const listFiles = createRoute({
 export const deleteFile = createRoute({
   path: '/files/delete',
   method: 'post',
+  tags,
+  security,
+  summary: 'Delete a file',
+  description: 'Delete a file from database and optionally from R2 storage',
   request: {
     body: jsonContentRequired(deleteFileInputSchema, 'File deletion parameters'),
   },
-  tags,
   responses: {
     [HttpStatusCodes.OK]: jsonContent(deleteFileOutputSchema, 'File deleted successfully'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(deleteFileInputSchema), 'Validation error'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       z.object({
