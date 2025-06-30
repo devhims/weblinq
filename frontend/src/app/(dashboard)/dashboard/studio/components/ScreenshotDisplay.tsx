@@ -1,8 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
-
+import { useState, useEffect, useRef } from 'react';
 import { ResultContainer } from './ResultContainer';
 
 interface ScreenshotDisplayProps {
@@ -11,7 +10,7 @@ interface ScreenshotDisplayProps {
   error?: string | null;
   isMobile?: boolean;
   fullPage?: boolean;
-  priority?: boolean; // Allow control over priority from parent
+  priority?: boolean;
 }
 
 export function ScreenshotDisplay({
@@ -20,56 +19,69 @@ export function ScreenshotDisplay({
   error = null,
   isMobile = false,
   fullPage = false,
-  priority = false, // Default to false, let parent decide
+  priority = false,
 }: ScreenshotDisplayProps) {
-  const [imageError, setImageError] = useState<string | null>(null);
+  // local UI state
   const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
-  // Reset loading state when imageUrl changes
+  // ref gives us direct access to the underlying <img>
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  /* ------------------------------------------------------------------ */
+  /* Effect: run every time imageUrl changes                            */
+  /* ------------------------------------------------------------------ */
   useEffect(() => {
-    if (imageUrl) {
-      setImageLoading(true);
-      setImageError(null);
-    } else {
+    if (!imageUrl) {
+      // no image => reset everything
       setImageLoading(false);
       setImageError(null);
+      return;
+    }
+
+    // start fresh loading cycle
+    setImageLoading(true);
+    setImageError(null);
+
+    // If the image is already in the browser cache, .complete === true.
+    // Clear loading immediately so the spinner disappears.
+    if (imgRef.current?.complete) {
+      setImageLoading(false);
     }
   }, [imageUrl]);
 
+  /* ------------------------------------------------------------------ */
+  /* Handlers passed to <Image />                                       */
+  /* ------------------------------------------------------------------ */
+  const handleImageLoad = () => setImageLoading(false);
+
+  const handleImageError = () => {
+    setImageError('Failed to load screenshot');
+    setImageLoading(false);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* What we pass to ResultContainer                                    */
+  /* ------------------------------------------------------------------ */
+  const isLoading = loading || imageLoading;
+  const displayError = error || imageError;
+
+  /* ------------------------------------------------------------------ */
+  /* Early-return empty state                                           */
+  /* ------------------------------------------------------------------ */
   if (!imageUrl && !loading && !error) {
     return (
       <ResultContainer
-        empty={true}
+        empty
         emptyMessage="No image available"
         className="border rounded-md w-full relative overflow-hidden"
       />
     );
   }
 
-  const handleImageError = () => {
-    console.log('Image error occurred');
-    setImageError('Failed to load screenshot');
-    setImageLoading(false);
-  };
-
-  const handleImageLoad = () => {
-    console.log('Image loaded successfully');
-    setImageLoading(false);
-    setImageError(null);
-  };
-
-  // Show loading if either parent loading or image loading
-  const isLoading = loading || imageLoading;
-  const displayError = error || imageError;
-
-  console.log('ScreenshotDisplay state:', {
-    imageUrl: !!imageUrl,
-    loading,
-    imageLoading,
-    isLoading,
-    displayError,
-  });
-
+  /* ------------------------------------------------------------------ */
+  /* Main render                                                        */
+  /* ------------------------------------------------------------------ */
   return (
     <ResultContainer
       loading={isLoading}
@@ -82,25 +94,24 @@ export function ScreenshotDisplay({
           {isMobile ? 'Mobile preview' : `This is a ${fullPage ? 'full page' : 'viewport'} screenshot.`}
         </div>
 
-        {/* Image container - takes remaining space */}
+        {/* Image area */}
         <div className="flex-1 flex items-center justify-center p-2 sm:p-3 lg:p-4 min-h-0 relative">
           {imageUrl && (
             <Image
+              ref={imgRef} /* ← critical for cache detection */
               src={imageUrl}
-              alt={`Screenshot preview - ${isMobile ? 'Mobile' : 'Desktop'} ${fullPage ? 'full page' : 'viewport'}`}
-              fill
+              alt="Screenshot preview"
+              fill /* stretch inside flex container */
+              sizes="(max-width: 640px) 100vw,
+                     (max-width: 1024px) 90vw,
+                     80vw"
               className="rounded-md shadow object-contain"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 80vw"
               quality={85}
               priority={priority}
-              onError={handleImageError}
-              onLoad={handleImageLoad}
               placeholder="empty"
-              // Add this to help with debugging
-              onLoadingComplete={() => {
-                console.log('Image loading complete');
-                setImageLoading(false);
-              }}
+              onLoad={handleImageLoad}
+              onLoadingComplete={handleImageLoad} /* fires for cached images */
+              onError={handleImageError}
             />
           )}
         </div>
