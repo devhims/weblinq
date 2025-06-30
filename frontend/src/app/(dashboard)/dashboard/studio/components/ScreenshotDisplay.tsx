@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import { ResultContainer } from './ResultContainer';
 
@@ -23,7 +23,18 @@ export function ScreenshotDisplay({
   priority = false, // Default to false, let parent decide
 }: ScreenshotDisplayProps) {
   const [imageError, setImageError] = useState<string | null>(null);
-  const [imageLoading, setImageLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(false);
+
+  // Reset loading state when imageUrl changes
+  useEffect(() => {
+    if (imageUrl) {
+      setImageLoading(true);
+      setImageError(null);
+    } else {
+      setImageLoading(false);
+      setImageError(null);
+    }
+  }, [imageUrl]);
 
   if (!imageUrl && !loading && !error) {
     return (
@@ -36,19 +47,33 @@ export function ScreenshotDisplay({
   }
 
   const handleImageError = () => {
+    console.log('Image error occurred');
     setImageError('Failed to load screenshot');
     setImageLoading(false);
   };
 
   const handleImageLoad = () => {
+    console.log('Image loaded successfully');
     setImageLoading(false);
     setImageError(null);
   };
 
+  // Show loading if either parent loading or image loading
+  const isLoading = loading || imageLoading;
+  const displayError = error || imageError;
+
+  console.log('ScreenshotDisplay state:', {
+    imageUrl: !!imageUrl,
+    loading,
+    imageLoading,
+    isLoading,
+    displayError,
+  });
+
   return (
     <ResultContainer
-      loading={loading || imageLoading}
-      error={error || imageError}
+      loading={isLoading}
+      error={displayError}
       className="border rounded-md w-full relative overflow-hidden"
     >
       <div className="relative h-full flex flex-col">
@@ -62,7 +87,7 @@ export function ScreenshotDisplay({
           {imageUrl && (
             <Image
               src={imageUrl}
-              alt="Screenshot preview"
+              alt={`Screenshot preview - ${isMobile ? 'Mobile' : 'Desktop'} ${fullPage ? 'full page' : 'viewport'}`}
               fill
               className="rounded-md shadow object-contain"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 80vw"
@@ -71,6 +96,11 @@ export function ScreenshotDisplay({
               onError={handleImageError}
               onLoad={handleImageLoad}
               placeholder="empty"
+              // Add this to help with debugging
+              onLoadingComplete={() => {
+                console.log('Image loading complete');
+                setImageLoading(false);
+              }}
             />
           )}
         </div>
