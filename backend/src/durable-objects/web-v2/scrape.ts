@@ -1,6 +1,6 @@
 import { htmlToText } from 'html-to-text';
 
-import { runWithBrowser } from './browser-utils';
+import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
 
 export interface ScrapeParams {
   url: string;
@@ -77,8 +77,9 @@ export async function scrapeV2(env: CloudflareBindings, params: ScrapeParams): P
         await page.setExtraHTTPHeaders(params.headers);
       }
 
-      /* 2️⃣ Navigate */
-      await page.goto(params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+      /* 2️⃣ Navigate with retry logic */
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+
       if (params.waitTime && params.waitTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, params.waitTime));
       }

@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer';
 
 import type { pdfInputSchema } from '@/routes/web/web.routes';
 
-import { runWithBrowser } from './browser-utils';
+import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
 
 // Reuse the request schema defined in web.routes.ts
 export type PdfParams = z.infer<typeof pdfInputSchema> & {
@@ -57,8 +57,8 @@ export async function pdfV2(env: CloudflareBindings, params: PdfParams): Promise
         shouldAbort ? req.abort() : req.continue();
       });
 
-      /* 1️⃣  Navigate & ensure render-ready */
-      await page.goto(params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+      /* 1️⃣  Navigate & ensure render-ready with retry logic */
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
 
       // Optional wait for a selector (legacy param – ignore if not present)
       if ((params as any).waitSelector) {

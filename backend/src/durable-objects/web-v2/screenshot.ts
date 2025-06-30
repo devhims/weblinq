@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer';
 
 import type { screenshotInputSchema } from '@/routes/web/web.routes';
 
-import { runWithBrowser } from './browser-utils';
+import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
 
 type ScreenshotParams = z.infer<typeof screenshotInputSchema> & {
   /** Return base64 string instead of raw binary Uint8Array */
@@ -59,11 +59,8 @@ export async function screenshotV2(env: CloudflareBindings, params: ScreenshotPa
       // Configure viewport first
       await page.setViewport(viewportConfig);
 
-      // Navigate to the page
-      await page.goto(params.url, {
-        waitUntil: 'networkidle0',
-        timeout: 30_000,
-      });
+      // Navigate to the page with retry logic for better resilience
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle0', timeout: 30_000 });
 
       // Wait for additional time if specified
       if (params.waitTime && params.waitTime > 0) {
