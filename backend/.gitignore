@@ -13,3 +13,7 @@ dev.db-wal
 .wrangler
 
 project_docs
+
+parallel-test.js
+simple-load-test.js
+README-PARALLEL-TESTING.md

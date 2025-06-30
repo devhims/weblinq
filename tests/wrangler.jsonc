@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "monitoring-tests",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "MONITORING_DO", "class_name": "MonitoringDO" }]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["MonitoringDO"]
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

@@ -31,7 +31,7 @@ export interface InternalSearchResult {
 export type SearchEngine = 'duckduckgo' | 'startpage' | 'bing';
 
 abstract class BaseSearchHandler {
-  protected abstract getSearchUrl(query: string): string;
+  protected abstract getSearchUrl(query: string, limit: number): string;
   protected abstract getSelectors(): string[];
   protected abstract getSnippetSelectors(): string[];
   protected abstract extractResults(page: Page, selector: string): Promise<RawSearchLink[]>;
@@ -41,11 +41,13 @@ abstract class BaseSearchHandler {
   /**
    * Common search flow for all engines
    */
-  async performSearch(page: Page, query: string): Promise<InternalSearchResult> {
-    const url = this.getSearchUrl(query);
-    console.log(`SearchHandler: 🌐 Navigating to ${url}`);
+  async performSearch(page: Page, query: string, limit: number): Promise<InternalSearchResult> {
+    const performSearchStartTime = Date.now();
+    const url = this.getSearchUrl(query, limit);
+    console.log(`🌐 [TIMING] ${this.constructor.name} performSearch started at ${performSearchStartTime}ms for ${url}`);
 
     // Enable request interception to block CSS/fonts/images for faster loading
+    const interceptionStartTime = Date.now();
     await page.setRequestInterception(true);
     page.on('request', (req) => {
       const resourceType = req.resourceType();
@@ -55,46 +57,94 @@ abstract class BaseSearchHandler {
         req.continue();
       }
     });
+    const interceptionTime = Date.now() - interceptionStartTime;
+    console.log(`🌐 [TIMING] ${this.constructor.name} request interception setup took ${interceptionTime}ms`);
+
+    const navigationStartTime = Date.now();
+    console.log(`🌐 [TIMING] ${this.constructor.name} starting navigation to ${url} at ${navigationStartTime}ms`);
 
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10_000 });
-    console.log('SearchHandler: ✅ Page loaded successfully');
+
+    const navigationTime = Date.now() - navigationStartTime;
+    console.log(`✅ [TIMING] ${this.constructor.name} page navigation completed in ${navigationTime}ms`);
 
     // Give page extra time if results haven't loaded yet
     const selectors = this.getSelectors();
+    const selectorWaitStartTime = Date.now();
+    console.log(
+      `🔍 [TIMING] ${this.constructor.name} waiting for selectors: ${selectors.join(
+        ', ',
+      )} at ${selectorWaitStartTime}ms`,
+    );
+
     const hasContent = await page
       .waitForSelector(selectors.join(', '), { timeout: 1500 })
-      .then(() => true)
-      .catch(() => false);
+      .then(() => {
+        const selectorFoundTime = Date.now() - selectorWaitStartTime;
+        console.log(`✅ [TIMING] ${this.constructor.name} selectors found in ${selectorFoundTime}ms`);
+        return true;
+      })
+      .catch(() => {
+        const selectorTimeoutTime = Date.now() - selectorWaitStartTime;
+        console.log(`⚠️ [TIMING] ${this.constructor.name} selectors timeout after ${selectorTimeoutTime}ms`);
+        return false;
+      });
 
     if (!hasContent) {
+      const extraWaitStartTime = Date.now();
+      console.log(`⏳ [TIMING] ${this.constructor.name} adding extra 400ms wait at ${extraWaitStartTime}ms`);
       await new Promise((res) => setTimeout(res, 400));
+      const extraWaitTime = Date.now() - extraWaitStartTime;
+      console.log(`⏳ [TIMING] ${this.constructor.name} extra wait completed in ${extraWaitTime}ms`);
     }
 
     let results: RawSearchLink[] = [];
     let usedSelector = '';
 
+    const extractionStartTime = Date.now();
+    console.log(`🎯 [TIMING] ${this.constructor.name} starting result extraction at ${extractionStartTime}ms`);
+
     for (const selector of selectors) {
       try {
+        const selectorStartTime = Date.now();
         const selectorResults = await this.extractResults(page, selector);
+        const selectorTime = Date.now() - selectorStartTime;
+
         if (selectorResults.length > 0) {
           results = selectorResults;
           usedSelector = selector;
-          console.log(`SearchHandler: 🎯 Found ${selectorResults.length} results using: ${selector}`);
+          console.log(
+            `🎯 [TIMING] ${this.constructor.name} found ${selectorResults.length} results using: ${selector} in ${selectorTime}ms`,
+          );
           break;
+        } else {
+          console.log(`🎯 [TIMING] ${this.constructor.name} no results with selector: ${selector} (${selectorTime}ms)`);
         }
-      } catch {
+      } catch (error) {
+        console.log(`❌ [TIMING] ${this.constructor.name} selector error: ${selector} - ${error}`);
         continue;
       }
     }
 
+    const extractionTime = Date.now() - extractionStartTime;
+    console.log(`🎯 [TIMING] ${this.constructor.name} result extraction completed in ${extractionTime}ms`);
+
     // Check for blocking
+    const blockingCheckStartTime = Date.now();
     const pageTitle = await page.title();
     const html = await page.content();
     const isBlocked = this.isBlocked(pageTitle, html);
+    const blockingCheckTime = Date.now() - blockingCheckStartTime;
+    console.log(
+      `🔐 [TIMING] ${this.constructor.name} blocking check completed in ${blockingCheckTime}ms (blocked: ${isBlocked})`,
+    );
 
     if (isBlocked) {
       throw new Error('Page blocked or CAPTCHA detected');
     }
+
+    const totalPerformSearchTime = Date.now() - performSearchStartTime;
+    console.log(`🌐 [TIMING] ${this.constructor.name} performSearch completed in ${totalPerformSearchTime}ms total`);
 
     return {
       results,
@@ -107,8 +157,9 @@ abstract class BaseSearchHandler {
 }
 
 class DuckDuckGoHandler extends BaseSearchHandler {
-  protected getSearchUrl(query: string): string {
-    return `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+  protected getSearchUrl(query: string, limit: number): string {
+    // DuckDuckGo HTML doesn't officially support result count, but we can try 's' parameter
+    return `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&s=${limit}`;
   }
 
   protected getSelectors(): string[] {
@@ -196,12 +247,15 @@ class DuckDuckGoHandler extends BaseSearchHandler {
 }
 
 class StartpageHandler extends BaseSearchHandler {
-  protected getSearchUrl(query: string): string {
+  protected getSearchUrl(query: string, _limit: number): string {
+    // Revert to original URL format - /do/search caused 3x slower extraction (617ms → 2112ms)
+    // Keep the removal of &num=${limit} as Startpage doesn't support result limiting
     return `https://www.startpage.com/sp/search?query=${encodeURIComponent(query)}&cat=web&pl=opensearch`;
   }
 
   protected getSelectors(): string[] {
-    return ['.w-gl__result', '.result-item', '.search-result', '[data-testid="result"]', '.result'];
+    // Reordered: Put working selector first to avoid 1.4s of failed attempts
+    return ['.result', '.w-gl__result', '.result-item', '.search-result', '[data-testid="result"]'];
   }
 
   protected getSnippetSelectors(): string[] {
@@ -209,86 +263,57 @@ class StartpageHandler extends BaseSearchHandler {
   }
 
   protected async extractResults(page: Page, selector: string): Promise<RawSearchLink[]> {
-    return page.$$eval(selector, (elements) => {
+    const extractionStartTime = Date.now();
+    console.log(`🎯 [TIMING] StartpageHandler extraction starting for selector: ${selector}`);
+
+    const results = await page.$$eval(selector, (elements) => {
       return (elements as any[])
         .map((element: any) => {
+          // OPTIMIZED: Find URL first with early exit
+          const linkEl = element.querySelector('a[href^="http"]');
+          if (!linkEl?.href) return null; // Early exit if no valid URL
+          const url = linkEl.href;
+
+          // OPTIMIZED: Simplified title extraction
           let title = '';
-          let url = '';
-          let snippet = '';
-
-          // Find URL first
-          const urlSelectors = ['a[href^="https://"]', 'a[href^="http://"]'];
-          for (const urlSel of urlSelectors) {
-            const linkEl = element.querySelector(urlSel);
-            if (linkEl?.href && linkEl.href.startsWith('http')) {
-              url = linkEl.href;
-              break;
+          const titleEl = element.querySelector('h3, .title, .result-title') || linkEl;
+          if (titleEl?.textContent?.trim()) {
+            title = titleEl.textContent.trim();
+            // Quick validation
+            if (title.length <= 3 || title.includes('css-')) {
+              title = '';
             }
           }
 
-          if (!url) return null;
-
-          // Find title
-          const titleSelectors = [
-            'h3',
-            '.title',
-            '.result-title',
-            'h3 a:not(:has(img))',
-            '.result-title a:not(:has(img))',
-            'a:not(:has(img))',
-            'a[href^="https://"]:not(:has(img))',
-          ];
-
-          for (const titleSel of titleSelectors) {
-            const titleEl = element.querySelector(titleSel);
-            if (titleEl?.textContent?.trim()) {
-              const titleText = titleEl.textContent.trim();
-
-              // Basic cleaning
-              if (titleText.length > 5 && !titleText.includes('css-')) {
-                title = titleText;
-                break;
-              }
-            }
-          }
-
-          // Fallback title from URL
+          // Quick fallback from URL if no title
           if (!title) {
             try {
-              const urlObj = new URL(url);
-              title = urlObj.hostname.replace('www.', '');
+              title = new URL(url).hostname.replace('www.', '');
             } catch {
               title = 'Search Result';
             }
           }
 
-          // Find snippet
-          const snippetSelectors = [
-            '.w-gl__description',
-            '.result-snippet',
-            '.search-item-snippet',
-            '.result-description',
-            '.description',
-            '.snippet',
-            'p',
-          ];
-
-          for (const snippetSel of snippetSelectors) {
-            const snippetEl = element.querySelector(snippetSel);
-            if (snippetEl?.textContent?.trim() && snippetEl.textContent.trim().length > 10) {
-              snippet = snippetEl.textContent.trim();
-              break;
-            }
-          }
-
-          if (!snippet) {
-            snippet = `Search result from ${title.toLowerCase()}`;
+          // OPTIMIZED: Simplified snippet extraction
+          let snippet = '';
+          const snippetEl = element.querySelector('.w-gl__description, .result-snippet, .description, p');
+          if (snippetEl?.textContent?.trim() && snippetEl.textContent.trim().length > 10) {
+            snippet = snippetEl.textContent.trim();
+          } else {
+            snippet = `Search result from ${title}`;
           }
 
           return { title, url, snippet };
         })
-        .filter((result): result is RawSearchLink => result !== null);
+        .filter((result): result is RawSearchLink => result !== null && result.title.length > 3);
     });
+
+    const extractionTime = Date.now() - extractionStartTime;
+    console.log(
+      `🎯 [TIMING] StartpageHandler extraction completed for ${selector} in ${extractionTime}ms (found ${results.length} results)`,
+    );
+
+    return results;
   }
 
   public cleanUrl(url: string): string {
@@ -302,8 +327,8 @@ class StartpageHandler extends BaseSearchHandler {
 }
 
 class BingHandler extends BaseSearchHandler {
-  protected getSearchUrl(query: string): string {
-    return `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+  protected getSearchUrl(query: string, limit: number): string {
+    return `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=${limit}`;
   }
 
   protected getSelectors(): string[] {
@@ -356,7 +381,11 @@ class BingHandler extends BaseSearchHandler {
   }
 
   public cleanUrl(url: string): string {
+    const cleanStartTime = Date.now();
+
     if (!url.includes('bing.com')) {
+      const cleanTime = Date.now() - cleanStartTime;
+      console.log(`🧹 [TIMING] BingHandler cleanUrl (no processing needed) took ${cleanTime}ms`);
       return url;
     }
 
@@ -368,6 +397,7 @@ class BingHandler extends BaseSearchHandler {
         const match = url.match(pattern);
         if (match) {
           try {
+            const decodingStartTime = Date.now();
             let decoded = decodeURIComponent(match[1]);
 
             // Check if it's base64 encoded (Bing often uses this)
@@ -434,6 +464,11 @@ class BingHandler extends BaseSearchHandler {
             }
 
             if (decoded.startsWith('http')) {
+              const decodingTime = Date.now() - decodingStartTime;
+              const totalCleanTime = Date.now() - cleanStartTime;
+              console.log(
+                `🧹 [TIMING] BingHandler cleanUrl base64 decoding took ${decodingTime}ms, total ${totalCleanTime}ms`,
+              );
               return decoded;
             }
           } catch {
@@ -445,6 +480,7 @@ class BingHandler extends BaseSearchHandler {
       const match = url.match(/[&?]r=([^&]+)/);
       if (match) {
         try {
+          const decodingStartTime = Date.now();
           let decoded = decodeURIComponent(match[1]);
 
           // Check for base64 encoding here too
@@ -457,8 +493,13 @@ class BingHandler extends BaseSearchHandler {
             }
           }
 
+          const decodingTime = Date.now() - decodingStartTime;
+          const totalCleanTime = Date.now() - cleanStartTime;
+          console.log(`🧹 [TIMING] BingHandler cleanUrl cr decoding took ${decodingTime}ms, total ${totalCleanTime}ms`);
           return decoded.startsWith('http') ? decoded : url;
         } catch {
+          const cleanTime = Date.now() - cleanStartTime;
+          console.log(`🧹 [TIMING] BingHandler cleanUrl cr fallback took ${cleanTime}ms`);
           return url;
         }
       }
@@ -466,6 +507,7 @@ class BingHandler extends BaseSearchHandler {
       const match = url.match(/[&?]target=([^&]+)/);
       if (match) {
         try {
+          const decodingStartTime = Date.now();
           let decoded = decodeURIComponent(match[1]);
 
           // Check for base64 encoding here too
@@ -478,13 +520,22 @@ class BingHandler extends BaseSearchHandler {
             }
           }
 
+          const decodingTime = Date.now() - decodingStartTime;
+          const totalCleanTime = Date.now() - cleanStartTime;
+          console.log(
+            `🧹 [TIMING] BingHandler cleanUrl target decoding took ${decodingTime}ms, total ${totalCleanTime}ms`,
+          );
           return decoded.startsWith('http') ? decoded : url;
         } catch {
+          const cleanTime = Date.now() - cleanStartTime;
+          console.log(`🧹 [TIMING] BingHandler cleanUrl target fallback took ${cleanTime}ms`);
           return url;
         }
       }
     }
 
+    const cleanTime = Date.now() - cleanStartTime;
+    console.log(`🧹 [TIMING] BingHandler cleanUrl no processing took ${cleanTime}ms`);
     return url;
   }
 
@@ -707,6 +758,8 @@ class MultiEngineSearchHandler {
    * Enhanced scoring with word-boundary matching and configurable weights
    */
   private calculateScore(result: RawSearchLink, query: string): number {
+    const scoreStartTime = Date.now();
+
     // Tokenize query into words (improved word boundary detection)
     // Allow important 2-character terms like "AI", "UK", "JS", "Go"
     const importantShortTerms = new Set(['ai', 'uk', 'js', 'go', 'ui', 'ux', 'vr', 'ar', 'ml', 'dl', 'it', 'io']);
@@ -715,7 +768,11 @@ class MultiEngineSearchHandler {
       .split(/\s+/)
       .filter((word) => word.length > 2 || importantShortTerms.has(word));
 
-    if (queryWords.length === 0) return 0;
+    if (queryWords.length === 0) {
+      const scoreTime = Date.now() - scoreStartTime;
+      console.log(`🎯 [TIMING] calculateScore (no query words) took ${scoreTime}ms`);
+      return 0;
+    }
 
     const W = MultiEngineSearchHandler.SCORING_WEIGHTS;
     const titleLower = result.title.toLowerCase();
@@ -844,7 +901,10 @@ class MultiEngineSearchHandler {
     }
 
     // ⏰ RECENCY BONUS: Scaled bonus to prevent fresh-but-irrelevant from beating quality
+    const recencyStartTime = Date.now();
     const rawRecencyBonus = this.calculateRecencyBonus(result);
+    const recencyTime = Date.now() - recencyStartTime;
+
     if (rawRecencyBonus > 0) {
       // Scale recency by quality: higher-quality content gets larger recency boost
       const qualityFactor = Math.min(1.0, Math.max(0.3, score / 50)); // 30%-100% scaling
@@ -865,44 +925,73 @@ class MultiEngineSearchHandler {
     }
 
     // Apply maximum score cap and ensure non-negative
-    return Math.max(0, Math.min(score, W.maxTotalScore));
+    const finalScore = Math.max(0, Math.min(score, W.maxTotalScore));
+
+    const totalScoreTime = Date.now() - scoreStartTime;
+    if (totalScoreTime > 5) {
+      // Only log if scoring takes more than 5ms
+      console.log(
+        `🎯 [TIMING] calculateScore took ${totalScoreTime}ms (recency: ${recencyTime}ms) for "${result.title}"`,
+      );
+    }
+
+    return finalScore;
   }
 
-  /**
-   * Search across multiple engines with graceful degradation
-   */
-  async searchMultipleEngines(
+  private async runEnginesInParallel(
     page: Page,
+    engines: SearchEngine[],
     query: string,
     limit: number,
   ): Promise<{
-    query: string;
     results: Array<RawSearchLink & { source: SearchEngine }>;
-    debug: Record<string, any>;
+    engineResults: Record<string, any>;
   }> {
-    const engines: SearchEngine[] = ['duckduckgo', 'startpage', 'bing'];
     const allResults: Array<RawSearchLink & { source: SearchEngine }> = [];
     const engineResults: Record<string, any> = {};
-
-    console.log(`🚀 Starting parallel search across ${engines.length} engines...`);
-    const parallelStartTime = Date.now();
 
     // Create multiple pages for parallel processing
     const browser = page.browser();
     const additionalPages: Page[] = [];
 
     try {
+      const pageCreationStartTime = Date.now();
+      console.log(
+        `🚀 [TIMING] Creating additional browser pages for ${engines.length} engines at ${pageCreationStartTime}ms`,
+      );
+
       // Create additional pages for parallel processing (we already have one page)
       for (let i = 1; i < engines.length; i++) {
+        const pageStart = Date.now();
         const newPage = await browser.newPage();
+        const pageCreated = Date.now();
+        console.log(`🚀 [TIMING] Created page ${i} in ${pageCreated - pageStart}ms`);
+
         // Apply same hardening as the original page
+        const hardeningStart = Date.now();
         await hardenPageAdvanced(newPage);
+        const hardeningEnd = Date.now();
+        console.log(`🚀 [TIMING] Hardened page ${i} in ${hardeningEnd - hardeningStart}ms`);
+
         additionalPages.push(newPage);
       }
 
+      const pageCreationEndTime = Date.now();
+      console.log(`🚀 [TIMING] All pages created and hardened in ${pageCreationEndTime - pageCreationStartTime}ms`);
+
       const pages = [page, ...additionalPages];
 
+      // Calculate per-engine limit to reduce parsing overhead while accounting for deduplication
+      // Request slightly more per engine to ensure enough unique results after deduplication
+      const perEngineLimit = Math.max(3, Math.ceil(limit * 0.8)); // At least 3, usually ~80% of requested limit
+      console.log(
+        `💡 [OPTIMIZATION] Requesting ${perEngineLimit} results per engine (vs default ~10-20) for final limit of ${limit}`,
+      );
+
       // Execute searches in parallel using Promise.allSettled for graceful error handling
+      const parallelSearchStartTime = Date.now();
+      console.log(`🚀 [TIMING] Starting parallel search execution at ${parallelSearchStartTime}ms`);
+
       const searchPromises = engines.map(async (engine, index) => {
         const enginePage = pages[index];
         const handler = this.handlers.get(engine);
@@ -913,14 +1002,26 @@ class MultiEngineSearchHandler {
         }
 
         try {
-          console.log(`🔍 Starting ${engine} search on page ${index + 1}...`);
-          const startTime = Date.now();
-          const result = await handler.performSearch(enginePage, query);
-          const searchTime = Date.now() - startTime;
+          const engineStartTime = Date.now();
+          console.log(
+            `🔍 [TIMING] Starting ${engine} search on page ${
+              index + 1
+            } at ${engineStartTime}ms (requesting ${perEngineLimit} results)`,
+          );
 
-          console.log(`✅ ${engine} completed in ${searchTime}ms, found ${result.results.length} raw results`);
+          // Add timeout to prevent any single engine from taking too long
+          const searchPromise = handler.performSearch(enginePage, query, perEngineLimit);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`${engine} search timeout after 8 seconds`)), 8000),
+          );
 
-          // Filter and clean results
+          const result = await Promise.race([searchPromise, timeoutPromise]);
+          const searchTime = Date.now() - engineStartTime;
+
+          console.log(`✅ [TIMING] ${engine} completed in ${searchTime}ms, found ${result.results.length} raw results`);
+
+          // Filter and clean results (no need to slice since we requested the right amount)
+          const filteringStartTime = Date.now();
           const filtered = result.results
             .filter((r) => {
               // Basic validation
@@ -942,8 +1043,10 @@ class MultiEngineSearchHandler {
               url: handler.cleanUrl(r.url),
               snippet: r.snippet || '',
               source: engine,
-            }))
-            .slice(0, limit);
+            }));
+
+          const filteringTime = Date.now() - filteringStartTime;
+          console.log(`🔍 [TIMING] ${engine} filtering and URL cleaning took ${filteringTime}ms`);
 
           return {
             engine,
@@ -957,7 +1060,8 @@ class MultiEngineSearchHandler {
             },
           };
         } catch (error) {
-          console.error(`❌ ${engine} search failed:`, error);
+          const errorTime = Date.now() - parallelSearchStartTime;
+          console.error(`❌ [TIMING] ${engine} search failed after ${errorTime}ms:`, error);
           return {
             engine,
             error: String(error),
@@ -969,11 +1073,14 @@ class MultiEngineSearchHandler {
 
       // Wait for all searches to complete
       const searchResults = await Promise.allSettled(searchPromises);
-      const parallelTime = Date.now() - parallelStartTime;
+      const parallelTime = Date.now() - parallelSearchStartTime;
 
-      console.log(`⚡ Parallel search completed in ${parallelTime}ms`);
+      console.log(`⚡ [TIMING] Parallel search completed in ${parallelTime}ms`);
 
       // Process results
+      const processingStartTime = Date.now();
+      console.log(`⚡ [TIMING] Starting result processing at ${processingStartTime}ms`);
+
       for (const settlementResult of searchResults) {
         if (settlementResult.status === 'fulfilled') {
           const searchResult = settlementResult.value;
@@ -1001,6 +1108,9 @@ class MultiEngineSearchHandler {
         }
       }
     } finally {
+      const cleanupStartTime = Date.now();
+      console.log(`🧹 [TIMING] Starting page cleanup at ${cleanupStartTime}ms`);
+
       // Clean up additional pages
       for (const additionalPage of additionalPages) {
         try {
@@ -1011,11 +1121,85 @@ class MultiEngineSearchHandler {
           console.warn(`Failed to close additional page:`, error);
         }
       }
+
+      const cleanupTime = Date.now() - cleanupStartTime;
+      console.log(`🧹 [TIMING] Page cleanup completed in ${cleanupTime}ms`);
+    }
+
+    return { results: allResults, engineResults };
+  }
+
+  /**
+   * Search across multiple engines with graceful degradation
+   */
+  async searchMultipleEngines(
+    page: Page,
+    query: string,
+    limit: number,
+  ): Promise<{
+    query: string;
+    results: Array<RawSearchLink & { source: SearchEngine }>;
+    debug: Record<string, any>;
+  }> {
+    const searchStartTime = Date.now();
+    console.log(`🔍 [TIMING] MultiEngineSearchHandler starting at ${searchStartTime}ms`);
+
+    let allResults: Array<RawSearchLink & { source: SearchEngine }> = [];
+    const engineResults: Record<string, any> = {};
+
+    // Tiered search strategy: Fast engines first, Startpage only if needed
+    const primaryEngines: SearchEngine[] = ['duckduckgo', 'bing'];
+    const fallbackEngines: SearchEngine[] = ['startpage'];
+
+    console.log(`🎯 [STRATEGY] Starting with fast engines: ${primaryEngines.join(', ')}`);
+
+    try {
+      // Tier 1: Run fast engines in parallel
+      const primaryResults = await this.runEnginesInParallel(page, primaryEngines, query, limit);
+      allResults.push(...primaryResults.results);
+      Object.assign(engineResults, primaryResults.engineResults);
+
+      // Check if we have enough results from fast engines
+      const uniqueResultsCount = new Set(allResults.map((r) => r.url.toLowerCase())).size;
+      const targetThreshold = Math.max(5, Math.ceil(limit * 0.7)); // At least 5 results or 70% of requested
+
+      console.log(
+        `📊 [STRATEGY] Fast engines returned ${uniqueResultsCount} unique results (threshold: ${targetThreshold})`,
+      );
+
+      // Tier 2: Only run Startpage if we need more results
+      if (uniqueResultsCount < targetThreshold) {
+        console.log(`🔄 [STRATEGY] Running fallback engines: ${fallbackEngines.join(', ')} (insufficient results)`);
+        const fallbackResults = await this.runEnginesInParallel(page, fallbackEngines, query, limit);
+        allResults.push(...fallbackResults.results);
+        Object.assign(engineResults, fallbackResults.engineResults);
+      } else {
+        console.log(`✅ [STRATEGY] Skipping Startpage - fast engines provided sufficient results`);
+        // Mark Startpage as skipped in debug info
+        engineResults.startpage = {
+          success: true,
+          skipped: true,
+          reason: 'Sufficient results from fast engines',
+          count: 0,
+          rawCount: 0,
+          searchTime: 0,
+        };
+      }
+    } catch (error) {
+      console.error(`❌ [STRATEGY] Tiered search failed:`, error);
+      // Fallback to original behavior if strategy fails
+      const allEngines: SearchEngine[] = ['duckduckgo', 'startpage', 'bing'];
+      const fallbackResults = await this.runEnginesInParallel(page, allEngines, query, limit);
+      allResults = fallbackResults.results;
+      Object.assign(engineResults, fallbackResults.engineResults);
     }
 
     console.log(`Total raw results collected: ${allResults.length}`);
 
     // Deduplicate by URL
+    const deduplicationStartTime = Date.now();
+    console.log(`🔄 [TIMING] Starting deduplication at ${deduplicationStartTime}ms`);
+
     const uniqueResults = new Map<string, RawSearchLink & { source: SearchEngine }>();
 
     for (const result of allResults) {
@@ -1034,9 +1218,13 @@ class MultiEngineSearchHandler {
       }
     }
 
-    console.log(`Unique results after deduplication: ${uniqueResults.size}`);
+    const deduplicationTime = Date.now() - deduplicationStartTime;
+    console.log(`🔄 [TIMING] Deduplication completed in ${deduplicationTime}ms - ${uniqueResults.size} unique results`);
 
     // Apply scoring and sort
+    const scoringStartTime = Date.now();
+    console.log(`🎯 [TIMING] Starting scoring and sorting at ${scoringStartTime}ms`);
+
     const scoredResults = Array.from(uniqueResults.values())
       .map((result) => ({
         ...result,
@@ -1050,15 +1238,21 @@ class MultiEngineSearchHandler {
       })
       .slice(0, limit);
 
+    const scoringTime = Date.now() - scoringStartTime;
+    console.log(`🎯 [TIMING] Scoring and sorting completed in ${scoringTime}ms`);
+
     // Use scored order but omit the score field for response schema
     const finalResults = scoredResults.map(({ score: _score, ...rest }) => rest);
+
+    const totalTime = Date.now() - searchStartTime;
+    console.log(`🚀 [TIMING] searchMultipleEngines completed in ${totalTime}ms total`);
 
     return {
       query,
       results: finalResults,
       debug: {
         engines: engineResults,
-        totalEngines: engines.length,
+        totalEngines: primaryEngines.length + fallbackEngines.length,
         successfulEngines: Object.keys(engineResults).filter((e) => !engineResults[e].error).length,
         deduplicationStats: {
           rawResults: allResults.length,
@@ -1109,15 +1303,45 @@ const CREDIT_COST = 1;
  * Tries DuckDuckGo, Startpage, and Bing with graceful degradation.
  */
 export async function searchV2(env: CloudflareBindings, params: SearchParams): Promise<SearchResult> {
-  const startTime = Date.now();
+  const overallStartTime = Date.now();
+  console.log(`🔍 [TIMING] searchV2 started at ${overallStartTime}ms`);
+
   try {
+    const browserStartTime = Date.now();
+    console.log(`🔍 [TIMING] Calling runWithBrowser at ${browserStartTime}ms`);
+
     const result = await runWithBrowser(env, async (page) => {
+      const handlerStartTime = Date.now();
+      console.log(
+        `🔍 [TIMING] Browser acquired, starting MultiEngineSearchHandler at ${handlerStartTime}ms (browser acquisition took ${
+          handlerStartTime - browserStartTime
+        }ms)`,
+      );
+
       const handler = new MultiEngineSearchHandler();
-      return handler.searchMultipleEngines(page, params.query, params.limit ?? 10);
+      const searchResult = await handler.searchMultipleEngines(page, params.query, params.limit ?? 10);
+
+      const handlerEndTime = Date.now();
+      console.log(
+        `🔍 [TIMING] MultiEngineSearchHandler completed at ${handlerEndTime}ms (search execution took ${
+          handlerEndTime - handlerStartTime
+        }ms)`,
+      );
+
+      return searchResult;
     });
 
-    const elapsed = Date.now() - startTime;
+    const browserEndTime = Date.now();
+    console.log(
+      `🔍 [TIMING] runWithBrowser completed at ${browserEndTime}ms (total browser time: ${
+        browserEndTime - browserStartTime
+      }ms)`,
+    );
+
+    const elapsed = Date.now() - overallStartTime;
     const sources = [...new Set(result.results.map((r) => r.source))];
+
+    console.log(`🔍 [TIMING] searchV2 completed in ${elapsed}ms total`);
 
     return {
       success: true,
@@ -1134,7 +1358,8 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
       creditsCost: CREDIT_COST,
     };
   } catch (err) {
-    console.error('searchV2 error', err);
+    const errorTime = Date.now() - overallStartTime;
+    console.error(`🔍 [TIMING] searchV2 failed after ${errorTime}ms:`, err);
     return {
       success: false,
       error: { message: String(err) },
