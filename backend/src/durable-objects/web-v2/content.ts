@@ -1,6 +1,6 @@
 // No external sanitiser needed – we strip <script> tags via regex
 
-import { runWithBrowser } from './browser-utils';
+import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
 
 // Parameter shape mirrored from contentInputSchema in web.routes.ts
 export interface ContentParams {
@@ -52,7 +52,10 @@ export async function contentV2(env: CloudflareBindings, params: ContentParams):
           req.continue();
         }
       });
-      await page.goto(params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+
+      // Use retry helper for better resilience against network failures
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+
       if (params.waitTime && params.waitTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, params.waitTime));
       }

@@ -13,7 +13,7 @@ import { visit } from 'unist-util-visit';
 
 import type { markdownInputSchema } from '@/routes/web/web.routes';
 
-import { runWithBrowser } from './browser-utils';
+import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
 
 type MarkdownParams = z.infer<typeof markdownInputSchema>;
 
@@ -96,26 +96,26 @@ const processor = unified()
 
 export async function markdownV2(env: CloudflareBindings, params: MarkdownParams): Promise<MarkdownResult> {
   try {
-    /* 1️⃣  Render page HTML */
-    const html = await runWithBrowser(env, async (page) => {
+    const content = await runWithBrowser(env, async (page: any) => {
+      // Block heavy resources for faster loading
       await page.setRequestInterception(true);
-      page.on('request', (req) => {
+      page.on('request', (req: any) => {
         const shouldAbort = ['image', 'media', 'font', 'stylesheet'].includes(req.resourceType());
-        if (shouldAbort) {
-          req.abort();
-        } else {
-          req.continue();
-        }
+        shouldAbort ? req.abort() : req.continue();
       });
-      await page.goto(params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+
+      // Navigate with retry logic for better resilience
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+
       if (params.waitTime && params.waitTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, params.waitTime));
       }
+
       return page.content();
     });
 
     /* 2️⃣  Sanitize */
-    const safeHtml = sanitizeHtml(html, {
+    const safeHtml = sanitizeHtml(content, {
       allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
       allowedAttributes: {
         ...sanitizeHtml.defaults.allowedAttributes,

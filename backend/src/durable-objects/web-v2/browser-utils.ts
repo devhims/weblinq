@@ -311,6 +311,49 @@ export async function addHumanBehavior(page: Page) {
 }
 
 /**
+ * Helper to retry page.goto() for transient network failures
+ * Common failures: ERR_CONNECTION_CLOSED, ERR_NETWORK_CHANGED, timeouts
+ */
+export async function pageGotoWithRetry(
+  page: Page,
+  url: string,
+  options: { waitUntil?: 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2'; timeout?: number } = {},
+  maxAttempts = 3,
+): Promise<void> {
+  const { waitUntil = 'networkidle2', timeout = 30_000 } = options;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await page.goto(url, { waitUntil, timeout });
+      console.log(`✅ Page navigation successful on attempt ${attempt}/${maxAttempts} for ${url}`);
+      return;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.warn(`❌ Page navigation attempt ${attempt}/${maxAttempts} failed for ${url}: ${errorMessage}`);
+
+      // Check if this is a network-related error that's worth retrying
+      const isRetryableError =
+        errorMessage.includes('ERR_CONNECTION_CLOSED') ||
+        errorMessage.includes('ERR_NETWORK_CHANGED') ||
+        errorMessage.includes('ERR_CONNECTION_RESET') ||
+        errorMessage.includes('ERR_TIMED_OUT') ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('net::ERR');
+
+      if (!isRetryableError || attempt === maxAttempts) {
+        console.error(`🚫 Page navigation failed after ${attempt} attempts for ${url}: ${errorMessage}`);
+        throw err;
+      }
+
+      // Exponential backoff: 1s, 2s, 4s
+      const backoff = 1000 * 2 ** (attempt - 1);
+      console.log(`⏳ Retrying page navigation in ${backoff}ms...`);
+      await new Promise((r) => setTimeout(r, backoff));
+    }
+  }
+}
+
+/**
  * Acquire a browser session through BrowserManagerDO, execute `operation`,
  * and ensure proper clean‑up & DO status updates with concise logging.
  */

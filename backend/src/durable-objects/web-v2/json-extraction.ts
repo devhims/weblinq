@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-import { runWithBrowser } from './browser-utils';
+import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
 import { markdownV2 } from './markdown';
 
 interface JsonExtractionParams {
@@ -107,7 +107,8 @@ export async function jsonExtractionV2(
         shouldAbort ? req.abort() : req.continue();
       });
 
-      await page.goto(params.url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      // Use retry helper for better resilience against network failures
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
 
       return page.evaluate(() => {
         const title = document.title || '';

@@ -2,7 +2,7 @@ import type { z } from 'zod';
 
 import type { linksInputSchema } from '@/routes/web/web.routes';
 
-import { runWithBrowser } from './browser-utils';
+import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
 
 // Reuse the request schema defined in web.routes.ts
 export type LinksParams = z.infer<typeof linksInputSchema>;
@@ -53,7 +53,9 @@ export async function linksV2(env: CloudflareBindings, params: LinksParams): Pro
         shouldAbort ? req.abort() : req.continue();
       });
 
-      await page.goto(params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+      // Use retry helper for better resilience against network failures
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+
       if (params.waitTime && params.waitTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, params.waitTime));
       }
