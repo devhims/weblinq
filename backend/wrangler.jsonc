@@ -25,10 +25,6 @@
   ],
   "durable_objects": {
     "bindings": [
-      {
-        "name": "TASK_DURABLE_OBJECT",
-        "class_name": "TaskDurableObject"
-      },
       { "name": "WEBLINQ_DURABLE_OBJECT", "class_name": "WebDurableObject" },
       { "name": "BROWSER_MANAGER_DO", "class_name": "BrowserManagerDO" },
       { "name": "BROWSER_DO", "class_name": "BrowserDO" }
@@ -36,16 +32,16 @@
   },
   "migrations": [
     {
-      "tag": "v1",
-      "new_sqlite_classes": ["TaskDurableObject"]
-    },
-    {
       "tag": "v2",
       "new_sqlite_classes": ["WebDurableObject"]
     },
     {
       "tag": "v3",
       "new_sqlite_classes": ["BrowserManagerDO", "BrowserDO"]
+    },
+    {
+      "tag": "v4",
+      "deleted_classes": ["TaskDurableObject"]
     }
   ],
   "observability": {

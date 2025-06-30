@@ -11,7 +11,6 @@
     "lint": "eslint .",
     "lint:fix": "pnpm run lint --fix",
     "test": "cross-env NODE_ENV=test vitest",
-    "test:tasks": "cross-env NODE_ENV=test TEST_API_KEY=${TEST_API_KEY} vitest src/routes/tasks/tasks.test.ts",
     "test:api-keys": "node test-api-key-tasks.js",
     "test:auth": "node simple-auth-test.js"
   },

@@ -18,7 +18,7 @@ export default function createAuthCors(c: Context<AppBindings>) {
     },
     // ✅ CRITICAL: Must be true for cross-domain cookies
     credentials: true,
-    // ✅ CRITICAL: Allow all necessary methods including PATCH for task updates
+    // ✅ CRITICAL: Allow all necessary methods for API operations
     allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     // ✅ CRITICAL: Allow basic headers needed for Better Auth + API keys
     allowHeaders: ['Content-Type', 'Authorization'],

@@ -18,47 +18,6 @@ export const user = sqliteTable('user', {
     .notNull(),
 });
 
-export const tasks = sqliteTable('tasks', {
-  id: integer('id', { mode: 'number' }).primaryKey({ autoIncrement: true }),
-  name: text('name').notNull(),
-  done: integer('done', { mode: 'boolean' }).notNull().default(false),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
-    .$defaultFn(() => new Date())
-    .$onUpdate(() => new Date()),
-});
-
-export const selectTasksSchema = z.object({
-  id: z.number().openapi({ example: 1 }),
-  name: z.string().openapi({ example: 'Learn Hono' }),
-  done: z.boolean().openapi({ example: false }),
-  userId: z.string().openapi({ example: 'user_123' }),
-  createdAt: z.string().nullable().openapi({ example: '2024-01-01T00:00:00.000Z' }),
-  updatedAt: z.string().nullable().openapi({ example: '2024-01-01T00:00:00.000Z' }),
-});
-
-// Schema for API responses (excludes userId for security)
-export const publicTaskSchema = z.object({
-  id: z.number().openapi({ example: 1 }),
-  name: z.string().openapi({ example: 'Learn Hono' }),
-  done: z.boolean().openapi({ example: false }),
-  createdAt: z.string().nullable().openapi({ example: '2024-01-01T00:00:00.000Z' }),
-  updatedAt: z.string().nullable().openapi({ example: '2024-01-01T00:00:00.000Z' }),
-});
-
-export const insertTasksSchema = z.object({
-  name: z.string().min(1).max(500).openapi({ example: 'Learn Hono' }),
-  done: z.boolean().optional().openapi({ example: false }),
-});
-
-export const patchTasksSchema = z.object({
-  name: z.string().min(1).max(500).optional().openapi({ example: 'Learn Hono' }),
-  done: z.boolean().optional().openapi({ example: true }),
-});
-
 export const session = sqliteTable('session', {
   id: text('id').primaryKey(),
   expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),

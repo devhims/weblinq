@@ -15,7 +15,7 @@ declare namespace Cloudflare {
     CLOUDFLARE_ACCESS_TOKEN: string;
     CLOUDFLARE_ACCOUNT_ID: string;
     VERCEL_ACCOUNT_DOMAIN: string;
-    TASK_DURABLE_OBJECT: DurableObjectNamespace<import('./src/app').TaskDurableObject>;
+
     WEBLINQ_DURABLE_OBJECT: DurableObjectNamespace<import('./src/app').WebDurableObject>;
     BROWSER_MANAGER_DO: DurableObjectNamespace<import('./src/app').BrowserManagerDO>;
     BROWSER_DO: DurableObjectNamespace<import('./src/app').BrowserDO>;
