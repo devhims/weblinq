@@ -44,8 +44,7 @@ export class BrowserDO extends DurableObject<CloudflareBindings> {
   /* ------------------------------------------------------------------------ */
   /*  Helpers                                                                 */
   /* ------------------------------------------------------------------------ */
-  private setNextAlarm = () =>
-    this.ctx.storage.setAlarm(Date.now() + HEALTH_CHECK_INTERVAL_MS);
+  private setNextAlarm = () => this.ctx.storage.setAlarm(Date.now() + HEALTH_CHECK_INTERVAL_MS);
 
   private async notifyManagerOfSessionId(sessionId: string) {
     const doId = this.doId ?? (await this.ctx.storage.get<string>('doId'));
@@ -53,7 +52,7 @@ export class BrowserDO extends DurableObject<CloudflareBindings> {
     const managerId = this.env.BROWSER_MANAGER_DO.idFromName('global');
     const manager = this.env.BROWSER_MANAGER_DO.get(managerId);
     await Promise.race([
-      manager.updateSessionId(doId, sessionId),
+      manager.updateBrowserDOs(doId, sessionId, 'idle'),
       new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 5000)),
     ]).catch((err) => console.log('BrowserDO: ⚠️ manager notify failed', err));
   }
@@ -121,8 +120,7 @@ export class BrowserDO extends DurableObject<CloudflareBindings> {
   /*  Blue‑green refresh + early cleanup                                      */
   /* ------------------------------------------------------------------------ */
   private async refreshBlueGreen() {
-    this.previousSessionId =
-      (await this.ctx.storage.get<string>('sessionId')) ?? null;
+    this.previousSessionId = (await this.ctx.storage.get<string>('sessionId')) ?? null;
     try {
       const newSid = await this.createNewBrowserWithRetry();
       await this.notifyManagerOfSessionId(newSid); // tell manager first
@@ -148,8 +146,7 @@ export class BrowserDO extends DurableObject<CloudflareBindings> {
 
     while (Date.now() - start < POLITE_CLEANUP_TIMEOUT_MS) {
       try {
-        const status: 'idle' | 'busy' | 'error' | 'unknown' =
-          await manager.getDoStatus(doId!);
+        const status: 'idle' | 'busy' | 'error' | 'unknown' = await manager.getDoStatus(doId!);
         console.log('BrowserDO Polite Cleanup: 🔍', status, doId);
         if (status === 'idle') break;
       } catch {

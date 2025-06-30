@@ -7,8 +7,6 @@ import type { AppRouteHandler } from '@/lib/types';
 // Route types – generated alongside schemas in web.routes.ts
 import type {
   ContentRoute,
-  DebugDeleteRoute,
-  DebugFilesRoute,
   JsonExtractionRoute,
   LinksRoute,
   MarkdownRoute,
@@ -438,80 +436,6 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     );
   } catch (error) {
     console.error('PDF error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
-    );
-  }
-};
-
-/**
- * Debug endpoint to list SQLite files and check status
- */
-export const debugFiles: AppRouteHandler<DebugFilesRoute> = async (c: any) => {
-  try {
-    const user = c.get('user')!;
-    const body = c.req.valid('json');
-
-    console.log('🔍 Debug files request:', { userId: user.id, params: body });
-
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
-
-    const result = await webDurableObject.debugListFiles(body);
-
-    console.log('📋 Debug result:', {
-      success: result.success,
-      sqliteEnabled: result.data.sqliteStatus.enabled,
-      sqliteAvailable: result.data.sqliteStatus.available,
-      filesCount: result.data.files.length,
-      totalFiles: result.data.totalFiles,
-    });
-
-    return c.json(result, HttpStatusCodes.OK);
-  } catch (error) {
-    console.error('Debug files error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
-    );
-  }
-};
-
-/**
- * Debug endpoint to delete a file from SQLite and optionally from R2
- */
-export const debugDelete: AppRouteHandler<DebugDeleteRoute> = async (c: any) => {
-  try {
-    const user = c.get('user')!;
-    const body = c.req.valid('json');
-
-    console.log('🗑️ Debug delete request:', { userId: user.id, fileId: body.fileId, deleteFromR2: body.deleteFromR2 });
-
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
-
-    const result = await webDurableObject.debugDeleteFile(body);
-
-    console.log('🗑️ Debug delete result:', {
-      success: result.success,
-      fileId: result.data.fileId,
-      wasFound: result.data.wasFound,
-      deletedFromDatabase: result.data.deletedFromDatabase,
-      deletedFromR2: result.data.deletedFromR2,
-      filename: result.data.deletedFile?.filename,
-      error: result.data.error,
-    });
-
-    return c.json(result, HttpStatusCodes.OK);
-  } catch (error) {
-    console.error('Debug delete error:', error);
     return c.json(
       {
         success: false,

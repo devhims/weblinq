@@ -280,70 +280,6 @@ const pdfOutputSchema = z.object({
   creditsCost: z.number(),
 });
 
-// Debug input schema
-const debugFilesInputSchema = z.object({
-  type: z.enum(['screenshot', 'pdf']).optional(),
-  limit: z.number().int().min(1).max(100).optional().default(20),
-  offset: z.number().int().min(0).optional().default(0),
-});
-
-// Debug output schema
-const debugFilesOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
-    sqliteStatus: z.object({
-      enabled: z.boolean(),
-      available: z.boolean(),
-      userId: z.string(),
-    }),
-    files: z.array(
-      z.object({
-        id: z.string(),
-        type: z.enum(['screenshot', 'pdf']),
-        url: z.string(),
-        filename: z.string(),
-        r2_key: z.string(),
-        public_url: z.string(),
-        metadata: z.string(),
-        created_at: z.string(),
-        expires_at: z.string().optional(),
-      }),
-    ),
-    totalFiles: z.number(),
-  }),
-});
-
-// Debug delete input schema
-const debugDeleteInputSchema = z.object({
-  fileId: z.string().min(1, 'File ID is required'),
-  deleteFromR2: z.boolean().optional().default(false).describe('Also delete the file from R2 storage'),
-});
-
-// Debug delete output schema
-const debugDeleteOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
-    fileId: z.string(),
-    wasFound: z.boolean(),
-    deletedFromDatabase: z.boolean(),
-    deletedFromR2: z.boolean(),
-    deletedFile: z
-      .object({
-        id: z.string(),
-        type: z.enum(['screenshot', 'pdf']),
-        url: z.string(),
-        filename: z.string(),
-        r2_key: z.string(),
-        public_url: z.string(),
-        metadata: z.string(),
-        created_at: z.string(),
-        expires_at: z.string().optional(),
-      })
-      .optional(),
-    error: z.string().optional(),
-  }),
-});
-
 // Route definitions
 export const screenshot = createRoute({
   path: '/web/screenshot',
@@ -508,46 +444,6 @@ export const pdf = createRoute({
   },
 });
 
-export const debugFiles = createRoute({
-  path: '/web/debug/files',
-  method: 'post',
-  request: {
-    body: jsonContentRequired(debugFilesInputSchema, 'Debug files query parameters'),
-  },
-  tags: ['Debug'],
-  responses: {
-    [HttpStatusCodes.OK]: jsonContent(debugFilesOutputSchema, 'Files listed successfully'),
-    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(debugFilesInputSchema), 'Validation error'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
-  },
-});
-
-export const debugDelete = createRoute({
-  path: '/web/debug/delete',
-  method: 'post',
-  request: {
-    body: jsonContentRequired(debugDeleteInputSchema, 'Debug delete file parameters'),
-  },
-  tags: ['Debug'],
-  responses: {
-    [HttpStatusCodes.OK]: jsonContent(debugDeleteOutputSchema, 'File deleted successfully'),
-    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(debugDeleteInputSchema), 'Validation error'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
-  },
-});
-
 // Export all route types for handlers
 export type ScreenshotRoute = typeof screenshot;
 export type MarkdownRoute = typeof markdown;
@@ -557,5 +453,3 @@ export type ScrapeRoute = typeof scrape;
 export type LinksRoute = typeof links;
 export type SearchRoute = typeof search;
 export type PdfRoute = typeof pdf;
-export type DebugFilesRoute = typeof debugFiles;
-export type DebugDeleteRoute = typeof debugDelete;

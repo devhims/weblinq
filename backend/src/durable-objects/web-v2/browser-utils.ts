@@ -317,7 +317,7 @@ export async function addHumanBehavior(page: Page) {
 export async function runWithBrowser<T>(
   env: CloudflareBindings,
   operation: (page: Page) => Promise<T>,
-  timeout = 30_000, // 15 seconds
+  timeout = 30_000, // 30 seconds
   ctx?: ExecutionContext, // optional – non‑blocking status updates when provided
 ): Promise<T> {
   /* -------------------------------------------------------------------------
@@ -376,7 +376,11 @@ export async function runWithBrowser<T>(
           }`,
         );
 
-        await updateDOStatusWithRetry(managerStub, browserDoId, 'error', 3, 'Connection test failed');
+        if (ctx) {
+          ctx.waitUntil(updateDOStatusWithRetry(managerStub, browserDoId, 'error', 3, 'Connection test failed'));
+        } else {
+          await updateDOStatusWithRetry(managerStub, browserDoId, 'error', 3, 'Connection test failed');
+        }
 
         if (attempt === maxAttempts) {
           console.error(`🚫 Exhausted all ${maxAttempts} attempts to acquire a healthy browser session`);

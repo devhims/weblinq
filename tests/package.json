@@ -1,0 +1,20 @@
+{
+  "name": "monitoring-tests",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+  },
+  "dependencies": {
+    "hono": "^4.7.10",
+    "@hono/zod-openapi": "^0.19.6",
+    "stoker": "^1.4.2",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "wrangler": "^4.16.1",
+    "@types/node": "^22.15.21",
+    "typescript": "^5.8.3",
+    "@cloudflare/workers-types": "^4.20250525.0"
+  }
+}
