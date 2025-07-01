@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Globe, Clock, Search } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Badge } from '@/components/ui/badge';
-import { SearchResult, SearchMetadata, SearchResponse } from '../types';
+import { SearchResponse } from '../types';
 
 interface SearchResultDisplayProps {
   result: SearchResponse;
@@ -27,13 +27,13 @@ export function SearchResultDisplay({ result }: SearchResultDisplayProps) {
   const getSourceInfo = (source: string) => {
     switch (source) {
       case 'duckduckgo':
-        return { icon: '🦆', color: 'bg-orange-100 text-orange-800 border-orange-200' };
+        return { color: 'bg-orange-100 text-orange-800 border-orange-200' };
       case 'startpage':
-        return { icon: '🔍', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+        return { color: 'bg-blue-100 text-blue-800 border-blue-200' };
       case 'bing':
-        return { icon: '🔵', color: 'bg-green-100 text-green-800 border-green-200' };
+        return { color: 'bg-green-100 text-green-800 border-green-200' };
       default:
-        return { icon: '🌐', color: 'bg-gray-100 text-gray-800 border-gray-200' };
+        return { color: 'bg-gray-100 text-gray-800 border-gray-200' };
     }
   };
 
@@ -81,7 +81,7 @@ export function SearchResultDisplay({ result }: SearchResultDisplayProps) {
                   className={`${sourceInfo.color} text-xs`}
                   title={engineDebug ? `${engineDebug.count} results in ${engineDebug.searchTime}ms` : undefined}
                 >
-                  <span className="mr-1">{sourceInfo.icon}</span>
+                  {/* <span className="mr-1">{sourceInfo.icon}</span> */}
                   {source}
                   {engineDebug && <span className="ml-1 opacity-75">({engineDebug.count})</span>}
                 </Badge>
@@ -124,7 +124,7 @@ export function SearchResultDisplay({ result }: SearchResultDisplayProps) {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {/* Score badge removed */}
                       <Badge variant="outline" className={`${sourceInfo.color} text-xs`}>
-                        <span className="mr-1">{sourceInfo.icon}</span>
+                        {/* <span className="mr-1">{sourceInfo.icon}</span> */}
                         {searchResult.source}
                       </Badge>
                     </div>

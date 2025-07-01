@@ -11,10 +11,11 @@ const app = createApp();
 
 configureOpenAPI(app);
 
+// API versioning - all routes are mounted under /v1
 const routes = [index, user, apiKeys, web, files, system] as const;
 
 routes.forEach((route) => {
-  app.route('/', route);
+  app.route('/v1', route);
 });
 
 export type AppType = (typeof routes)[number];

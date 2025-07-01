@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Globe, Settings, FileText, SlidersVerticalIcon, Zap } from 'lucide-react';
 import { UrlInput } from './UrlInput';
 import { EndpointSelector } from './EndpointSelector';
 import { EndpointActions } from './EndpointActions';
@@ -10,12 +12,14 @@ import { ApiResult } from '../types';
 import { useStudioParams } from '../hooks/useStudioParams';
 import { isVercelPreview, isPreviewAuthenticated } from '@/lib/utils';
 import PreviewAuthModal from '@/components/auth/PreviewAuthModal';
+import { API_ENDPOINTS } from '../endpoints';
+import { Badge } from '@/components/ui/badge';
 
 // This component is responsible for all client-side interactivity of the Studio
 // playground (API calls, loading state, result caching, etc.).
 export default function StudioClientContainer() {
   // Pull typed URL parameters via nuqs (see COMMUNICATION_ARCHITECTURE.md)
-  const { action: selectedAction } = useStudioParams();
+  const { action: selectedAction, endpoint } = useStudioParams();
 
   // Local UI state -----------------------------------------------------------
   const [error, setError] = useState<string | null>(null);
@@ -44,31 +48,57 @@ export default function StudioClientContainer() {
 
   return (
     <>
-      <div className="flex flex-col gap-5 w-full h-full min-h-[800px]">
-        {/* URL Input Component – handles API calls and returns data via callback */}
-        <div className="flex-shrink-0">
-          <UrlInput onApiResult={handleApiResult} onLoadingChange={setLoading} />
-        </div>
+      <div className="flex flex-col gap-6 w-full">
+        {/* URL Input Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              URL Input
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <UrlInput onApiResult={handleApiResult} onLoadingChange={setLoading} />
+          </CardContent>
+        </Card>
 
-        {/* Endpoint selector including action-specific parameter inputs */}
-        <div className="flex-shrink-0">
-          <EndpointSelector>
-            <EndpointActions />
-          </EndpointSelector>
-        </div>
+        {/* Endpoint Configuration Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <SlidersVerticalIcon className="h-5 w-5" />
+              Endpoint Configuration
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EndpointSelector>
+              <EndpointActions />
+            </EndpointSelector>
+          </CardContent>
+        </Card>
 
-        {/* Results ----------------------------------------------------------- */}
-        <div className="w-full flex flex-col min-h-0 flex-1">
-          <Label className="text-base font-medium">Result</Label>
-          <div className="w-full mt-2 flex-1 min-h-0">
+        {/* Results Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Result{' '}
+              {endpoint === 'structured' && (
+                <Badge variant="outline" className="text-primary bg-primary/10">
+                  <Zap className="h-5 w-5" /> AI Powered
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <ResultDisplay
               loading={loading}
               error={error}
               result={endpointResults[selectedAction] || null}
               selectedEndpoint={selectedAction}
             />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Preview Authentication Modal */}

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import {
   Clock,
   Camera,
@@ -177,6 +178,7 @@ export default function SettingsPageClient() {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [activeTab, setActiveTab] = useState('requests');
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -218,7 +220,7 @@ export default function SettingsPageClient() {
   };
 
   return (
-    <section className="flex-1 p-4 lg:p-8">
+    <section className="flex-1 p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <Settings2 className="h-6 w-6 text-muted-foreground" />
@@ -236,27 +238,54 @@ export default function SettingsPageClient() {
         )}
       </div>
 
-      <Tabs defaultValue="requests" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
-          <TabsTrigger value="requests" className="flex items-center gap-2">
+      {/* Mobile Tab Navigation */}
+      <div className="block sm:hidden mb-6">
+        <div className="grid grid-cols-2 gap-2 p-3 border border-border rounded-lg bg-muted/50">
+          {[
+            { id: 'requests', icon: Clock, label: 'Requests' },
+            { id: 'visual', icon: Camera, label: 'Visual' },
+            { id: 'content', icon: FileText, label: 'Content' },
+            { id: 'performance', icon: Zap, label: 'Performance' },
+            { id: 'notifications', icon: Bell, label: 'Alerts' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex items-center justify-center gap-2 text-center h-12 rounded-md transition-colors',
+                activeTab === tab.id
+                  ? 'bg-background shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+              )}
+            >
+              <tab.icon className="h-4 w-4 flex-shrink-0" />
+              <span className="text-sm font-medium">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-5 w-full">
+          <TabsTrigger value="requests" className="flex items-center justify-center gap-2">
             <Clock className="h-4 w-4" />
-            <span className="hidden sm:inline">Requests</span>
+            <span>Requests</span>
           </TabsTrigger>
-          <TabsTrigger value="visual" className="flex items-center gap-2">
+          <TabsTrigger value="visual" className="flex items-center justify-center gap-2">
             <Camera className="h-4 w-4" />
-            <span className="hidden sm:inline">Visual</span>
+            <span>Visual</span>
           </TabsTrigger>
-          <TabsTrigger value="content" className="flex items-center gap-2">
+          <TabsTrigger value="content" className="flex items-center justify-center gap-2">
             <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Content</span>
+            <span>Content</span>
           </TabsTrigger>
-          <TabsTrigger value="performance" className="flex items-center gap-2">
+          <TabsTrigger value="performance" className="flex items-center justify-center gap-2">
             <Zap className="h-4 w-4" />
-            <span className="hidden sm:inline">Performance</span>
+            <span>Performance</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
+          <TabsTrigger value="notifications" className="flex items-center justify-center gap-2">
             <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">Alerts</span>
+            <span>Alerts</span>
           </TabsTrigger>
         </TabsList>
 
@@ -270,7 +299,7 @@ export default function SettingsPageClient() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <Label className="text-sm font-medium">Default Wait Time</Label>
                   <div className="space-y-3">
@@ -331,7 +360,7 @@ export default function SettingsPageClient() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Image Format</Label>
                     <Select
@@ -406,7 +435,7 @@ export default function SettingsPageClient() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Viewport Width (px)</Label>
                     <Input
@@ -513,7 +542,7 @@ export default function SettingsPageClient() {
                   <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
                     Content Preferences
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="flex items-center space-x-2 p-3 border rounded-lg">
                       <Switch
                         checked={settings.defaultMarkdownMode}
@@ -644,7 +673,7 @@ export default function SettingsPageClient() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <Label className="text-sm font-medium">
                       Concurrent Requests
@@ -809,7 +838,7 @@ export default function SettingsPageClient() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="flex items-center space-x-2 p-4 border rounded-lg">
                     <Switch
                       checked={settings.rateLimitAlerts}
@@ -839,19 +868,23 @@ export default function SettingsPageClient() {
       </Tabs>
 
       {/* Save Button */}
-      <div className="flex items-center justify-between pt-6 border-t">
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground">
-            {lastSaved && 'Preferences saved locally and will apply in Studio'}
+      <div className="pt-6 border-t space-y-4">
+        {lastSaved && (
+          <div className="text-sm text-muted-foreground text-center sm:text-left">
+            Preferences saved locally and will apply in Studio
           </div>
-          <Button variant="outline" onClick={handleReset} className="text-sm h-9">
+        )}
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <Button variant="outline" onClick={handleReset} className="text-sm h-10 order-2 sm:order-1">
             <RotateCcw className="mr-2 h-4 w-4" />
             Reset to Defaults
           </Button>
+
+          <Button onClick={handleSave} disabled={isLoading} className="h-10 order-1 sm:order-2">
+            {isLoading ? 'Saving...' : 'Save Preferences'}
+          </Button>
         </div>
-        <Button onClick={handleSave} disabled={isLoading} className="h-9">
-          {isLoading ? 'Saving...' : 'Save Preferences'}
-        </Button>
       </div>
     </section>
   );

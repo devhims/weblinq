@@ -44,12 +44,12 @@ export function FeaturesSection() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-6xl mx-auto">
           {/* Web Scraping */}
-          <div className="group relative bg-muted/50 backdrop-blur-sm rounded-2xl md:rounded-3xl border border-border/50 p-4 sm:p-6 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 flex flex-col min-h-[400px] md:min-h-[480px]">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/3 rounded-2xl md:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="group relative bg-muted/50 backdrop-blur-sm rounded-xl border border-border/50 p-4 sm:p-6 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 flex flex-col min-h-[400px] md:min-h-[480px]">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-6 relative">
               <div className="flex items-center space-x-3 sm:space-x-4 mb-3 sm:mb-0">
-                <div className="p-2 sm:p-3 bg-primary rounded-xl shadow-lg">
+                <div className="p-2 sm:p-3 bg-primary rounded-lg shadow-lg">
                   <Code className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
                 </div>
                 <div>
@@ -120,7 +120,7 @@ export function FeaturesSection() {
               ].map((preset) => (
                 <div
                   key={preset.label}
-                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-xl bg-card/70 border border-border/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-lg bg-card/70 border border-border/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
                 >
                   <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg border border-primary/20">
                     <preset.icon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
@@ -134,12 +134,12 @@ export function FeaturesSection() {
           </div>
 
           {/* Visual Capture */}
-          <div className="group relative bg-muted/50 backdrop-blur-sm rounded-2xl md:rounded-3xl border border-border/50 p-4 sm:p-6 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 flex flex-col min-h-[400px] md:min-h-[480px]">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/3 rounded-2xl md:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="group relative bg-muted/50 backdrop-blur-sm rounded-xl border border-border/50 p-4 sm:p-6 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 flex flex-col min-h-[400px] md:min-h-[480px]">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-6 relative">
               <div className="flex items-center space-x-3 sm:space-x-4 mb-3 sm:mb-0">
-                <div className="p-2 sm:p-3 bg-primary rounded-xl shadow-lg">
+                <div className="p-2 sm:p-3 bg-primary rounded-lg shadow-lg">
                   <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
                 </div>
                 <div>
@@ -171,7 +171,7 @@ export function FeaturesSection() {
                 </div>
               </div>
               <div className="p-4 sm:p-6 text-center bg-gradient-to-br from-card to-primary/5 flex flex-col justify-center flex-grow">
-                <div className="p-3 sm:p-4 bg-primary rounded-2xl inline-block mb-3 sm:mb-4 shadow-lg mx-auto">
+                <div className="p-3 sm:p-4 bg-primary rounded-lg inline-block mb-3 sm:mb-4 shadow-lg mx-auto">
                   <Camera className="h-8 w-8 sm:h-12 sm:w-12 text-primary-foreground" />
                 </div>
                 <div className="text-base sm:text-lg font-bold text-foreground">1920×1080 Screenshot</div>
@@ -196,7 +196,7 @@ export function FeaturesSection() {
               ].map((format) => (
                 <div
                   key={format.label}
-                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-xl bg-card/70 border border-border/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 p-2 sm:p-3 rounded-lg bg-card/70 border border-border/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
                 >
                   <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg border border-primary/20">
                     <format.icon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
@@ -210,12 +210,12 @@ export function FeaturesSection() {
           </div>
 
           {/* Structured Data */}
-          <div className="group relative bg-muted/50 backdrop-blur-sm rounded-2xl md:rounded-3xl border border-border/50 p-4 sm:p-6 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 flex flex-col min-h-[400px] md:min-h-[480px]">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/3 rounded-2xl md:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="group relative bg-muted/50 backdrop-blur-sm rounded-xl border border-border/50 p-4 sm:p-6 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 flex flex-col min-h-[400px] md:min-h-[480px]">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-6 relative">
               <div className="flex items-center space-x-3 sm:space-x-4 mb-3 sm:mb-0">
-                <div className="p-2 sm:p-3 bg-primary rounded-xl shadow-lg">
+                <div className="p-2 sm:p-3 bg-primary rounded-lg shadow-lg">
                   <FileJson className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
                 </div>
                 <div>
@@ -264,15 +264,15 @@ export function FeaturesSection() {
             </div>
 
             <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center mt-auto">
-              <div className="p-3 sm:p-4 bg-card/70 rounded-xl border border-border/50">
+              <div className="p-3 sm:p-4 bg-card/70 rounded-lg border border-border/50">
                 <div className="text-lg sm:text-2xl font-bold text-primary mb-1">15ms</div>
                 <div className="text-xs text-muted-foreground">Processing</div>
               </div>
-              <div className="p-3 sm:p-4 bg-card/70 rounded-xl border border-border/50">
+              <div className="p-3 sm:p-4 bg-card/70 rounded-lg border border-border/50">
                 <div className="text-lg sm:text-2xl font-bold text-primary mb-1">99.8%</div>
                 <div className="text-xs text-muted-foreground">Accuracy</div>
               </div>
-              <div className="p-3 sm:p-4 bg-card/70 rounded-xl border border-border/50">
+              <div className="p-3 sm:p-4 bg-card/70 rounded-lg border border-border/50">
                 <div className="text-lg sm:text-2xl font-bold text-primary mb-1">50+</div>
                 <div className="text-xs text-muted-foreground">Fields</div>
               </div>
@@ -280,12 +280,12 @@ export function FeaturesSection() {
           </div>
 
           {/* Web Search */}
-          <div className="group relative bg-muted/50 backdrop-blur-sm rounded-2xl md:rounded-3xl border border-border/50 p-4 sm:p-6 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 flex flex-col min-h-[400px] md:min-h-[480px]">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/3 rounded-2xl md:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="group relative bg-muted/50 backdrop-blur-sm rounded-xl border border-border/50 p-4 sm:p-6 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1 flex flex-col min-h-[400px] md:min-h-[480px]">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 sm:mb-6 relative">
               <div className="flex items-center space-x-3 sm:space-x-4 mb-3 sm:mb-0">
-                <div className="p-2 sm:p-3 bg-primary rounded-xl shadow-lg">
+                <div className="p-2 sm:p-3 bg-primary rounded-lg shadow-lg">
                   <Search className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
                 </div>
                 <div>
@@ -348,7 +348,7 @@ export function FeaturesSection() {
               ].map((engine) => (
                 <div
                   key={engine.name}
-                  className="flex items-center justify-between p-2 sm:p-3 rounded-xl border border-border/50 bg-card/70 hover:shadow-lg transition-all duration-300"
+                  className="flex items-center justify-between p-2 sm:p-3 rounded-lg border border-border/50 bg-card/70 hover:shadow-lg transition-all duration-300"
                 >
                   <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
                     <div className={`h-2 w-2 sm:h-3 sm:w-3 rounded-full ${engine.color} flex-shrink-0`} />

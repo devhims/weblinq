@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Key, Settings, CreditCard, Activity, Menu, Code, X } from 'lucide-react';
+import { Key, Settings, CreditCard, Activity, Menu, Code, X, Settings2, Monitor } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { SidebarFooter } from './SidebarFooter';
 
@@ -17,11 +17,11 @@ export function DashboardLayoutClient({ children }: DashboardLayoutClientProps) 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navItems = [
-    { href: '/dashboard/studio', icon: Code, label: 'Studio' },
+    { href: '/dashboard/studio', icon: Monitor, label: 'Studio' },
     { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
     { href: '/dashboard/api-keys', icon: Key, label: 'API Keys' },
     { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
-    { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
+    { href: '/dashboard/settings', icon: Settings2, label: 'Settings' },
   ];
 
   return (
@@ -104,7 +104,7 @@ export function DashboardLayoutClient({ children }: DashboardLayoutClientProps) 
                   }`}
                   onClick={() => setIsSidebarOpen(false)}
                 >
-                  <item.icon className="h-5 w-5 mr-3" />
+                  <item.icon className="h-5 w-5 mr-2" />
                   {item.label}
                 </Button>
               </Link>
