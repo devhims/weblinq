@@ -164,17 +164,17 @@ async function clientApiRequest<T>(endpoint: string, options: RequestInit = {}):
 }
 
 // Server-side API functions (used by server components)
-export const listApiKeys = (): Promise<ApiKeysListResponse> => serverApiRequest('/api-keys/list');
+export const listApiKeys = (): Promise<ApiKeysListResponse> => serverApiRequest('/v1/api-keys/list');
 
 // Client-side API functions (used by client components for mutations)
 export const createApiKey = (data: CreateApiKeyRequest): Promise<ApiKeyWithKey> =>
-  clientApiRequest('/api-keys/create', {
+  clientApiRequest('/v1/api-keys/create', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
 export const deleteApiKey = (id: string): Promise<DeleteApiKeyResponse> =>
-  clientApiRequest(`/api-keys/${id}`, { method: 'DELETE' });
+  clientApiRequest(`/v1/api-keys/${id}`, { method: 'DELETE' });
 
 // Client-side version of listApiKeys for React Query
-export const listApiKeysClient = (): Promise<ApiKeysListResponse> => clientApiRequest('/api-keys/list');
+export const listApiKeysClient = (): Promise<ApiKeysListResponse> => clientApiRequest('/v1/api-keys/list');

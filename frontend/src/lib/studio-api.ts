@@ -399,7 +399,7 @@ export const studioApi = {
   screenshot: (data: ScreenshotRequest): Promise<ScreenshotResponse> => {
     const format = data.format || data.screenshotOptions?.type || 'png';
     return apiBinaryRequest(
-      '/web/screenshot',
+      '/v1/web/screenshot',
       {
         method: 'POST',
         headers: {
@@ -413,42 +413,42 @@ export const studioApi = {
 
   // Extract markdown
   markdown: (data: MarkdownRequest): Promise<MarkdownResponse> =>
-    apiRequest('/web/markdown', {
+    apiRequest('/v1/web/markdown', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   // Extract structured JSON
   jsonExtraction: (data: JsonExtractionRequest): Promise<JsonExtractionResponse> =>
-    apiRequest('/web/extract-json', {
+    apiRequest('/v1/web/extract-json', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   // Get HTML content
   content: (data: ContentRequest): Promise<ContentResponse> =>
-    apiRequest('/web/content', {
+    apiRequest('/v1/web/content', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   // Scrape elements
   scrape: (data: ScrapeRequest): Promise<ScrapeResponse> =>
-    apiRequest('/web/scrape', {
+    apiRequest('/v1/web/scrape', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   // Get links
   links: (data: LinksRequest): Promise<LinksResponse> =>
-    apiRequest('/web/links', {
+    apiRequest('/v1/web/links', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   // Search web
   search: (data: SearchRequest): Promise<SearchResponse> =>
-    apiRequest('/web/search', {
+    apiRequest('/v1/web/search', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -456,7 +456,7 @@ export const studioApi = {
   // Generate PDF (Binary response by default for optimal performance)
   pdf: (data: PdfRequest): Promise<PdfResponse> =>
     apiBinaryRequest(
-      '/web/pdf',
+      '/v1/web/pdf',
       {
         method: 'POST',
         headers: {

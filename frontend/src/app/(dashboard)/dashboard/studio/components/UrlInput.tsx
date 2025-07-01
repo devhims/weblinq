@@ -319,7 +319,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   ——————————————————————————————————————————— */
   if (endpoint === 'search') {
     return (
-      <div className="space-y-4">
+      <div className="space-y-2">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2 space-y-2">
             <Label htmlFor="search-query" className="text-sm sm:text-base font-medium">
@@ -373,9 +373,6 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="url-input" className="text-sm sm:text-base font-medium">
-        URL
-      </Label>
       <div className="flex space-x-2">
         <Input
           id="url-input"

@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Code, Check } from 'lucide-react';
+import { ArrowRight, Code, Check, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 import { TextEffect } from '@/components/ui/text-effect';
@@ -10,6 +10,7 @@ import { Logo } from '@/components/logo';
 import { BorderBeam } from '@/components/magicui/border-beam';
 import { FAQSection } from '@/components/faq-section';
 import { FeaturesSection } from '@/components/features-section';
+import { ScrollToFeaturesButton } from '@/components/scroll-to-features-button';
 
 const transitionVariants = {
   item: {
@@ -115,7 +116,7 @@ export default async function HomePage() {
                   preset="fade-in-blur"
                   speedSegment={0.3}
                   as="h1"
-                  className="mt-8 font-medium text-balance text-5xl md:text-6xl lg:mt-16 xl:text-7xl"
+                  className="mt-8 font-medium text-balance text-4xl md:text-6xl lg:mt-16 xl:text-7xl"
                 >
                   Linking AI agents to the web
                 </TextEffect>
@@ -126,7 +127,7 @@ export default async function HomePage() {
                   speedSegment={0.3}
                   delay={0.5}
                   as="p"
-                  className="mx-auto mt-8 max-w-4xl text-balance text-lg"
+                  className="mx-auto mt-8 max-w-4xl text-balance text-sm md:text-lg"
                 >
                   Extract web data, capture screenshots, and search the internet with our web scraping and data
                   extraction platform.
@@ -154,11 +155,7 @@ export default async function HomePage() {
                       </Link>
                     </Button>
                   </div>
-                  <Button asChild size="lg" variant="ghost" className="h-10.5 rounded-xl px-5">
-                    <Link href="#features">
-                      <span className="text-nowrap">View API Features</span>
-                    </Link>
-                  </Button>
+                  <ScrollToFeaturesButton />
                 </AnimatedGroup>
               </div>
             </div>
@@ -176,46 +173,57 @@ export default async function HomePage() {
                 ...transitionVariants,
               }}
             >
-              <div className="relative -mr-56 mt-8 overflow-hidden px-2 sm:mr-0 sm:mt-12 md:mt-20">
+              <div className="relative -mr-56 mt-8 overflow-hidden px-2 sm:mr-0 sm:mt-12 md:mt-15">
                 <div
                   aria-hidden
                   className="bg-linear-to-b to-background absolute inset-0 z-10 from-transparent from-35%"
                 />
                 <div className="inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background relative mx-auto max-w-6xl overflow-hidden rounded-2xl border p-4 shadow-lg shadow-zinc-950/15 ring-1">
                   {/* API Demo */}
-                  <div className="bg-background rounded-2xl p-8">
+                  <div className="bg-background rounded-xl p-4">
                     <div className="flex items-center space-x-2 mb-6">
                       <div className="flex space-x-2">
                         <div className="w-3 h-3 bg-red-500 rounded-full" />
                         <div className="w-3 h-3 bg-yellow-500 rounded-full" />
                         <div className="w-3 h-3 bg-green-500 rounded-full" />
                       </div>
-                      <span className="text-muted-foreground text-sm ml-4">api.weblinq.dev</span>
                     </div>
-                    <div className="bg-black rounded-lg p-6 text-left border border-border">
+                    <div className="bg-gradient-to-br from-gray-900 to-black rounded-lg p-6 text-left border border-gray-800 shadow-2xl">
                       <div className="text-green-400 font-mono text-sm">
                         <div className="text-gray-500 mb-2">{`// Scrape any website`}</div>
                         <div>
                           <span className="text-blue-400">POST</span>{' '}
-                          <span className="text-gray-300">https://api.weblinq.dev/v1/</span>
-                          <span className="text-yellow-400">scrape</span>
+                          <span className="text-gray-300">https://api.weblinq.dev/v1/web/</span>
+                          <span className="text-yellow-400">markdown</span>{' '}
                         </div>
-                        <div className="mt-2 ml-4">
+
+                        <div className="mt-3 ml-0">
                           <span className="text-gray-300">{'{'}</span>
                         </div>
-                        <div className="ml-8">
+                        <div className="ml-4">
                           <span className="text-blue-400">&quot;url&quot;</span>
                           <span className="text-gray-300">: </span>
                           <span className="text-green-400">&quot;https://example.com&quot;</span>
-                          <span className="text-gray-300">,</span>
                         </div>
-                        <div className="ml-8">
-                          <span className="text-blue-400">&quot;format&quot;</span>
-                          <span className="text-gray-300">: </span>
-                          <span className="text-green-400">&quot;markdown&quot;</span>
+
+                        <div className="ml-0 text-gray-300">{'}'}</div>
+
+                        <div className="mt-6 border-t border-gray-700 pt-4">
+                          <div className="text-orange-400 flex items-center gap-2 mb-3">
+                            <CheckCheck className="h-3 w-3" /> Response
+                          </div>
+                          <div className="text-gray-300 leading-relaxed">
+                            <div className="text-purple-400"># Example Domain</div>
+                            <div className="mt-2">
+                              This domain is for use in illustrative examples in documents. You may use this domain in
+                              literature without prior coordination or asking for permission.
+                            </div>
+                            <div className="mt-2">
+                              <span className="text-blue-400">[More information...]</span>
+                              <span className="text-gray-500">(https://www.iana.org/domains/example)</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="ml-4 text-gray-300">{'}'}</div>
-                        <div className="mt-4 text-orange-400">✓ Content extracted successfully</div>
                       </div>
                     </div>
                   </div>

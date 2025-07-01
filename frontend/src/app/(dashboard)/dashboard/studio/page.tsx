@@ -1,8 +1,8 @@
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Suspense } from 'react';
+import { Monitor } from 'lucide-react';
 import { ApiReference } from './components/ApiReference';
 import StudioClientContainer from './components/StudioClientContainer';
 
@@ -17,23 +17,24 @@ export default async function StudioPage() {
   }
 
   return (
-    <section className="flex-1 p-2 lg:p-4">
-      {/* <h1 className="text-lg lg:text-2xl font-medium mb-4">Studio</h1> */}
+    <section className="flex-1 p-4 lg:p-8">
+      {/* Page Header */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <Monitor className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-lg lg:text-2xl font-medium">Studio</h1>
+        </div>
+        <p className="text-muted-foreground">
+          Experiment with web scraping and data extraction in an interactive interface.
+        </p>
+      </div>
 
-      <Card className="mb-6 w-full overflow-hidden">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-2xl">Studio</CardTitle>
-          <CardDescription className="text-base">
-            Experiment with web scraping and data extraction in an interactive interface.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="w-full overflow-hidden">
-          {/* All client-side interaction is encapsulated in this component */}
-          <Suspense fallback={<div className="w-full text-center py-8">Loading...</div>}>
-            <StudioClientContainer />
-          </Suspense>
-        </CardContent>
-      </Card>
+      {/* All client-side interaction is encapsulated in this component */}
+      <div className="mb-6">
+        <Suspense fallback={<div className="w-full text-center py-8">Loading...</div>}>
+          <StudioClientContainer />
+        </Suspense>
+      </div>
 
       {/* API Reference Component */}
       <ApiReference />
