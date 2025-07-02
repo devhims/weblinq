@@ -21,8 +21,8 @@ routes.forEach((route) => {
 export type AppType = (typeof routes)[number];
 
 // Export the Durable Object classes for Cloudflare Workers runtime
-export { BrowserDO } from '@/browser/browser-do';
-export { BrowserManagerDO } from '@/browser/browser-manager-do';
-export { WebDurableObject } from '@/durable-objects/web-durable-object';
+export { BrowserDO } from '@/durable-objects/browser/browser-do';
+export { BrowserManagerDO } from '@/durable-objects/browser/browser-manager-do';
+export { WebDurableObject } from '@/durable-objects/user-do';
 
 export default app;

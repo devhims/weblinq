@@ -1,19 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { TextEffect } from '@/components/ui/text-effect';
-import {
-  Code,
-  Camera,
-  FileJson,
-  Search,
-  ChevronDown,
-  Type,
-  FileText,
-  Sparkles,
-  Clock,
-  Target,
-  Zap,
-} from 'lucide-react';
+import { Code, Camera, FileJson, Search, ChevronDown, Type, FileText, Sparkles, Clock, Target } from 'lucide-react';
 
 export function FeaturesSection() {
   return (

@@ -28,6 +28,8 @@ const cleanupDoInputSchema = z.object({
 
 const deleteAllBrowsersInputSchema = z.object({});
 
+const checkRemainingInputSchema = z.object({});
+
 /**
  * Output schemas for system operations
  */
@@ -120,6 +122,17 @@ const deleteAllBrowsersOutputSchema = z.object({
       }),
     ),
     storageCleared: z.boolean(),
+  }),
+  creditsCost: z.number(),
+});
+
+const checkRemainingOutputSchema = z.object({
+  success: z.boolean(),
+  data: z.object({
+    activeSessions: z.number(),
+    maxConcurrentSessions: z.number(),
+    allowedBrowserAcquisitions: z.number(),
+    timeUntilNextAllowedBrowserAcquisition: z.number(),
   }),
   creditsCost: z.number(),
 });
@@ -259,9 +272,37 @@ export const deleteAllBrowsers = createRoute({
   },
 });
 
+export const checkRemaining = createRoute({
+  path: '/system/check-remaining',
+  method: 'post',
+  tags,
+  security,
+  summary: 'Check browser API limits',
+  description: 'Check remaining Cloudflare Browser API limits and quotas',
+  request: {
+    body: jsonContentRequired(checkRemainingInputSchema, 'Check remaining API limits parameters'),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(checkRemainingOutputSchema, 'Browser API limits retrieved successfully'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(checkRemainingInputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      z.object({
+        success: z.literal(false),
+        error: z.string(),
+      }),
+      'Internal server error',
+    ),
+  },
+});
+
 // Export route types for handlers
 export type BrowserStatusRoute = typeof browserStatus;
 export type SessionHealthRoute = typeof sessionHealth;
 export type CreateBrowsersRoute = typeof createBrowsers;
 export type CleanupDoRoute = typeof cleanupDo;
 export type DeleteAllBrowsersRoute = typeof deleteAllBrowsers;
+export type CheckRemainingRoute = typeof checkRemaining;

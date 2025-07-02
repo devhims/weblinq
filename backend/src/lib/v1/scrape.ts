@@ -58,12 +58,12 @@ export type ScrapeResult = ScrapeSuccess | ScrapeFailure;
 const CREDIT_COST = 1;
 
 /**
- * Browser-powered element scraping (v2)
+ * Browser-powered element scraping (v1)
  * – Loads the target page in a hardened headless Chromium session via BrowserManagerDO
  * – For each selector provided, captures HTML, text, bounding box, and requested attributes
  * – Returns a structure optimised for the current frontend <ResultDisplay/>
  */
-export async function scrapeV2(env: CloudflareBindings, params: ScrapeParams): Promise<ScrapeResult> {
+export async function scrapeV1(env: CloudflareBindings, params: ScrapeParams): Promise<ScrapeResult> {
   try {
     const elements: ScrapedElement[] = await runWithBrowser(env, async (page: any) => {
       /* 1️⃣  Configure page */
@@ -159,7 +159,7 @@ export async function scrapeV2(env: CloudflareBindings, params: ScrapeParams): P
       creditsCost: CREDIT_COST,
     };
   } catch (err) {
-    console.error('scrapeV2 error', err);
+    console.error('scrapeV1 error', err);
     return {
       success: false,
       error: { message: String(err) },

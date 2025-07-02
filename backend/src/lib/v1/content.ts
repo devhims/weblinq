@@ -34,12 +34,12 @@ export type ContentResult = ContentSuccess | ContentFailure;
 const CREDIT_COST = 1;
 
 /**
- * Browser-based HTML extraction (v2)
+ * Browser-based HTML extraction (v1)
  * – Loads the page in a headless browser via BrowserManagerDO
  * – Optionally waits for `params.waitTime` ms after networkidle2
  * – Returns **sanitised** HTML (scripts removed) plus minimal metadata
  */
-export async function contentV2(env: CloudflareBindings, params: ContentParams): Promise<ContentResult> {
+export async function contentV1(env: CloudflareBindings, params: ContentParams): Promise<ContentResult> {
   try {
     /* 1️⃣  Render page HTML */
     const html = await runWithBrowser(env, async (page: any) => {
@@ -82,7 +82,7 @@ export async function contentV2(env: CloudflareBindings, params: ContentParams):
       creditsCost: CREDIT_COST,
     };
   } catch (err) {
-    console.error('contentV2 error', err);
+    console.error('contentV1 error', err);
     return {
       success: false,
       error: { message: String(err) },

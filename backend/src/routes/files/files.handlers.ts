@@ -1,6 +1,6 @@
 import * as HttpStatusCodes from 'stoker/http-status-codes';
 
-import type { WebDurableObject } from '@/durable-objects/web-durable-object';
+import type { WebDurableObject } from '@/durable-objects/user-do';
 import type { AppRouteHandler } from '@/lib/types';
 
 import type { DeleteFileRoute, ListFilesRoute } from './files.routes';

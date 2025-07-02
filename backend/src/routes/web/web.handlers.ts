@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import * as HttpStatusCodes from 'stoker/http-status-codes';
 
-import type { WebDurableObject } from '@/durable-objects/web-durable-object';
+import type { WebDurableObject } from '@/durable-objects/user-do';
 import type { AppRouteHandler } from '@/lib/types';
 
 // Route types – generated alongside schemas in web.routes.ts
@@ -59,14 +59,14 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    console.log('🚀 Calling Durable Object screenshotV2 method...');
+    console.log('🚀 Calling Durable Object screenshotV1 method...');
 
-    // Always request binary data from screenshotV2 for R2 storage
+    // Always request binary data from screenshotV1 for R2 storage
     const screenshotParams = {
       ...body,
       base64: false, // Always get binary for R2 storage
     };
-    const result = await webDurableObject.screenshotV2(screenshotParams);
+    const result = await webDurableObject.screenshotV1(screenshotParams);
 
     if (!result.success) {
       console.error('📤 Screenshot failed:', result.error);
@@ -175,7 +175,7 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
     await webDurableObject.initializeUser(user.id);
 
     // const result = await webDurableObject.extractMarkdown(body);
-    const result = await webDurableObject.markdownV2(body);
+    const result = await webDurableObject.markdownV1(body);
 
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
@@ -209,8 +209,8 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    // Use the new AI-powered v2 implementation
-    const result = await webDurableObject.jsonExtractionV2(body);
+    // Use the new AI-powered v1 implementation
+    const result = await webDurableObject.jsonExtractionV1(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('JSON extraction error:', error);
@@ -235,7 +235,7 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.contentV2(body);
+    const result = await webDurableObject.contentV1(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Content error:', error);
@@ -261,7 +261,7 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
     await webDurableObject.initializeUser(user.id);
 
     // const result = await webDurableObject.scrapeElements(body);
-    const result = await webDurableObject.scrapeV2(body);
+    const result = await webDurableObject.scrapeV1(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Scrape error:', error);
@@ -286,7 +286,7 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.linksV2(body);
+    const result = await webDurableObject.linksV1(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Links error:', error);
@@ -313,7 +313,7 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
     await webDurableObject.initializeUser(user.id);
 
     // const result = await webDurableObject.search(body, clientIp);
-    const result = await webDurableObject.searchV2(body);
+    const result = await webDurableObject.searchV1(body);
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Search error:', error);
@@ -339,17 +339,17 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     const acceptHeader = c.req.header('Accept');
     const prefersBinary = acceptHeader?.includes('application/pdf') || body.base64 === false;
 
-    console.log('🚀 Calling Durable Object pdfV2 method...');
+    console.log('🚀 Calling Durable Object pdfV1 method...');
 
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    // Always request binary data from pdfV2 for R2 storage
+    // Always request binary data from pdfV1 for R2 storage
     const pdfParams = {
       ...body,
       base64: false, // Always get binary for R2 storage
     };
-    const result = await webDurableObject.pdfV2(pdfParams);
+    const result = await webDurableObject.pdfV1(pdfParams);
 
     if (!result.success) {
       console.error('📤 PDF generation failed:', result.error);
