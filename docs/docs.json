@@ -1,0 +1,131 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Weblinq API",
+  "colors": {
+    "primary": "#2563EB",
+    "light": "#3B82F6",
+    "dark": "#1D4ED8"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Getting Started",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": ["index", "quickstart", "authentication"]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "examples",
+              {
+                "group": "Use Cases",
+                "pages": ["guides/e-commerce", "guides/news-extraction", "guides/social-media"]
+              },
+              {
+                "group": "Best Practices",
+                "pages": ["guides/security", "guides/rate-limiting", "guides/error-handling", "guides/performance"]
+              }
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development",
+              {
+                "group": "SDKs & Libraries",
+                "pages": ["sdks/node", "sdks/python", "sdks/php"]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/overview",
+              "api-reference/errors",
+              "api-reference/authentication",
+              "api-reference/rate-limits"
+            ]
+          }
+        ],
+        "openapi": {
+          "source": "https://api.weblinq.dev/doc",
+          "directory": "api-reference"
+        }
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Support",
+            "pages": ["support/faq", "support/troubleshooting", "support/contact"]
+          },
+          {
+            "group": "Legal",
+            "pages": ["legal/terms", "legal/privacy", "legal/acceptable-use"]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/devhims/weblinq",
+          "icon": "github"
+        },
+        {
+          "anchor": "Support",
+          "href": "mailto:support@weblinq.dev",
+          "icon": "envelope"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/logo.png",
+    "dark": "/logo/logo.png"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Dashboard",
+        "href": "https://weblinq.dev/dashboard"
+      },
+      {
+        "label": "Status",
+        "href": "https://status.weblinq.dev"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get API Key",
+      "href": "https://weblinq.dev/dashboard/api-keys"
+    }
+  },
+  "feedback": {
+    "suggestEdit": true,
+    "raiseIssue": true
+  },
+  "search": {
+    "prompt": "Search the docs..."
+  },
+  "topAnchor": {
+    "name": "Documentation",
+    "icon": "book-open"
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/devhims",
+      "twitter": "https://x.com/devhims"
+    }
+  }
+}

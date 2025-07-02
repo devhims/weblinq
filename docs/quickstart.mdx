@@ -1,0 +1,174 @@
+---
+title: 'Quickstart Guide'
+description: 'Get started with the WebLinq API in under 5 minutes'
+---
+
+# Quickstart Guide
+
+Follow this guide to make your first API request and start extracting web content in minutes.
+
+<Steps>
+<Step title="Get your API key">
+  1. Sign up for a [WebLinq account](https://weblinq.dev/signup)
+  2. Go to the [API Keys](https://weblinq.dev/dashboard/api-keys) section in your dashboard
+  3. Click "Create API Key" to generate your API key
+  
+  <Warning>
+  Copy and save your API key securely - it won't be shown again!
+  </Warning>
+</Step>
+
+<Step title="Make your first request">
+  Let's start by extracting the content from a webpage. Choose your preferred language:
+
+  <CodeGroup>
+  ```bash cURL
+  curl -X POST "https://api.weblinq.dev/v1/web/markdown" \
+    -H "Authorization: Bearer YOUR_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "url": "https://example.com"
+    }'
+  ```
+
+```javascript Node.js
+const response = await fetch('https://api.weblinq.dev/v1/web/markdown', {
+  method: 'POST',
+  headers: {
+    Authorization: 'Bearer YOUR_API_KEY',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    url: 'https://example.com',
+  }),
+});
+
+const markdownResponse = await response.json();
+console.log(markdownResponse.data.markdown);
+console.log(markdownResponse.data.metadata);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.weblinq.dev/v1/web/markdown',
+    headers={
+        'Authorization': 'Bearer YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'url': 'https://example.com',
+    }
+)
+
+markdownResponse = response.json()
+print(markdownResponse['data']['markdown'])
+print(markdownResponse['data']['metadata'])
+```
+
+  </CodeGroup>
+
+    <Note>
+    The `url` parameter in the request body is required.
+    </Note>
+
+</Step>
+
+<Step title="Handle the response">
+  You'll receive a JSON response with the extracted content:
+
+```json
+{
+  "success": true,
+  "data": {
+    "markdown": "# Example Domain\n\nThis domain is for use in illustrative examples...",
+    "metadata": {
+      "title": "Example Domain",
+      "description": "This domain is for use in illustrative examples...",
+      "url": "https://example.com",
+      "timestamp": "2024-06-01T12:00:00Z",
+      "wordCount": 42
+    }
+  },
+  "creditsCost": 1
+}
+```
+
+  <Tip>
+  Use the `markdown` field for the extracted content. Metadata provides additional information about the page.
+  </Tip>
+</Step>
+
+<Step title="Try other endpoints">
+  Now that you've made your first request, try these popular endpoints:
+
+  <CardGroup cols={2}>
+    <Card title="Take Screenshot" icon="camera" href="/api-reference/web/take-a-screenshot-of-a-web-page">
+    Capture pixel-perfect screenshots
+  </Card>
+   <Card title="Web Search" icon="globe" href="/api-reference/web/search-the-web">
+    Search the web for specific content
+  </Card>
+  </CardGroup>
+</Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="/api-reference/overview">
+    Explore all available endpoints and features
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/api-reference/errors">
+    Learn about error codes and best practices
+  </Card>
+  <Card title="Rate Limits" icon="gauge" href="/api-reference/overview#rate-limiting">
+    Understand usage limits and quotas
+  </Card>
+  <Card title="Examples" icon="code" href="/examples">
+    View common integration patterns
+  </Card>
+</CardGroup>
+
+## Common Questions
+
+<AccordionGroup>
+<Accordion title="How do I handle rate limits?" icon="gauge-high">
+  The API includes rate limit information in response headers:
+  
+  - `X-RateLimit-Limit`: Total requests allowed per minute
+  - `X-RateLimit-Remaining`: Remaining requests
+  - `X-RateLimit-Reset`: Time until limit resets
+  
+  Implement exponential backoff when retrying rate-limited requests:
+  
+  ```javascript
+  if (response.status === 429) {
+    const retryAfter = response.headers.get('Retry-After');
+    await sleep(retryAfter * 1000);
+  }
+  ```
+</Accordion>
+
+<Accordion title="What about authentication?" icon="lock">
+  For sites requiring authentication, pass cookies or headers:
+  
+  ```json
+  {
+    "url": "https://example.com",
+    "headers": {
+      "Cookie": "session=abc123"
+    }
+  }
+  ```
+</Accordion>
+</AccordionGroup>
+
+## Need Help?
+
+<CardGroup cols={1}>
+  <Card title="Email Support" icon="envelope" href="mailto:support@weblinq.dev">
+    Enterprise customers get priority email support
+  </Card>
+</CardGroup>

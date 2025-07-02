@@ -1,0 +1,450 @@
+---
+title: 'Security Best Practices'
+description: 'Learn how to securely use the WebLinq API in your applications'
+---
+
+# Security Best Practices
+
+Follow these security best practices to protect your API keys and data when using WebLinq.
+
+## API Key Security
+
+<Warning>Never expose your API keys in client-side code or public repositories.</Warning>
+
+### Storing API Keys
+
+<AccordionGroup>
+<Accordion title="Environment Variables" icon="gear">
+Use environment variables to store API keys:
+
+```javascript
+// .env file
+WEBLINQ_API_KEY = your_api_key_here;
+
+// app.js
+const apiKey = process.env.WEBLINQ_API_KEY;
+```
+
+<Tip>
+Add `.env` to your `.gitignore` file to prevent accidental commits.
+</Tip>
+</Accordion>
+
+<Accordion title="Secret Management" icon="key">
+For production environments, use secure secret management:
+
+- AWS Secrets Manager
+- Google Cloud Secret Manager
+- Azure Key Vault
+- HashiCorp Vault
+
+```javascript
+// AWS Secrets Manager example
+const AWS = require('aws-sdk');
+const secretsManager = new AWS.SecretsManager();
+
+async function getApiKey() {
+  const { SecretString } = await secretsManager.getSecretValue({ SecretId: 'weblinq/api-key' }).promise();
+
+  return JSON.parse(SecretString).apiKey;
+}
+```
+
+</Accordion>
+
+<Accordion title="Key Rotation" icon="rotate">
+Regularly rotate your API keys:
+
+1. Generate a new key in the [dashboard](https://weblinq.dev/dashboard/api-keys)
+2. Update your applications with the new key
+3. Monitor for any issues
+4. Delete the old key after confirming everything works
+
+```javascript
+class ApiKeyManager {
+  constructor() {
+    this.primaryKey = process.env.WEBLINQ_API_KEY;
+    this.backupKey = process.env.WEBLINQ_BACKUP_API_KEY;
+  }
+
+  async makeRequest(url) {
+    try {
+      return await this.tryRequest(url, this.primaryKey);
+    } catch (error) {
+      if (error.status === 401 && this.backupKey) {
+        return await this.tryRequest(url, this.backupKey);
+      }
+      throw error;
+    }
+  }
+
+  async tryRequest(url, key) {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    return response.json();
+  }
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Request Security
+
+### HTTPS Only
+
+<Check>All WebLinq API endpoints require HTTPS.</Check>
+
+```javascript
+const API_BASE = 'https://api.weblinq.dev/v1'; // Always use HTTPS
+
+function validateUrl(url) {
+  const parsed = new URL(url);
+  if (parsed.protocol !== 'https:') {
+    throw new Error('HTTPS required');
+  }
+  return url;
+}
+```
+
+### Request Signing
+
+For additional security, sign your requests:
+
+```javascript
+const crypto = require('crypto');
+
+function signRequest(method, path, body) {
+  const timestamp = Date.now().toString();
+  const stringToSign = `${method}${path}${timestamp}${JSON.stringify(body)}`;
+
+  const signature = crypto.createHmac('sha256', process.env.WEBLINQ_API_KEY).update(stringToSign).digest('hex');
+
+  return {
+    'X-Timestamp': timestamp,
+    'X-Signature': signature,
+  };
+}
+
+async function makeSignedRequest(method, path, body) {
+  const signatures = signRequest(method, path, body);
+
+  return fetch(`https://api.weblinq.dev/v1${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${process.env.WEBLINQ_API_KEY}`,
+      'Content-Type': 'application/json',
+      ...signatures,
+    },
+    body: JSON.stringify(body),
+  });
+}
+```
+
+## Data Security
+
+### Input Validation
+
+<AccordionGroup>
+<Accordion title="URL Validation" icon="link">
+Always validate URLs before making requests:
+
+```javascript
+function validateUrl(url) {
+  try {
+    const parsed = new URL(url);
+
+    // Check protocol
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+
+    // Check for private/internal IPs
+    const hostname = parsed.hostname;
+    if (
+      hostname === 'localhost' ||
+      hostname.startsWith('127.') ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.')
+    ) {
+      throw new Error('Private/internal URLs not allowed');
+    }
+
+    return url;
+  } catch (error) {
+    throw new Error(`Invalid URL: ${error.message}`);
+  }
+}
+```
+
+</Accordion>
+
+<Accordion title="Content Validation" icon="shield-check">
+Validate extracted content before processing:
+
+```javascript
+function validateContent(content) {
+  // Check for malicious content
+  const suspicious = ['<script>', 'javascript:', 'data:', 'vbscript:', 'onload=', 'onerror='];
+
+  for (const pattern of suspicious) {
+    if (content.toLowerCase().includes(pattern)) {
+      throw new Error('Suspicious content detected');
+    }
+  }
+
+  // Sanitize HTML if needed
+  return sanitizeHtml(content, {
+    allowedTags: ['b', 'i', 'em', 'strong', 'a'],
+    allowedAttributes: {
+      a: ['href'],
+    },
+  });
+}
+```
+
+</Accordion>
+
+<Accordion title="Rate Limit Protection" icon="shield">
+Implement rate limiting in your application:
+
+```javascript
+class RateLimiter {
+  constructor(limit, window) {
+    this.limit = limit;
+    this.window = window;
+    this.requests = new Map();
+  }
+
+  async checkLimit(key) {
+    const now = Date.now();
+    const windowStart = now - this.window;
+
+    // Clean old requests
+    for (const [timestamp] of this.requests) {
+      if (timestamp < windowStart) {
+        this.requests.delete(timestamp);
+      }
+    }
+
+    // Check current count
+    const count = Array.from(this.requests.values()).filter((request) => request.key === key).length;
+
+    if (count >= this.limit) {
+      throw new Error('Rate limit exceeded');
+    }
+
+    // Record request
+    this.requests.set(now, { key, timestamp: now });
+    return true;
+  }
+}
+
+const limiter = new RateLimiter(60, 60000); // 60 requests per minute
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Error Handling
+
+### Secure Error Messages
+
+<Warning>Never expose sensitive information in error messages.</Warning>
+
+```javascript
+class ApiError extends Error {
+  constructor(message, status, code) {
+    // Public-safe message
+    super(this.getSafeMessage(message));
+
+    // Internal details for logging
+    this.originalMessage = message;
+    this.status = status;
+    this.code = code;
+  }
+
+  getSafeMessage(message) {
+    // Map internal errors to safe public messages
+    const safeMessages = {
+      INVALID_API_KEY: 'Authentication failed',
+      RATE_LIMIT_EXCEEDED: 'Too many requests',
+      INTERNAL_ERROR: 'Service temporarily unavailable',
+    };
+
+    return safeMessages[message] || 'An error occurred';
+  }
+
+  toJSON() {
+    return {
+      error: {
+        message: this.message,
+        code: this.code,
+        status: this.status,
+      },
+    };
+  }
+}
+```
+
+### Logging Best Practices
+
+<AccordionGroup>
+<Accordion title="Secure Logging" icon="rectangle-terminal">
+Implement secure logging practices:
+
+```javascript
+class SecureLogger {
+  constructor() {
+    this.sensitiveFields = ['api_key', 'password', 'token'];
+  }
+
+  redactSensitive(data) {
+    const redacted = { ...data };
+
+    for (const field of this.sensitiveFields) {
+      if (field in redacted) {
+        redacted[field] = '***REDACTED***';
+      }
+    }
+
+    return redacted;
+  }
+
+  log(level, message, data = {}) {
+    const safeData = this.redactSensitive(data);
+    console.log(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level,
+        message,
+        ...safeData,
+      }),
+    );
+  }
+}
+
+const logger = new SecureLogger();
+```
+
+</Accordion>
+
+<Accordion title="Error Monitoring" icon="chart-line">
+Set up proper error monitoring:
+
+```javascript
+class ErrorMonitor {
+  constructor() {
+    this.errors = new Map();
+  }
+
+  track(error) {
+    const key = `${error.code}:${error.status}`;
+    const count = (this.errors.get(key) || 0) + 1;
+    this.errors.set(key, count);
+
+    // Alert on high error rates
+    if (count > 100) {
+      this.alert(key, count);
+    }
+  }
+
+  async alert(errorKey, count) {
+    await fetch('https://your-monitoring-service.com/alert', {
+      method: 'POST',
+      body: JSON.stringify({
+        error: errorKey,
+        count,
+        timestamp: Date.now(),
+      }),
+    });
+  }
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Compliance & Auditing
+
+### Access Logs
+
+Maintain detailed access logs:
+
+```javascript
+class AccessLogger {
+  constructor() {
+    this.logs = new Map();
+  }
+
+  logAccess(request) {
+    const entry = {
+      timestamp: Date.now(),
+      ip: request.ip,
+      method: request.method,
+      path: request.path,
+      userAgent: request.headers['user-agent'],
+      responseTime: request.duration,
+      status: request.status,
+    };
+
+    this.logs.set(crypto.randomUUID(), entry);
+    this.cleanup();
+  }
+
+  cleanup() {
+    const retention = 30 * 24 * 60 * 60 * 1000; // 30 days
+    const cutoff = Date.now() - retention;
+
+    for (const [id, entry] of this.logs) {
+      if (entry.timestamp < cutoff) {
+        this.logs.delete(id);
+      }
+    }
+  }
+
+  async export() {
+    // Export logs for compliance
+    return Array.from(this.logs.values());
+  }
+}
+```
+
+### Security Headers
+
+Always use security headers:
+
+```javascript
+const securityHeaders = {
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Content-Security-Policy': "default-src 'self'",
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+};
+
+async function makeSecureRequest(url) {
+  return fetch(url, {
+    headers: {
+      ...securityHeaders,
+      Authorization: `Bearer ${process.env.WEBLINQ_API_KEY}`,
+    },
+  });
+}
+```
+
+## Getting Help
+
+<CardGroup cols={2}>
+  <Card title="Report Security Issues" icon="shield-halved" href="mailto:security@weblinq.dev">
+    Found a security issue? Report it immediately to our security team.
+  </Card>
+
+  <Card title="Security Audit" icon="clipboard-check" href="mailto:enterprise@weblinq.dev">
+    Need a security audit? Contact our enterprise team.
+  </Card>
+</CardGroup>
+
+<Note>For urgent security issues, please email [security@weblinq.dev](mailto:security@weblinq.dev) immediately.</Note>{' '}

@@ -1,0 +1,437 @@
+---
+title: 'Error Handling'
+description: 'Learn how to handle errors and troubleshoot common issues with the WebLinq API'
+---
+
+# Error Handling
+
+The WebLinq API uses conventional HTTP response codes to indicate the success or failure of an API request. In general:
+
+- `2xx` indicates success
+- `4xx` indicates an error that failed given the information provided
+- `5xx` indicates an error with our servers
+
+<Note>All error responses include a detailed error message and a link to relevant documentation.</Note>
+
+## Error Response Format
+
+All API errors follow a standard format:
+
+<CodeGroup>
+```json Error Response Format
+{
+  "error": {
+    "code": "error_code",
+    "message": "A human-readable message explaining the error",
+    "docs_url": "/api-reference/errors#error_code",
+    "details": {  // Optional additional error details
+      "field": "specific_field",
+      "reason": "specific reason"
+    }
+  }
+}
+```
+</CodeGroup>
+
+## Common Error Codes
+
+### Authentication Errors (401, 403)
+
+<AccordionGroup>
+<Accordion title="invalid_auth" icon="key">
+  The API key provided is invalid or has been revoked.
+
+```json
+{
+  "error": {
+    "code": "invalid_auth",
+    "message": "Invalid API key provided",
+    "docs_url": "/api-reference/errors#invalid_auth"
+  }
+}
+```
+
+**Common causes:**
+
+- API key is incorrect or malformed
+- API key has been revoked
+- API key is not included in the request
+
+**Solution:**
+
+<ol>
+  <li>Check that you're using the correct API key</li>
+  <li>Verify the key in your [dashboard](https://weblinq.dev/dashboard/api-keys)</li>
+  <li>Ensure the Authorization header is properly formatted</li>
+</ol>
+   </Accordion>
+
+<Accordion title="permission_denied" icon="lock">
+  The API key doesn't have permission to perform the requested operation.
+
+```json
+{
+  "error": {
+    "code": "permission_denied",
+    "message": "Your API key doesn't have permission to access this resource",
+    "docs_url": "/api-reference/errors#permission_denied"
+  }
+}
+```
+
+**Common causes:**
+
+- Using a read-only API key for write operations
+- Attempting to access a premium feature with a standard plan
+- Accessing resources owned by another user
+
+**Solution:**
+
+<ol>
+  <li>Check your API key permissions in the dashboard</li>
+  <li>Upgrade your plan if needed</li>
+  <li>Use the correct API key for the operation</li>
+</ol>
+   </Accordion>
+</AccordionGroup>
+
+### Request Errors (400)
+
+<AccordionGroup>
+<Accordion title="invalid_parameter" icon="circle-exclamation">
+  One or more parameters in your request are invalid.
+
+```json
+{
+  "error": {
+    "code": "invalid_parameter",
+    "message": "The 'url' parameter is required",
+    "docs_url": "/api-reference/errors#invalid_parameter",
+    "details": {
+      "field": "url",
+      "reason": "required"
+    }
+  }
+}
+```
+
+**Common causes:**
+
+- Missing required parameters
+- Invalid parameter format or value
+- URL not properly encoded
+
+**Solution:**
+
+<ol>
+  <li>Check the API documentation for required parameters</li>
+  <li>Validate parameter formats and values</li>
+  <li>URL encode parameters when necessary</li>
+</ol>
+   </Accordion>
+
+<Accordion title="invalid_request" icon="triangle-exclamation">
+  The request is malformed or invalid.
+
+```json
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Request body must be valid JSON",
+    "docs_url": "/api-reference/errors#invalid_request"
+  }
+}
+```
+
+**Common causes:**
+
+- Invalid JSON in request body
+- Wrong Content-Type header
+- Malformed request syntax
+
+**Solution:**
+
+<ol>
+  <li>Validate your JSON before sending</li>
+  <li>Set the correct Content-Type header</li>
+  <li>Check the API documentation for correct request format</li>
+</ol>
+   </Accordion>
+   </AccordionGroup>
+
+### Rate Limiting (429)
+
+<AccordionGroup>
+<Accordion title="rate_limit_exceeded" icon="gauge-high">
+  You've exceeded your rate limit.
+
+```json
+{
+  "error": {
+    "code": "rate_limit_exceeded",
+    "message": "Rate limit exceeded. Please try again in 60 seconds",
+    "docs_url": "/api-reference/errors#rate_limit_exceeded",
+    "details": {
+      "reset_at": "2024-01-01T00:00:00Z"
+    }
+  }
+}
+```
+
+**Common causes:**
+
+- Too many requests in a short time
+- Not implementing rate limit handling
+- Multiple applications sharing the same API key
+
+**Solution:**
+
+<ol>
+  <li>Implement exponential backoff</li>
+  <li>Use our rate limit headers to pace requests</li>
+  <li>Consider upgrading to a higher tier</li>
+</ol>
+   </Accordion>
+</AccordionGroup>
+
+### Resource Errors (404, 410)
+
+<AccordionGroup>
+<Accordion title="resource_not_found" icon="magnifying-glass">
+  The requested resource doesn't exist.
+
+```json
+{
+  "error": {
+    "code": "resource_not_found",
+    "message": "The requested file could not be found",
+    "docs_url": "/api-reference/errors#resource_not_found"
+  }
+}
+```
+
+**Common causes:**
+
+- Invalid resource ID
+- Resource has been deleted
+- URL typo in the request
+
+**Solution:**
+
+<ol>
+  <li>Verify the resource ID</li>
+  <li>Check if the resource still exists</li>
+  <li>Double-check the URL path</li>
+</ol>
+   </Accordion>
+
+<Accordion title="resource_deleted" icon="trash">
+  The resource has been permanently deleted.
+
+```json
+{
+  "error": {
+    "code": "resource_deleted",
+    "message": "This file has been permanently deleted",
+    "docs_url": "/api-reference/errors#resource_deleted"
+  }
+}
+```
+
+**Common causes:**
+
+- Accessing a deleted resource
+- Resource expired or cleaned up
+- Stale cache or reference
+
+**Solution:**
+
+<ol>
+  <li>Remove references to deleted resources</li>
+  <li>Implement proper resource cleanup in your code</li>
+  <li>Update any cached references</li>
+</ol>
+   </Accordion>
+   </AccordionGroup>
+
+### Server Errors (500, 502, 503, 504)
+
+<AccordionGroup>
+<Accordion title="server_error" icon="server">
+  Something went wrong on our end.
+
+```json
+{
+  "error": {
+    "code": "server_error",
+    "message": "An unexpected error occurred",
+    "docs_url": "/api-reference/errors#server_error"
+  }
+}
+```
+
+**Common causes:**
+
+- Temporary service disruption
+- Backend processing error
+- Database connection issues
+
+**Solution:**
+
+<ol>
+  <li>Retry the request with exponential backoff</li>
+  <li>Check our [status page](https://status.weblinq.dev)</li>
+  <li>Contact support if the issue persists</li>
+</ol>
+   </Accordion>
+
+<Accordion title="service_unavailable" icon="plug">
+  The service is temporarily unavailable.
+
+```json
+{
+  "error": {
+    "code": "service_unavailable",
+    "message": "Service is undergoing maintenance",
+    "docs_url": "/api-reference/errors#service_unavailable"
+  }
+}
+```
+
+**Common causes:**
+
+- Scheduled maintenance
+- Unexpected downtime
+- High system load
+
+**Solution:**
+
+<ol>
+  <li>Implement circuit breakers in your code</li>
+  <li>Set up monitoring and alerts</li>
+  <li>Follow our status page for updates</li>
+</ol>
+   </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+### Implementing Retries
+
+We recommend implementing exponential backoff when retrying failed requests:
+
+<CodeGroup>
+```javascript Node.js
+async function makeRequest(url, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, {
+        headers: { 'Authorization': 'Bearer YOUR_API_KEY' }
+      });
+      
+      if (response.status === 429) {
+        // Rate limited - get retry time from headers
+        const retryAfter = response.headers.get('Retry-After');
+        await sleep(retryAfter * 1000);
+        continue;
+      }
+      
+      return await response.json();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      // Exponential backoff
+      await sleep(Math.pow(2, i) * 1000);
+    }
+  }
+}
+
+function sleep(ms) {
+return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+````
+
+```python Python
+import time
+import requests
+from requests.exceptions import RequestException
+
+def make_request(url, max_retries=3):
+    for i in range(max_retries):
+        try:
+            response = requests.get(
+                url,
+                headers={'Authorization': 'Bearer YOUR_API_KEY'}
+            )
+
+            if response.status_code == 429:
+                # Rate limited - get retry time from headers
+                retry_after = int(response.headers.get('Retry-After', 5))
+                time.sleep(retry_after)
+                continue
+
+            return response.json()
+        except RequestException as e:
+            if i == max_retries - 1:
+                raise e
+            # Exponential backoff
+            time.sleep(2 ** i)
+````
+
+</CodeGroup>
+
+### Error Monitoring
+
+Set up proper error monitoring in production:
+
+<CodeGroup>
+```javascript Node.js
+function logApiError(error, context) {
+  // Add request ID for support
+  const requestId = error.headers?.get('X-Request-ID');
+  
+  console.error({
+    code: error.error.code,
+    message: error.error.message,
+    requestId,
+    context,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Send to your error monitoring service
+  // e.g., Sentry, Datadog, etc.
+}
+```
+
+```python Python
+def log_api_error(error, context):
+    # Add request ID for support
+    request_id = error.headers.get('X-Request-ID')
+
+    error_data = {
+        'code': error.json()['error']['code'],
+        'message': error.json()['error']['message'],
+        'request_id': request_id,
+        'context': context,
+        'timestamp': datetime.utcnow().isoformat()
+    }
+
+    logger.error(error_data)
+    # Send to your error monitoring service
+    # e.g., Sentry, Datadog, etc.
+```
+
+</CodeGroup>
+
+<Tip>Always include the `X-Request-ID` header when contacting support about errors.</Tip>
+
+## Need Help?
+
+<CardGroup cols={2}>
+  <Card title="Join our Discord" icon="discord" href="https://discord.gg/weblinq">
+    Get help from the community and share your projects
+  </Card>
+  <Card title="Email Support" icon="envelope" href="mailto:support@weblinq.dev">
+    Enterprise customers get priority email support
+  </Card>
+</CardGroup>{' '}

@@ -1,0 +1,721 @@
+---
+title: 'E-commerce Use Cases'
+description: 'Learn how to use WebLinq API for e-commerce data extraction and monitoring'
+---
+
+# E-commerce Use Cases
+
+Learn how to use WebLinq API to extract and monitor e-commerce data at scale.
+
+## Overview
+
+<Note>This guide shows how to implement common e-commerce use cases using WebLinq API.</Note>
+
+## Product Monitoring
+
+### Price Tracking
+
+<CodeGroup>
+```javascript Node.js
+const WebLinq = require('weblinq');
+
+class PriceMonitor {
+constructor(apiKey) {
+this.client = new WebLinq(apiKey);
+this.products = new Map();
+}
+
+async addProduct(url, options = {}) {
+const { name, threshold } = options;
+
+    // Initial price check
+    const price = await this.checkPrice(url);
+
+    this.products.set(url, {
+      name,
+      threshold,
+      lastPrice: price,
+      priceHistory: [{ price, timestamp: Date.now() }]
+    });
+
+}
+
+async checkPrice(url) {
+const response = await this.client.extract({
+url,
+selectors: {
+price: '.product-price',
+currency: '.currency'
+}
+});
+
+    return {
+      amount: parseFloat(response.price.replace(/[^0-9.]/g, '')),
+      currency: response.currency
+    };
+
+}
+
+async monitor() {
+for (const [url, product] of this.products) {
+try {
+const currentPrice = await this.checkPrice(url);
+
+        // Check for price changes
+        if (currentPrice.amount !== product.lastPrice.amount) {
+          await this.handlePriceChange(url, product, currentPrice);
+        }
+
+        // Update history
+        product.priceHistory.push({
+          price: currentPrice,
+          timestamp: Date.now()
+        });
+
+        product.lastPrice = currentPrice;
+      } catch (error) {
+        console.error(`Error monitoring ${url}:`, error);
+      }
+    }
+
+}
+
+async handlePriceChange(url, product, newPrice) {
+const change = ((newPrice.amount - product.lastPrice.amount) / product.lastPrice.amount) \* 100;
+
+    if (Math.abs(change) >= product.threshold) {
+      await this.notifyPriceChange({
+        url,
+        product: product.name,
+        oldPrice: product.lastPrice,
+        newPrice,
+        change
+      });
+    }
+
+}
+
+async notifyPriceChange(data) {
+// Implement your notification logic
+console.log('Price change detected:', data);
+}
+}
+
+// Usage
+const monitor = new PriceMonitor('YOUR_API_KEY');
+
+await monitor.addProduct('https://example.com/product', {
+name: 'Example Product',
+threshold: 5 // 5% change threshold
+});
+
+// Run monitoring every hour
+setInterval(() => monitor.monitor(), 3600000);
+
+````
+
+```python Python
+import asyncio
+from datetime import datetime
+from typing import Dict, List
+from weblinq import WebLinq
+
+class PriceMonitor:
+    def __init__(self, api_key: str):
+        self.client = WebLinq(api_key)
+        self.products: Dict[str, dict] = {}
+
+    async def add_product(self, url: str, **options):
+        name = options.get('name', url)
+        threshold = options.get('threshold', 5)
+
+        # Initial price check
+        price = await self.check_price(url)
+
+        self.products[url] = {
+            'name': name,
+            'threshold': threshold,
+            'last_price': price,
+            'price_history': [{
+                'price': price,
+                'timestamp': datetime.now()
+            }]
+        }
+
+    async def check_price(self, url: str) -> dict:
+        response = await self.client.extract({
+            'url': url,
+            'selectors': {
+                'price': '.product-price',
+                'currency': '.currency'
+            }
+        })
+
+        return {
+            'amount': float(response['price'].replace(/[^0-9.]/g, '')),
+            'currency': response['currency']
+        }
+
+    async def monitor(self):
+        tasks = [
+            self.monitor_product(url, product)
+            for url, product in self.products.items()
+        ]
+        await asyncio.gather(*tasks)
+
+    async def monitor_product(self, url: str, product: dict):
+        try:
+            current_price = await self.check_price(url)
+
+            # Check for price changes
+            if current_price['amount'] != product['last_price']['amount']:
+                await self.handle_price_change(url, product, current_price)
+
+            # Update history
+            product['price_history'].append({
+                'price': current_price,
+                'timestamp': datetime.now()
+            })
+
+            product['last_price'] = current_price
+        except Exception as e:
+            print(f"Error monitoring {url}: {e}")
+
+    async def handle_price_change(self, url: str, product: dict, new_price: dict):
+        change = ((new_price['amount'] - product['last_price']['amount'])
+                 / product['last_price']['amount'] * 100)
+
+        if abs(change) >= product['threshold']:
+            await self.notify_price_change({
+                'url': url,
+                'product': product['name'],
+                'old_price': product['last_price'],
+                'new_price': new_price,
+                'change': change
+            })
+
+    async def notify_price_change(self, data: dict):
+        # Implement your notification logic
+        print('Price change detected:', data)
+
+# Usage
+async def main():
+    monitor = PriceMonitor('YOUR_API_KEY')
+
+    await monitor.add_product('https://example.com/product',
+                            name='Example Product',
+                            threshold=5)
+
+    while True:
+        await monitor.monitor()
+        await asyncio.sleep(3600)  # Monitor every hour
+
+asyncio.run(main())
+````
+
+</CodeGroup>
+
+### Stock Monitoring
+
+<CodeGroup>
+```javascript Node.js
+class StockMonitor {
+  constructor(apiKey) {
+    this.client = new WebLinq(apiKey);
+    this.products = new Map();
+  }
+
+async checkStock(url) {
+const response = await this.client.extract({
+url,
+selectors: {
+status: '.stock-status',
+quantity: '.stock-quantity'
+}
+});
+
+    return {
+      inStock: response.status.toLowerCase().includes('in stock'),
+      quantity: parseInt(response.quantity) || null
+    };
+
+}
+
+async monitor() {
+for (const [url, product] of this.products) {
+try {
+const stock = await this.checkStock(url);
+
+        if (stock.inStock !== product.lastStock.inStock) {
+          await this.notifyStockChange({
+            url,
+            product: product.name,
+            oldStock: product.lastStock,
+            newStock: stock
+          });
+        }
+
+        product.lastStock = stock;
+      } catch (error) {
+        console.error(`Error monitoring stock for ${url}:`, error);
+      }
+    }
+
+}
+}
+
+````
+
+```python Python
+class StockMonitor:
+    def __init__(self, api_key: str):
+        self.client = WebLinq(api_key)
+        self.products: Dict[str, dict] = {}
+
+    async def check_stock(self, url: str) -> dict:
+        response = await self.client.extract({
+            'url': url,
+            'selectors': {
+                'status': '.stock-status',
+                'quantity': '.stock-quantity'
+            }
+        })
+
+        return {
+            'in_stock': 'in stock' in response['status'].lower(),
+            'quantity': int(response['quantity']) if response['quantity'] else None
+        }
+
+    async def monitor(self):
+        tasks = [
+            self.monitor_product(url, product)
+            for url, product in self.products.items()
+        ]
+        await asyncio.gather(*tasks)
+
+    async def monitor_product(self, url: str, product: dict):
+        try:
+            stock = await self.check_stock(url)
+
+            if stock['in_stock'] != product['last_stock']['in_stock']:
+                await self.notify_stock_change({
+                    'url': url,
+                    'product': product['name'],
+                    'old_stock': product['last_stock'],
+                    'new_stock': stock
+                })
+
+            product['last_stock'] = stock
+        except Exception as e:
+            print(f"Error monitoring stock for {url}: {e}")
+````
+
+</CodeGroup>
+
+## Product Data Extraction
+
+### Catalog Scraping
+
+<CodeGroup>
+```javascript Node.js
+class CatalogScraper {
+  constructor(apiKey) {
+    this.client = new WebLinq(apiKey);
+  }
+
+async scrapeCatalog(url, options = {}) {
+const { maxPages = 1 } = options;
+const products = [];
+
+    for (let page = 1; page <= maxPages; page++) {
+      const pageUrl = this.getPageUrl(url, page);
+      const pageProducts = await this.scrapePage(pageUrl);
+      products.push(...pageProducts);
+
+      // Check if next page exists
+      if (!await this.hasNextPage(pageUrl)) break;
+    }
+
+    return products;
+
+}
+
+async scrapePage(url) {
+const response = await this.client.extract({
+url,
+selectors: {
+products: {
+selector: '.product-item',
+type: 'list',
+data: {
+name: '.product-name',
+price: '.product-price',
+image: {
+selector: '.product-image',
+attr: 'src'
+},
+url: {
+selector: '.product-link',
+attr: 'href'
+}
+}
+}
+}
+});
+
+    return response.products;
+
+}
+
+async hasNextPage(url) {
+const response = await this.client.extract({
+url,
+selectors: {
+nextPage: {
+selector: '.pagination .next',
+attr: 'href'
+}
+}
+});
+
+    return !!response.nextPage;
+
+}
+
+getPageUrl(baseUrl, page) {
+const url = new URL(baseUrl);
+url.searchParams.set('page', page);
+return url.toString();
+}
+}
+
+// Usage
+const scraper = new CatalogScraper('YOUR_API_KEY');
+
+const products = await scraper.scrapeCatalog('https://example.com/products', {
+maxPages: 5
+});
+
+console.log(`Scraped ${products.length} products`);
+
+````
+
+```python Python
+class CatalogScraper:
+    def __init__(self, api_key: str):
+        self.client = WebLinq(api_key)
+
+    async def scrape_catalog(self, url: str, **options) -> List[dict]:
+        max_pages = options.get('max_pages', 1)
+        products = []
+
+        for page in range(1, max_pages + 1):
+            page_url = self.get_page_url(url, page)
+            page_products = await self.scrape_page(page_url)
+            products.extend(page_products)
+
+            # Check if next page exists
+            if not await self.has_next_page(page_url):
+                break
+
+        return products
+
+    async def scrape_page(self, url: str) -> List[dict]:
+        response = await self.client.extract({
+            'url': url,
+            'selectors': {
+                'products': {
+                    'selector': '.product-item',
+                    'type': 'list',
+                    'data': {
+                        'name': '.product-name',
+                        'price': '.product-price',
+                        'image': {
+                            'selector': '.product-image',
+                            'attr': 'src'
+                        },
+                        'url': {
+                            'selector': '.product-link',
+                            'attr': 'href'
+                        }
+                    }
+                }
+            }
+        })
+
+        return response['products']
+
+    async def has_next_page(self, url: str) -> bool:
+        response = await self.client.extract({
+            'url': url,
+            'selectors': {
+                'next_page': {
+                    'selector': '.pagination .next',
+                    'attr': 'href'
+                }
+            }
+        })
+
+        return bool(response['next_page'])
+
+    def get_page_url(self, base_url: str, page: int) -> str:
+        from urllib.parse import urlparse, parse_qs, urlencode
+
+        parsed = urlparse(base_url)
+        query = parse_qs(parsed.query)
+        query['page'] = [str(page)]
+
+        return parsed._replace(query=urlencode(query, doseq=True)).geturl()
+
+# Usage
+async def main():
+    scraper = CatalogScraper('YOUR_API_KEY')
+
+    products = await scraper.scrape_catalog(
+        'https://example.com/products',
+        max_pages=5
+    )
+
+    print(f"Scraped {len(products)} products")
+
+asyncio.run(main())
+````
+
+</CodeGroup>
+
+### Competitive Analysis
+
+<CodeGroup>
+```javascript Node.js
+class CompetitorAnalyzer {
+  constructor(apiKey) {
+    this.client = new WebLinq(apiKey);
+    this.competitors = new Map();
+  }
+
+async analyze(productId, competitors) {
+const results = await Promise.all(
+competitors.map(competitor =>
+this.analyzeCompetitor(productId, competitor)
+)
+);
+
+    return {
+      productId,
+      timestamp: Date.now(),
+      competitors: results
+    };
+
+}
+
+async analyzeCompetitor(productId, competitor) {
+const response = await this.client.extract({
+url: competitor.url,
+selectors: {
+price: '.product-price',
+stock: '.stock-status',
+shipping: '.shipping-info',
+rating: '.product-rating',
+reviews: {
+selector: '.product-review',
+type: 'list',
+data: {
+rating: '.review-rating',
+text: '.review-text',
+date: '.review-date'
+}
+}
+}
+});
+
+    return {
+      name: competitor.name,
+      url: competitor.url,
+      data: response
+    };
+
+}
+
+async trackPricing(productId, interval = 3600000) {
+setInterval(async () => {
+const analysis = await this.analyze(
+productId,
+this.competitors.get(productId)
+);
+
+      await this.storePricingData(analysis);
+    }, interval);
+
+}
+
+async storePricingData(analysis) {
+// Implement your storage logic
+console.log('Pricing analysis:', analysis);
+}
+}
+
+// Usage
+const analyzer = new CompetitorAnalyzer('YOUR_API_KEY');
+
+const competitors = [
+{ name: 'Competitor A', url: 'https://competitor-a.com/product' },
+{ name: 'Competitor B', url: 'https://competitor-b.com/product' }
+];
+
+const analysis = await analyzer.analyze('product-123', competitors);
+
+````
+
+```python Python
+class CompetitorAnalyzer:
+    def __init__(self, api_key: str):
+        self.client = WebLinq(api_key)
+        self.competitors: Dict[str, List[dict]] = {}
+
+    async def analyze(self, product_id: str, competitors: List[dict]) -> dict:
+        results = await asyncio.gather(*[
+            self.analyze_competitor(product_id, competitor)
+            for competitor in competitors
+        ])
+
+        return {
+            'product_id': product_id,
+            'timestamp': datetime.now(),
+            'competitors': results
+        }
+
+    async def analyze_competitor(self, product_id: str, competitor: dict) -> dict:
+        response = await self.client.extract({
+            'url': competitor['url'],
+            'selectors': {
+                'price': '.product-price',
+                'stock': '.stock-status',
+                'shipping': '.shipping-info',
+                'rating': '.product-rating',
+                'reviews': {
+                    'selector': '.product-review',
+                    'type': 'list',
+                    'data': {
+                        'rating': '.review-rating',
+                        'text': '.review-text',
+                        'date': '.review-date'
+                    }
+                }
+            }
+        })
+
+        return {
+            'name': competitor['name'],
+            'url': competitor['url'],
+            'data': response
+        }
+
+    async def track_pricing(self, product_id: str, interval: int = 3600):
+        while True:
+            analysis = await self.analyze(
+                product_id,
+                self.competitors.get(product_id, [])
+            )
+
+            await self.store_pricing_data(analysis)
+            await asyncio.sleep(interval)
+
+    async def store_pricing_data(self, analysis: dict):
+        # Implement your storage logic
+        print('Pricing analysis:', analysis)
+
+# Usage
+async def main():
+    analyzer = CompetitorAnalyzer('YOUR_API_KEY')
+
+    competitors = [
+        {'name': 'Competitor A', 'url': 'https://competitor-a.com/product'},
+        {'name': 'Competitor B', 'url': 'https://competitor-b.com/product'}
+    ]
+
+    analysis = await analyzer.analyze('product-123', competitors)
+    print(analysis)
+
+asyncio.run(main())
+````
+
+</CodeGroup>
+
+## Best Practices
+
+### Rate Limiting
+
+<Warning>Always respect rate limits and implement proper delays between requests.</Warning>
+
+```javascript
+class RateLimiter {
+  constructor(requestsPerSecond) {
+    this.requestsPerSecond = requestsPerSecond;
+    this.queue = [];
+    this.processing = false;
+  }
+
+  async add(fn) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ fn, resolve, reject });
+      if (!this.processing) this.process();
+    });
+  }
+
+  async process() {
+    this.processing = true;
+
+    while (this.queue.length > 0) {
+      const { fn, resolve, reject } = this.queue.shift();
+
+      try {
+        const result = await fn();
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1000 / this.requestsPerSecond));
+    }
+
+    this.processing = false;
+  }
+}
+```
+
+### Error Handling
+
+```javascript
+class ErrorHandler {
+  constructor() {
+    this.retryCount = 3;
+    this.retryDelay = 1000;
+  }
+
+  async withRetry(fn) {
+    for (let i = 0; i < this.retryCount; i++) {
+      try {
+        return await fn();
+      } catch (error) {
+        if (i === this.retryCount - 1) throw error;
+
+        await new Promise((resolve) => setTimeout(resolve, this.retryDelay * Math.pow(2, i)));
+      }
+    }
+  }
+}
+```
+
+## Summary
+
+<Steps>
+  <Step title="Set Up Monitoring">Implement price and stock monitoring</Step>
+
+  <Step title="Extract Data">Set up catalog scraping and competitor analysis</Step>
+
+  <Step title="Handle Errors">Implement proper rate limiting and error handling</Step>
+
+  <Step title="Store Data">Save extracted data for analysis</Step>
+</Steps>
+
+<Note>Need help implementing these use cases? Contact our [support team](/support/contact) for assistance.</Note>{' '}

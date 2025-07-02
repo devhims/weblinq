@@ -1,0 +1,335 @@
+---
+title: 'Frequently Asked Questions'
+description: 'Common questions about using the WebLinq API'
+---
+
+# Frequently Asked Questions
+
+Find answers to common questions about using the WebLinq API.
+
+## General Questions
+
+<AccordionGroup>
+<Accordion title="What is WebLinq?" icon="circle-question">
+  WebLinq is a powerful web scraping and content extraction API that helps you:
+  
+  - Extract clean, structured content from any webpage
+  - Take high-quality screenshots
+  - Generate PDFs
+  - Extract structured data using AI
+  - Monitor websites for changes
+  
+  Our API is designed to be reliable, scalable, and easy to use.
+</Accordion>
+
+<Accordion title="How much does it cost?" icon="credit-card">
+  WebLinq offers flexible pricing plans: - **Free Tier**: 1,000 credits/month, perfect for testing - **Developer**:
+  $49/month for 10,000 credits - **Business**: $199/month for 50,000 credits - **Enterprise**: Custom pricing for
+  high-volume needs
+  <Note>
+    One credit typically equals one API request. Some advanced features like AI extraction may use more credits.
+  </Note>
+</Accordion>
+
+<Accordion title="Do you offer a free trial?" icon="sparkles">
+  Yes! You can sign up for a free account and get 1,000 credits to test the API. No credit card required. The free tier
+  includes: - Full API access - Basic rate limits - Community support - Core features and endpoints
+</Accordion>
+
+<Accordion title="What programming languages do you support?" icon="code">
+  WebLinq is a REST API that works with any programming language. We provide official SDKs for:
+  
+  - [Node.js](/sdks/node)
+  - [Python](/sdks/python)
+  - [PHP](/sdks/php)
+  
+  The API can be used with any language that can make HTTP requests.
+</Accordion>
+</AccordionGroup>
+
+## Technical Questions
+
+<AccordionGroup>
+<Accordion title="How do you handle JavaScript-heavy sites?" icon="js">
+  We provide several options for JavaScript-heavy sites:
+  
+  1. **Wait Until Options**:
+     ```json
+     {
+       "wait_until": "networkidle0"  // Wait for network to be idle
+     }
+     ```
+  
+  2. **JavaScript Execution**:
+     ```json
+     {
+       "javascript": true,  // Enable JavaScript execution
+       "wait_time": 5000   // Wait 5 seconds after load
+     }
+     ```
+  
+  3. **Custom Triggers**:
+     ```json
+     {
+       "wait_for": ".dynamic-content",  // Wait for element
+       "timeout": 10000                 // Max wait time
+     }
+     ```
+</Accordion>
+
+<Accordion title="What about rate limiting?" icon="gauge-high">
+  Rate limits vary by plan: - **Free**: 60 requests/minute - **Developer**: 300 requests/minute - **Business**: 1,000
+  requests/minute - **Enterprise**: Custom limits We provide rate limit info in response headers: ```http
+  X-RateLimit-Limit: 60 X-RateLimit-Remaining: 45 X-RateLimit-Reset: 1625097600 ```
+  <Tip>Implement exponential backoff for rate-limited requests.</Tip>
+</Accordion>
+
+<Accordion title="How do you handle authentication?" icon="lock">
+  We support multiple authentication methods for target websites:
+  
+  1. **Cookie-based**:
+     ```json
+     {
+       "headers": {
+         "Cookie": "session=abc123"
+       }
+     }
+     ```
+  
+  2. **Header-based**:
+     ```json
+     {
+       "headers": {
+         "Authorization": "Bearer token123"
+       }
+     }
+     ```
+  
+  3. **Form Login**:
+     ```json
+     {
+       "authentication": {
+         "type": "form",
+         "loginUrl": "https://example.com/login",
+         "username": "user",
+         "password": "pass"
+       }
+     }
+     ```
+</Accordion>
+
+<Accordion title="What about CAPTCHA and anti-bot measures?" icon="shield">
+  We employ several strategies to handle anti-bot measures:
+  
+  1. Rotating IP addresses
+  2. Browser fingerprint randomization
+  3. Human-like behavior patterns
+  4. Automatic CAPTCHA solving (Enterprise plans)
+  
+  <Warning>
+  Some websites may explicitly prohibit scraping. Always check terms of service.
+  </Warning>
+</Accordion>
+</AccordionGroup>
+
+## Features & Capabilities
+
+<AccordionGroup>
+<Accordion title="What file formats do you support?" icon="file">
+  We support multiple output formats:
+  
+  - **Text**: Clean, formatted text
+  - **HTML**: Raw or cleaned HTML
+  - **JSON**: Structured data
+  - **Markdown**: Formatted markdown
+  - **PDF**: High-quality PDFs
+  - **Images**: PNG, JPEG, WebP
+  
+  Specify the format in your request:
+  ```json
+  {
+    "format": "markdown",
+    "clean": true  // Remove ads, nav, etc.
+  }
+  ```
+</Accordion>
+
+<Accordion title="Can I extract specific elements?" icon="wand-magic-sparkles">
+  Yes! Use CSS selectors to target specific elements:
+  
+  ```json
+  {
+    "selectors": {
+      "title": "h1.article-title",
+      "author": ".author-bio h3",
+      "content": "article.main-content",
+      "date": "time.published-date"
+    }
+  }
+  ```
+  
+  We also support:
+  - XPath selectors
+  - Regular expressions
+  - AI-powered content extraction
+</Accordion>
+
+<Accordion title="How do you handle pagination?" icon="book">
+  We offer several pagination strategies:
+  
+  1. **Auto-pagination**:
+     ```json
+     {
+       "pagination": {
+         "enabled": true,
+         "maxPages": 5
+       }
+     }
+     ```
+  
+  2. **Custom Selectors**:
+     ```json
+     {
+       "pagination": {
+         "nextButton": ".pagination .next",
+         "maxPages": 5
+       }
+     }
+     ```
+  
+  3. **URL Patterns**:
+     ```json
+     {
+       "pagination": {
+         "pattern": "page={i}",
+         "start": 1,
+         "end": 5
+       }
+     }
+     ```
+</Accordion>
+
+<Accordion title="What about geolocation and proxies?" icon="globe">
+  We support geolocation-specific requests:
+  
+  ```json
+  {
+    "geolocation": {
+      "country": "US",
+      "city": "New York"
+    }
+  }
+  ```
+  
+  Enterprise customers can also:
+  - Use dedicated IP ranges
+  - Specify residential proxies
+  - Set custom User-Agent strings
+</Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+<Accordion title="Common Error Codes" icon="triangle-exclamation">
+  Common error codes and solutions:
+  
+  - **401**: Invalid API key
+  - **403**: Permission denied
+  - **429**: Rate limit exceeded
+  - **500**: Server error
+  - **504**: Timeout
+  
+  See our [Error Handling](/api-reference/errors) guide for details.
+</Accordion>
+
+<Accordion title="Why is my request timing out?" icon="clock">
+  Timeouts can occur for several reasons: 1. **Slow Website**: - Increase timeout: `"timeout": 30000` - Use `wait_until:
+  "networkidle0"` 2. **Complex JavaScript**: - Enable JS: `"javascript": true` - Add wait time: `"wait_time": 5000` 3.
+  **Large Pages**: - Use selective extraction - Implement pagination
+</Accordion>
+
+<Accordion title="Content not being extracted correctly?" icon="bug">
+  Try these troubleshooting steps: 1. **Check Selectors**: - Use browser dev tools to verify - Try multiple selector
+  options 2. **JavaScript Content**: - Enable JS execution - Add appropriate wait conditions 3. **Dynamic Content**: -
+  Use `wait_for` with specific elements - Implement retry logic
+</Accordion>
+
+<Accordion title="Getting blocked by websites?" icon="ban">
+  If you're getting blocked:
+  
+  1. **Implement Delays**:
+     ```json
+     {
+       "delay": {
+         "min": 2000,
+         "max": 5000
+       }
+     }
+     ```
+  
+  2. **Rotate User Agents**:
+     ```json
+     {
+       "headers": {
+         "User-Agent": "custom-agent"
+       }
+     }
+     ```
+  
+  3. **Use Enterprise Features**:
+     - Residential proxies
+     - IP rotation
+     - Custom headers
+</Accordion>
+</AccordionGroup>
+
+## Business & Support
+
+<AccordionGroup>
+<Accordion title="Do you offer enterprise support?" icon="building">
+  Yes! Enterprise plans include:
+  
+  - Dedicated support team
+  - Custom feature development
+  - SLA guarantees
+  - Technical consulting
+  - Custom integrations
+  
+  [Contact us](mailto:enterprise@weblinq.dev) for details.
+</Accordion>
+
+<Accordion title="What about data privacy?" icon="shield-check">
+  We take data privacy seriously: - Data encrypted in transit and at rest - No persistent storage of scraped content -
+  GDPR and CCPA compliant - Regular security audits - SOC 2 Type II certified See our [Privacy Policy](/legal/privacy)
+  for details.
+</Accordion>
+
+<Accordion title="Can I use the API in production?" icon="rocket">
+  Yes! Our API is production-ready with: - 99.9% uptime guarantee - Global CDN distribution - Automatic scaling -
+  Real-time monitoring - Production support Many companies use WebLinq in production for: - Content aggregation - Price
+  monitoring - Market research - Data analytics
+</Accordion>
+
+<Accordion title="How do I get help?" icon="life-ring">
+  We offer multiple support channels:
+  
+  - [Documentation](/api-reference/overview)
+  - [Discord Community](https://discord.gg/weblinq)
+  - [Email Support](mailto:support@weblinq.dev)
+  - [GitHub Issues](https://github.com/devhims/weblinq/issues)
+  
+  Enterprise customers get priority support via dedicated channels.
+</Accordion>
+</AccordionGroup>
+
+## Still have questions?
+
+<CardGroup cols={2}>
+  <Card title="Join our Discord" icon="discord" href="https://discord.gg/weblinq">
+    Get help from the community and share your projects
+  </Card>
+  <Card title="Contact Support" icon="envelope" href="mailto:support@weblinq.dev">
+    Our team is ready to help with any questions
+  </Card>
+</CardGroup>{' '}

@@ -1,0 +1,16 @@
+{
+  "name": "weblinq-docs",
+  "version": "1.0.0",
+  "description": "Weblinq API Documentation",
+  "scripts": {
+    "dev": "mintlify dev --port 3001",
+    "dev:open": "mintlify dev --port 3001",
+    "dev:no-open": "mintlify dev --port 3001 --no-open"
+  },
+  "keywords": [
+    "documentation",
+    "api",
+    "weblinq"
+  ],
+  "author": "Weblinq Team"
+}

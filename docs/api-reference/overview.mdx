@@ -1,0 +1,324 @@
+---
+title: 'API Overview'
+description: 'Complete reference for the WebLinq API endpoints and features'
+---
+
+# API Overview
+
+The WebLinq API provides powerful endpoints for web scraping, content extraction, and data transformation. Our API follows REST principles and uses standard HTTP methods.
+
+<Note>
+  Looking for examples? Check out our [quickstart guide](/quickstart) or jump straight to the [endpoint
+  reference](#available-endpoints).
+</Note>
+
+## Making your first request
+
+<CodeGroup>
+```bash cURL
+# Test the API with a simple status check
+curl -X GET "https://api.weblinq.dev/v1/system/status" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```javascript Node.js
+// Test the API with a simple status check
+const response = await fetch('https://api.weblinq.dev/v1/system/status', {
+  headers: {
+    Authorization: 'Bearer YOUR_API_KEY',
+  },
+});
+
+const data = await response.json();
+console.log('API Status:', data.status);
+```
+
+```python Python
+# Test the API with a simple status check
+import requests
+
+response = requests.get(
+    'https://api.weblinq.dev/v1/system/status',
+    headers={'Authorization': 'Bearer YOUR_API_KEY'}
+)
+
+data = response.json()
+print('API Status:', data['status'])
+```
+
+</CodeGroup>
+
+## Base URL
+
+All API requests should be made to:
+
+```bash
+https://api.weblinq.dev
+```
+
+<Warning>Always use HTTPS for API requests. HTTP requests will be rejected.</Warning>
+
+## Authentication
+
+All endpoints require authentication using a Bearer token. Include your API key in the Authorization header:
+
+<CodeGroup>
+```bash cURL
+curl -H "Authorization: Bearer YOUR_API_KEY" https://api.weblinq.dev/v1/...
+```
+
+```javascript Node.js
+const headers = {
+  Authorization: 'Bearer YOUR_API_KEY',
+};
+```
+
+```python Python
+headers = {
+    'Authorization': 'Bearer YOUR_API_KEY'
+}
+```
+
+</CodeGroup>
+
+<Note>Get your API key from the [dashboard](https://weblinq.dev/dashboard/api-keys).</Note>
+
+<Warning>Never expose your API key in client-side code. Always make API calls from your backend.</Warning>
+
+## Available Endpoints
+
+### Web Operations
+
+Extract and manipulate web content with our powerful endpoints:
+
+<CardGroup cols={2}>
+  <Card title="Get HTML Content" icon="code" href="/api-reference/web/get-raw-html-content-from-a-web-page">
+    Retrieve raw HTML content from any webpage
+    
+    <CodeGroup>
+    ```json Example Response
+    {
+      "html": "<html>...</html>",
+      "text": "Clean extracted text..."
+    }
+    ```
+    </CodeGroup>
+  </Card>
+  <Card title="Take Screenshot" icon="camera" href="/api-reference/web/take-a-screenshot-of-a-web-page">
+    Capture webpage screenshots with custom settings
+    
+    <Frame>
+    <img src="/images/checks-passed.png" alt="Screenshot example" />
+    </Frame>
+  </Card>
+  <Card title="Extract Links" icon="link" href="/api-reference/web/extract-links-from-a-web-page">
+    Extract all links from a webpage
+    
+    <CodeGroup>
+    ```json Example Response
+    {
+      "links": [
+        {
+          "url": "https://example.com",
+          "text": "Example link",
+          "type": "internal"
+        }
+      ]
+    }
+    ```
+    </CodeGroup>
+  </Card>
+  <Card title="Extract JSON" icon="brackets-curly" href="/api-reference/web/extract-structured-data-from-a-web-page">
+    Extract structured data in JSON format
+    
+    <Tip>Perfect for extracting product details, pricing, and metadata</Tip>
+  </Card>
+  <Card title="Extract Markdown" icon="markdown" href="/api-reference/web/extract-markdown-from-a-web-page">
+    Convert webpage content to Markdown
+    
+    <Info>Preserves headings, lists, and basic formatting</Info>
+  </Card>
+  <Card title="Generate PDF" icon="file-pdf" href="/api-reference/web/generate-pdf-from-a-web-page">
+    Create PDF from any webpage
+    
+    <Check>Supports custom paper sizes and print options</Check>
+  </Card>
+  <Card title="Scrape Elements" icon="spider" href="/api-reference/web/scrape-specific-elements-from-a-web-page">
+    Extract specific elements using selectors
+    
+    <CodeGroup>
+    ```json Example Response
+    {
+      "results": {
+        ".price": "$99.99",
+        ".title": "Product Name"
+      }
+    }
+    ```
+    </CodeGroup>
+  </Card>
+  <Card title="Web Search" icon="magnifying-glass" href="/api-reference/web/search-the-web">
+    Perform web searches with structured results
+    
+    <Warning>Currently in beta - reach out for early access</Warning>
+  </Card>
+</CardGroup>
+
+### API Keys
+
+Manage your API keys securely:
+
+<CardGroup cols={2}>
+  <Card title="List Keys" icon="list" href="/api-reference/api-keys/list-user-api-keys">
+    View all your API keys
+    <Tip>Use this to audit active keys</Tip>
+  </Card>
+  <Card title="Create Key" icon="key" href="/api-reference/api-keys/create-a-new-api-key">
+    Generate a new API key
+    <Warning>Save the key immediately - it won't be shown again</Warning>
+  </Card>
+  <Card title="Get Key Details" icon="circle-info" href="/api-reference/api-keys/get-api-key-details">
+    View details of a specific key
+    <Info>Includes creation date and last used timestamp</Info>
+  </Card>
+  <Card title="Delete Key" icon="trash" href="/api-reference/api-keys/delete-api-key">
+    Revoke an API key
+    <Warning>This action cannot be undone</Warning>
+  </Card>
+</CardGroup>
+
+### System Operations
+
+Manage browser instances and monitor system health:
+
+<CardGroup cols={2}>
+  <Card title="Create Browsers" icon="browser" href="/api-reference/system/create-browser-instances">
+    Create new browser instances
+    <Info>Supports Chrome and Firefox</Info>
+  </Card>
+  <Card title="Delete Browsers" icon="trash" href="/api-reference/system/delete-all-browser-instances">
+    Remove all browser instances
+    <Warning>Use with caution in production</Warning>
+  </Card>
+  <Card title="Browser Status" icon="circle-check" href="/api-reference/system/get-browser-status-information">
+    Check browser instance status
+    <Tip>Monitor memory and CPU usage</Tip>
+  </Card>
+  <Card title="Session Health" icon="heart-pulse" href="/api-reference/system/test-browser-session-health">
+    Verify browser session health
+    <Check>Includes connection and memory tests</Check>
+  </Card>
+  <Card title="Cleanup" icon="broom" href="/api-reference/system/clean-up-browser-durable-object">
+    Clean up browser resources
+    <Info>Automatically runs every 24 hours</Info>
+  </Card>
+</CardGroup>
+
+### User Management
+
+Manage user information and profiles:
+
+<CardGroup cols={2}>
+  <Card title="Current User" icon="user" href="/api-reference/user/get-current-user-information">
+    Get current user details
+    <Info>Includes subscription status</Info>
+  </Card>
+  <Card title="User Profile" icon="id-card" href="/api-reference/user/get-user-profile-protected">
+    Get protected user profile
+    <Check>GDPR compliant data access</Check>
+  </Card>
+</CardGroup>
+
+### File Management
+
+Manage uploaded files and storage:
+
+<CardGroup cols={2}>
+  <Card title="List Files" icon="folder" href="/api-reference/files/list-user-files">
+    View all uploaded files
+    <Info>Includes file metadata and URLs</Info>
+  </Card>
+  <Card title="Delete File" icon="trash" href="/api-reference/files/delete-a-file">
+    Remove uploaded files
+    <Warning>Files cannot be recovered after deletion</Warning>
+  </Card>
+</CardGroup>
+
+## Rate Limiting
+
+The API implements rate limiting to ensure fair usage:
+
+<CardGroup cols={2}>
+  <Card title="Standard Plan" icon="gauge-simple">
+    - 100 requests per minute - Suitable for most use cases
+  </Card>
+  <Card title="Premium Plan" icon="gauge-high">
+    - 1000 requests per minute - Priority support
+  </Card>
+</CardGroup>
+
+Rate limit information is included in the response headers:
+
+<ResponseField name="X-RateLimit-Limit" type="number">
+  Total requests allowed per window
+</ResponseField>
+
+<ResponseField name="X-RateLimit-Remaining" type="number">
+  Remaining requests in the current window
+</ResponseField>
+
+<ResponseField name="X-RateLimit-Reset" type="number">
+  Time when the rate limit resets (Unix timestamp)
+</ResponseField>
+
+<Note>Need higher limits? Contact us about our enterprise plans.</Note>
+
+## Error Handling
+
+All API errors follow a standard format. See our [Error Handling Guide](/api-reference/errors) for details about error codes and troubleshooting.
+
+<CodeGroup>
+```json 400 Bad Request
+{
+  "error": {
+    "code": "invalid_parameter",
+    "message": "The 'url' parameter is required",
+    "docs_url": "/api-reference/errors#invalid_parameter"
+  }
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": {
+    "code": "invalid_auth",
+    "message": "Invalid API key provided",
+    "docs_url": "/api-reference/errors#invalid_auth"
+  }
+}
+```
+
+```json 429 Too Many Requests
+{
+  "error": {
+    "code": "rate_limit_exceeded",
+    "message": "Rate limit exceeded. Please try again in 60 seconds",
+    "docs_url": "/api-reference/errors#rate_limit_exceeded"
+  }
+}
+```
+
+</CodeGroup>
+
+<Tip>Always implement proper error handling and retries in your integration.</Tip>
+
+## Need Help?
+
+<CardGroup cols={2}>
+  <Card title="Join our Discord" icon="discord" href="https://discord.gg/weblinq">
+    Get help from the community and share your projects
+  </Card>
+  <Card title="Email Support" icon="envelope" href="mailto:support@weblinq.dev">
+    Enterprise customers get priority email support
+  </Card>
+</CardGroup>

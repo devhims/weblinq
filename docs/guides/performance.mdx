@@ -1,0 +1,490 @@
+---
+title: 'Performance Optimization'
+description: 'Best practices for optimizing WebLinq API performance'
+---
+
+# Performance Optimization
+
+Learn how to optimize your WebLinq API usage for maximum performance and efficiency.
+
+## Overview
+
+<Note>These best practices will help you reduce latency, minimize costs, and improve reliability.</Note>
+
+## Caching Strategies
+
+<AccordionGroup>
+<Accordion title="Response Caching" icon="database">
+Implement response caching to reduce API calls:
+
+```javascript
+class ResponseCache {
+  constructor(options = {}) {
+    this.cache = new Map();
+    this.ttl = options.ttl || 3600000; // 1 hour default
+    this.maxSize = options.maxSize || 1000;
+  }
+
+  async get(key, fetchFn) {
+    const cached = this.cache.get(key);
+    if (cached && Date.now() - cached.timestamp < this.ttl) {
+      return cached.data;
+    }
+
+    const data = await fetchFn();
+    this.set(key, data);
+    return data;
+  }
+
+  set(key, data) {
+    // Implement LRU eviction if needed
+    if (this.cache.size >= this.maxSize) {
+      const oldestKey = Array.from(this.cache.keys())[0];
+      this.cache.delete(oldestKey);
+    }
+
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+    });
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+
+// Usage
+const cache = new ResponseCache({ ttl: 1800000 }); // 30 minutes TTL
+
+async function fetchWithCache(url) {
+  return cache.get(url, () => fetch(url).then((r) => r.json()));
+}
+```
+
+<Tip>
+Adjust cache TTL based on how frequently your target content changes.
+</Tip>
+</Accordion>
+
+<Accordion title="Browser Instance Caching" icon="browser">
+Reuse browser instances for similar requests:
+
+```javascript
+class BrowserPool {
+  constructor(options = {}) {
+    this.pool = new Map();
+    this.maxInstances = options.maxInstances || 5;
+    this.timeout = options.timeout || 300000; // 5 minutes
+  }
+
+  async getInstance(key) {
+    const instance = this.pool.get(key);
+    if (instance && Date.now() - instance.lastUsed < this.timeout) {
+      instance.lastUsed = Date.now();
+      return instance.browser;
+    }
+
+    // Create new instance
+    const browser = await this.createBrowser();
+    this.pool.set(key, {
+      browser,
+      lastUsed: Date.now(),
+    });
+
+    // Cleanup old instances
+    this.cleanup();
+    return browser;
+  }
+
+  async cleanup() {
+    const now = Date.now();
+    for (const [key, instance] of this.pool) {
+      if (now - instance.lastUsed > this.timeout) {
+        await instance.browser.close();
+        this.pool.delete(key);
+      }
+    }
+  }
+}
+```
+
+</Accordion>
+
+<Accordion title="Content Deduplication" icon="copy">
+Implement content deduplication:
+
+```javascript
+class ContentDeduplicator {
+  constructor() {
+    this.hashes = new Set();
+  }
+
+  hash(content) {
+    return crypto.createHash('sha256').update(JSON.stringify(content)).digest('hex');
+  }
+
+  isDuplicate(content) {
+    const hash = this.hash(content);
+    if (this.hashes.has(hash)) {
+      return true;
+    }
+    this.hashes.add(hash);
+    return false;
+  }
+}
+
+// Usage
+const dedup = new ContentDeduplicator();
+const results = [];
+
+for (const item of items) {
+  if (!dedup.isDuplicate(item)) {
+    results.push(item);
+  }
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Request Optimization
+
+### Batch Processing
+
+<CodeGroup>
+```javascript Node.js
+async function batchProcess(urls, options = {}) {
+  const batchSize = options.batchSize || 10;
+  const results = [];
+  
+  for (let i = 0; i < urls.length; i += batchSize) {
+    const batch = urls.slice(i, i + batchSize);
+    const promises = batch.map(url => 
+      fetch('https://api.weblinq.dev/v1/web/content', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.WEBLINQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url })
+      })
+    );
+    
+    const batchResults = await Promise.all(promises);
+    results.push(...batchResults);
+    
+    // Rate limit pause
+    if (i + batchSize < urls.length) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  
+  return results;
+}
+```
+
+```python Python
+async def batch_process(urls, batch_size=10):
+    results = []
+
+    for i in range(0, len(urls), batch_size):
+        batch = urls[i:i + batch_size]
+        tasks = [
+            fetch_content(url)
+            for url in batch
+        ]
+
+        batch_results = await asyncio.gather(*tasks)
+        results.extend(batch_results)
+
+        if i + batch_size < len(urls):
+            await asyncio.sleep(1)
+
+    return results
+```
+
+</CodeGroup>
+
+### Connection Pooling
+
+```javascript
+const https = require('https');
+
+const agent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 50,
+  maxFreeSockets: 10,
+  timeout: 60000,
+  freeSocketTimeout: 30000,
+});
+
+const client = axios.create({
+  httpsAgent: agent,
+  baseURL: 'https://api.weblinq.dev/v1',
+  timeout: 30000,
+});
+```
+
+### Request Compression
+
+```javascript
+const compression = require('compression');
+const zlib = require('zlib');
+
+// Compress requests
+const compressedData = zlib.gzipSync(JSON.stringify(data));
+
+await fetch('https://api.weblinq.dev/v1/web/content', {
+  method: 'POST',
+  headers: {
+    'Content-Encoding': 'gzip',
+    'Accept-Encoding': 'gzip',
+    'Content-Type': 'application/json',
+  },
+  body: compressedData,
+});
+```
+
+## Resource Management
+
+### Memory Management
+
+<AccordionGroup>
+<Accordion title="Stream Processing" icon="stream">
+Use streams for large responses:
+
+```javascript
+async function streamContent(url) {
+  const response = await fetch(url);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  let content = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    content += decoder.decode(value);
+
+    // Process chunks as they arrive
+    processChunk(content);
+  }
+}
+```
+
+</Accordion>
+
+<Accordion title="Memory Monitoring" icon="chart-line">
+Monitor memory usage:
+
+```javascript
+class MemoryMonitor {
+  constructor(options = {}) {
+    this.warningThreshold = options.warningThreshold || 0.8; // 80%
+    this.criticalThreshold = options.criticalThreshold || 0.9; // 90%
+  }
+
+  check() {
+    const used = process.memoryUsage();
+    const usage = used.heapUsed / used.heapTotal;
+
+    if (usage > this.criticalThreshold) {
+      this.handleCritical();
+    } else if (usage > this.warningThreshold) {
+      this.handleWarning();
+    }
+
+    return {
+      usage,
+      heapUsed: used.heapUsed,
+      heapTotal: used.heapTotal,
+    };
+  }
+
+  handleWarning() {
+    // Implement warning logic
+    console.warn('Memory usage high');
+    global.gc && global.gc();
+  }
+
+  handleCritical() {
+    // Implement critical logic
+    console.error('Memory usage critical');
+    this.cleanup();
+  }
+
+  cleanup() {
+    // Implement cleanup
+    cache.clear();
+    global.gc && global.gc();
+  }
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+### CPU Optimization
+
+<AccordionGroup>
+<Accordion title="Worker Threads" icon="microchip">
+Use worker threads for CPU-intensive tasks:
+
+```javascript
+const { Worker, isMainThread, parentPort } = require('worker_threads');
+
+if (isMainThread) {
+  const worker = new Worker(__filename);
+
+  worker.on('message', (result) => {
+    console.log('Processed:', result);
+  });
+
+  worker.postMessage({ url: 'https://example.com' });
+} else {
+  parentPort.on('message', async (data) => {
+    const result = await processContent(data.url);
+    parentPort.postMessage(result);
+  });
+}
+```
+
+</Accordion>
+
+<Accordion title="Task Scheduling" icon="clock">
+Schedule resource-intensive tasks:
+
+```javascript
+class TaskScheduler {
+  constructor() {
+    this.queue = [];
+    this.running = false;
+  }
+
+  add(task, priority = 0) {
+    this.queue.push({ task, priority });
+    this.queue.sort((a, b) => b.priority - a.priority);
+
+    if (!this.running) {
+      this.run();
+    }
+  }
+
+  async run() {
+    this.running = true;
+
+    while (this.queue.length > 0) {
+      const { task } = this.queue.shift();
+      await task();
+
+      // Yield to event loop
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    this.running = false;
+  }
+}
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Monitoring & Optimization
+
+### Performance Metrics
+
+```javascript
+class PerformanceMonitor {
+  constructor() {
+    this.metrics = {
+      requests: 0,
+      errors: 0,
+      totalTime: 0,
+      maxTime: 0,
+      minTime: Infinity,
+    };
+  }
+
+  async track(fn) {
+    const start = performance.now();
+
+    try {
+      const result = await fn();
+      this.recordSuccess(performance.now() - start);
+      return result;
+    } catch (error) {
+      this.recordError(performance.now() - start);
+      throw error;
+    }
+  }
+
+  recordSuccess(time) {
+    this.metrics.requests++;
+    this.metrics.totalTime += time;
+    this.metrics.maxTime = Math.max(this.metrics.maxTime, time);
+    this.metrics.minTime = Math.min(this.metrics.minTime, time);
+  }
+
+  recordError(time) {
+    this.metrics.errors++;
+    this.metrics.totalTime += time;
+  }
+
+  getStats() {
+    return {
+      ...this.metrics,
+      avgTime: this.metrics.totalTime / this.metrics.requests,
+      errorRate: this.metrics.errors / this.metrics.requests,
+    };
+  }
+}
+```
+
+### Auto-Scaling
+
+```javascript
+class AutoScaler {
+  constructor(options = {}) {
+    this.minInstances = options.minInstances || 1;
+    this.maxInstances = options.maxInstances || 10;
+    this.instances = new Map();
+    this.metrics = new PerformanceMonitor();
+  }
+
+  async scale() {
+    const stats = this.metrics.getStats();
+    const currentLoad = stats.requests / this.instances.size;
+
+    if (currentLoad > 100 && this.instances.size < this.maxInstances) {
+      await this.addInstance();
+    } else if (currentLoad < 50 && this.instances.size > this.minInstances) {
+      await this.removeInstance();
+    }
+  }
+
+  async addInstance() {
+    const instance = await this.createInstance();
+    this.instances.set(instance.id, instance);
+  }
+
+  async removeInstance() {
+    const [id, instance] = Array.from(this.instances.entries())[0];
+    await instance.shutdown();
+    this.instances.delete(id);
+  }
+}
+```
+
+## Best Practices Summary
+
+<Steps>
+  <Step title="Implement Caching">Use appropriate caching strategies at multiple levels</Step>
+
+  <Step title="Optimize Requests">Batch requests and implement connection pooling</Step>
+
+  <Step title="Manage Resources">Monitor and optimize memory and CPU usage</Step>
+
+  <Step title="Monitor Performance">Track metrics and implement auto-scaling</Step>
+</Steps>
+
+<Note>Need help optimizing your implementation? Contact our [support team](/support/contact) for assistance.</Note>{' '}

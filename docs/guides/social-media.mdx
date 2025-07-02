@@ -1,0 +1,827 @@
+---
+title: 'Social Media Monitoring'
+description: 'Learn how to monitor and analyze social media content using WebLinq API'
+---
+
+# Social Media Monitoring
+
+Learn how to monitor and analyze social media content at scale using WebLinq API.
+
+## Overview
+
+<Note>This guide demonstrates how to implement social media monitoring and analysis using WebLinq API.</Note>
+
+## Profile Monitoring
+
+### Profile Scraping
+
+<CodeGroup>
+```javascript Node.js
+const WebLinq = require('weblinq');
+
+class ProfileScraper {
+constructor(apiKey) {
+this.client = new WebLinq(apiKey);
+}
+
+async scrapeProfile(url, platform) {
+const selectors = this.getSelectors(platform);
+
+    const response = await this.client.extract({
+      url,
+      selectors
+    });
+
+    return {
+      ...response,
+      platform,
+      url,
+      scrapedAt: new Date().toISOString()
+    };
+
+}
+
+getSelectors(platform) {
+const selectors = {
+twitter: {
+name: '.profile-name',
+handle: '.profile-handle',
+bio: '.profile-bio',
+followers: '.followers-count',
+following: '.following-count',
+tweets: {
+selector: '.tweet',
+type: 'list',
+data: {
+text: '.tweet-text',
+date: '.tweet-date',
+likes: '.like-count',
+retweets: '.retweet-count'
+}
+}
+},
+linkedin: {
+name: '.profile-name',
+title: '.profile-title',
+company: '.profile-company',
+location: '.profile-location',
+about: '.profile-about',
+experience: {
+selector: '.experience-item',
+type: 'list',
+data: {
+title: '.experience-title',
+company: '.experience-company',
+duration: '.experience-duration'
+}
+}
+},
+instagram: {
+name: '.profile-name',
+bio: '.profile-bio',
+followers: '.followers-count',
+following: '.following-count',
+posts: {
+selector: '.post',
+type: 'list',
+data: {
+image: {
+selector: 'img',
+attr: 'src'
+},
+caption: '.post-caption',
+likes: '.like-count',
+comments: '.comment-count'
+}
+}
+}
+};
+
+    return selectors[platform.toLowerCase()];
+
+}
+}
+
+// Usage
+const scraper = new ProfileScraper('YOUR_API_KEY');
+
+const profile = await scraper.scrapeProfile(
+'https://twitter.com/username',
+'twitter'
+);
+console.log(profile);
+
+````
+
+```python Python
+from weblinq import WebLinq
+from datetime import datetime
+from typing import Dict, List
+
+class ProfileScraper:
+    def __init__(self, api_key: str):
+        self.client = WebLinq(api_key)
+
+    async def scrape_profile(self, url: str, platform: str) -> dict:
+        selectors = self.get_selectors(platform)
+
+        response = await self.client.extract({
+            'url': url,
+            'selectors': selectors
+        })
+
+        return {
+            **response,
+            'platform': platform,
+            'url': url,
+            'scraped_at': datetime.now().isoformat()
+        }
+
+    def get_selectors(self, platform: str) -> dict:
+        selectors = {
+            'twitter': {
+                'name': '.profile-name',
+                'handle': '.profile-handle',
+                'bio': '.profile-bio',
+                'followers': '.followers-count',
+                'following': '.following-count',
+                'tweets': {
+                    'selector': '.tweet',
+                    'type': 'list',
+                    'data': {
+                        'text': '.tweet-text',
+                        'date': '.tweet-date',
+                        'likes': '.like-count',
+                        'retweets': '.retweet-count'
+                    }
+                }
+            },
+            'linkedin': {
+                'name': '.profile-name',
+                'title': '.profile-title',
+                'company': '.profile-company',
+                'location': '.profile-location',
+                'about': '.profile-about',
+                'experience': {
+                    'selector': '.experience-item',
+                    'type': 'list',
+                    'data': {
+                        'title': '.experience-title',
+                        'company': '.experience-company',
+                        'duration': '.experience-duration'
+                    }
+                }
+            },
+            'instagram': {
+                'name': '.profile-name',
+                'bio': '.profile-bio',
+                'followers': '.followers-count',
+                'following': '.following-count',
+                'posts': {
+                    'selector': '.post',
+                    'type': 'list',
+                    'data': {
+                        'image': {
+                            'selector': 'img',
+                            'attr': 'src'
+                        },
+                        'caption': '.post-caption',
+                        'likes': '.like-count',
+                        'comments': '.comment-count'
+                    }
+                }
+            }
+        }
+
+        return selectors[platform.lower()]
+
+# Usage
+async def main():
+    scraper = ProfileScraper('YOUR_API_KEY')
+
+    profile = await scraper.scrape_profile(
+        'https://twitter.com/username',
+        'twitter'
+    )
+    print(json.dumps(profile, indent=2))
+
+asyncio.run(main())
+````
+
+</CodeGroup>
+
+### Profile Monitoring
+
+<CodeGroup>
+```javascript Node.js
+class ProfileMonitor {
+  constructor(apiKey) {
+    this.client = new WebLinq(apiKey);
+    this.profiles = new Map();
+    this.scraper = new ProfileScraper(apiKey);
+  }
+
+async addProfile(url, options = {}) {
+const { platform, name, interval = 3600000 } = options;
+
+    this.profiles.set(url, {
+      platform,
+      name,
+      interval,
+      lastCheck: null,
+      history: []
+    });
+
+}
+
+async monitorProfile(url) {
+const profile = this.profiles.get(url);
+
+    try {
+      const data = await this.scraper.scrapeProfile(url, profile.platform);
+
+      // Check for changes
+      if (profile.history.length > 0) {
+        const changes = this.detectChanges(
+          profile.history[profile.history.length - 1],
+          data
+        );
+
+        if (changes.length > 0) {
+          await this.handleChanges(url, changes);
+        }
+      }
+
+      // Update history
+      profile.history.push(data);
+      profile.lastCheck = new Date();
+
+      // Limit history size
+      if (profile.history.length > 100) {
+        profile.history.shift();
+      }
+    } catch (error) {
+      console.error(`Error monitoring profile ${url}:`, error);
+    }
+
+}
+
+detectChanges(oldData, newData) {
+const changes = [];
+
+    // Compare followers/following
+    if (oldData.followers !== newData.followers) {
+      changes.push({
+        type: 'followers',
+        old: oldData.followers,
+        new: newData.followers
+      });
+    }
+
+    if (oldData.following !== newData.following) {
+      changes.push({
+        type: 'following',
+        old: oldData.following,
+        new: newData.following
+      });
+    }
+
+    // Compare bio
+    if (oldData.bio !== newData.bio) {
+      changes.push({
+        type: 'bio',
+        old: oldData.bio,
+        new: newData.bio
+      });
+    }
+
+    // Compare posts/tweets
+    if (oldData.posts) {
+      const newPosts = newData.posts.filter(post =>
+        !oldData.posts.find(p => p.id === post.id)
+      );
+
+      if (newPosts.length > 0) {
+        changes.push({
+          type: 'new_posts',
+          posts: newPosts
+        });
+      }
+    }
+
+    return changes;
+
+}
+
+async handleChanges(url, changes) {
+const profile = this.profiles.get(url);
+
+    for (const change of changes) {
+      await this.notifyChange({
+        profile: profile.name,
+        platform: profile.platform,
+        url,
+        change
+      });
+    }
+
+}
+
+async notifyChange(data) {
+// Implement your notification logic
+console.log('Profile change detected:', data);
+}
+
+startMonitoring() {
+for (const [url, profile] of this.profiles) {
+setInterval(() => this.monitorProfile(url), profile.interval);
+}
+}
+}
+
+// Usage
+const monitor = new ProfileMonitor('YOUR_API_KEY');
+
+await monitor.addProfile('https://twitter.com/username', {
+platform: 'twitter',
+name: 'Example User',
+interval: 1800000 // 30 minutes
+});
+
+monitor.startMonitoring();
+
+````
+
+```python Python
+class ProfileMonitor:
+    def __init__(self, api_key: str):
+        self.client = WebLinq(api_key)
+        self.profiles: Dict[str, dict] = {}
+        self.scraper = ProfileScraper(api_key)
+
+    async def add_profile(self, url: str, **options):
+        platform = options['platform']
+        name = options['name']
+        interval = options.get('interval', 3600)  # 1 hour default
+
+        self.profiles[url] = {
+            'platform': platform,
+            'name': name,
+            'interval': interval,
+            'last_check': None,
+            'history': []
+        }
+
+    async def monitor_profile(self, url: str):
+        profile = self.profiles[url]
+
+        try:
+            data = await self.scraper.scrape_profile(url, profile['platform'])
+
+            # Check for changes
+            if profile['history']:
+                changes = self.detect_changes(
+                    profile['history'][-1],
+                    data
+                )
+
+                if changes:
+                    await self.handle_changes(url, changes)
+
+            # Update history
+            profile['history'].append(data)
+            profile['last_check'] = datetime.now()
+
+            # Limit history size
+            if len(profile['history']) > 100:
+                profile['history'].pop(0)
+        except Exception as e:
+            print(f"Error monitoring profile {url}: {e}")
+
+    def detect_changes(self, old_data: dict, new_data: dict) -> List[dict]:
+        changes = []
+
+        # Compare followers/following
+        if old_data['followers'] != new_data['followers']:
+            changes.append({
+                'type': 'followers',
+                'old': old_data['followers'],
+                'new': new_data['followers']
+            })
+
+        if old_data['following'] != new_data['following']:
+            changes.append({
+                'type': 'following',
+                'old': old_data['following'],
+                'new': new_data['following']
+            })
+
+        # Compare bio
+        if old_data['bio'] != new_data['bio']:
+            changes.append({
+                'type': 'bio',
+                'old': old_data['bio'],
+                'new': new_data['bio']
+            })
+
+        # Compare posts/tweets
+        if 'posts' in old_data:
+            new_posts = [
+                post for post in new_data['posts']
+                if not any(p['id'] == post['id'] for p in old_data['posts'])
+            ]
+
+            if new_posts:
+                changes.append({
+                    'type': 'new_posts',
+                    'posts': new_posts
+                })
+
+        return changes
+
+    async def handle_changes(self, url: str, changes: List[dict]):
+        profile = self.profiles[url]
+
+        for change in changes:
+            await self.notify_change({
+                'profile': profile['name'],
+                'platform': profile['platform'],
+                'url': url,
+                'change': change
+            })
+
+    async def notify_change(self, data: dict):
+        # Implement your notification logic
+        print('Profile change detected:', data)
+
+    async def start_monitoring(self):
+        while True:
+            tasks = []
+            for url in self.profiles:
+                tasks.append(self.monitor_profile(url))
+
+            await asyncio.gather(*tasks)
+            await asyncio.sleep(min(
+                profile['interval']
+                for profile in self.profiles.values()
+            ))
+
+# Usage
+async def main():
+    monitor = ProfileMonitor('YOUR_API_KEY')
+
+    await monitor.add_profile('https://twitter.com/username',
+                            platform='twitter',
+                            name='Example User',
+                            interval=1800)  # 30 minutes
+
+    await monitor.start_monitoring()
+
+asyncio.run(main())
+````
+
+</CodeGroup>
+
+## Content Analysis
+
+### Sentiment Analysis
+
+<CodeGroup>
+```javascript Node.js
+class ContentAnalyzer {
+  constructor(apiKey) {
+    this.client = new WebLinq(apiKey);
+  }
+
+async analyzeProfile(url, platform) {
+const profile = await this.scraper.scrapeProfile(url, platform);
+const posts = this.getPosts(profile, platform);
+
+    const analysis = {
+      sentiment: await this.analyzeSentiment(posts),
+      topics: await this.analyzeTopics(posts),
+      engagement: this.calculateEngagement(posts),
+      timeline: this.buildTimeline(posts)
+    };
+
+    return {
+      profile,
+      analysis,
+      timestamp: new Date().toISOString()
+    };
+
+}
+
+getPosts(profile, platform) {
+switch (platform.toLowerCase()) {
+case 'twitter':
+return profile.tweets;
+case 'instagram':
+return profile.posts;
+default:
+return [];
+}
+}
+
+async analyzeSentiment(posts) {
+let totalScore = 0;
+let totalMagnitude = 0;
+
+    for (const post of posts) {
+      const sentiment = await this.getSentiment(post.text);
+      totalScore += sentiment.score;
+      totalMagnitude += sentiment.magnitude;
+    }
+
+    return {
+      averageScore: totalScore / posts.length,
+      averageMagnitude: totalMagnitude / posts.length
+    };
+
+}
+
+async analyzeTopics(posts) {
+const topics = new Map();
+
+    for (const post of posts) {
+      const postTopics = await this.extractTopics(post.text);
+
+      for (const topic of postTopics) {
+        topics.set(topic, (topics.get(topic) || 0) + 1);
+      }
+    }
+
+    return Array.from(topics.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([topic, count]) => ({ topic, count }));
+
+}
+
+calculateEngagement(posts) {
+let totalLikes = 0;
+let totalComments = 0;
+let totalShares = 0;
+
+    for (const post of posts) {
+      totalLikes += post.likes || 0;
+      totalComments += post.comments || 0;
+      totalShares += post.shares || 0;
+    }
+
+    return {
+      totalLikes,
+      totalComments,
+      totalShares,
+      averageLikes: totalLikes / posts.length,
+      averageComments: totalComments / posts.length,
+      averageShares: totalShares / posts.length,
+      engagementRate: (totalLikes + totalComments + totalShares) /
+        (posts.length * profile.followers)
+    };
+
+}
+
+buildTimeline(posts) {
+const timeline = new Map();
+
+    for (const post of posts) {
+      const date = new Date(post.date).toISOString().split('T')[0];
+      timeline.set(date, (timeline.get(date) || 0) + 1);
+    }
+
+    return Object.fromEntries(timeline);
+
+}
+}
+
+// Usage
+const analyzer = new ContentAnalyzer('YOUR_API_KEY');
+
+const analysis = await analyzer.analyzeProfile(
+'https://twitter.com/username',
+'twitter'
+);
+console.log(analysis);
+
+````
+
+```python Python
+class ContentAnalyzer:
+    def __init__(self, api_key: str):
+        self.client = WebLinq(api_key)
+
+    async def analyze_profile(self, url: str, platform: str) -> dict:
+        profile = await self.scraper.scrape_profile(url, platform)
+        posts = self.get_posts(profile, platform)
+
+        analysis = {
+            'sentiment': await self.analyze_sentiment(posts),
+            'topics': await self.analyze_topics(posts),
+            'engagement': self.calculate_engagement(posts),
+            'timeline': self.build_timeline(posts)
+        }
+
+        return {
+            'profile': profile,
+            'analysis': analysis,
+            'timestamp': datetime.now().isoformat()
+        }
+
+    def get_posts(self, profile: dict, platform: str) -> List[dict]:
+        platform = platform.lower()
+        if platform == 'twitter':
+            return profile['tweets']
+        elif platform == 'instagram':
+            return profile['posts']
+        return []
+
+    async def analyze_sentiment(self, posts: List[dict]) -> dict:
+        total_score = 0
+        total_magnitude = 0
+
+        for post in posts:
+            sentiment = await self.get_sentiment(post['text'])
+            total_score += sentiment['score']
+            total_magnitude += sentiment['magnitude']
+
+        return {
+            'average_score': total_score / len(posts),
+            'average_magnitude': total_magnitude / len(posts)
+        }
+
+    async def analyze_topics(self, posts: List[dict]) -> List[dict]:
+        from collections import Counter
+
+        topics = Counter()
+
+        for post in posts:
+            post_topics = await self.extract_topics(post['text'])
+            topics.update(post_topics)
+
+        return [
+            {'topic': topic, 'count': count}
+            for topic, count in topics.most_common(10)
+        ]
+
+    def calculate_engagement(self, posts: List[dict]) -> dict:
+        total_likes = sum(post.get('likes', 0) for post in posts)
+        total_comments = sum(post.get('comments', 0) for post in posts)
+        total_shares = sum(post.get('shares', 0) for post in posts)
+
+        return {
+            'total_likes': total_likes,
+            'total_comments': total_comments,
+            'total_shares': total_shares,
+            'average_likes': total_likes / len(posts),
+            'average_comments': total_comments / len(posts),
+            'average_shares': total_shares / len(posts),
+            'engagement_rate': (total_likes + total_comments + total_shares) /
+                (len(posts) * profile['followers'])
+        }
+
+    def build_timeline(self, posts: List[dict]) -> Dict[str, int]:
+        from collections import defaultdict
+
+        timeline = defaultdict(int)
+
+        for post in posts:
+            date = datetime.fromisoformat(post['date']).date().isoformat()
+            timeline[date] += 1
+
+        return dict(timeline)
+
+# Usage
+async def main():
+    analyzer = ContentAnalyzer('YOUR_API_KEY')
+
+    analysis = await analyzer.analyze_profile(
+        'https://twitter.com/username',
+        'twitter'
+    )
+    print(json.dumps(analysis, indent=2))
+
+asyncio.run(main())
+````
+
+</CodeGroup>
+
+## Best Practices
+
+### Rate Limiting
+
+<Warning>Always respect platform-specific rate limits and implement proper delays.</Warning>
+
+```javascript
+class RateLimiter {
+  constructor() {
+    this.limits = {
+      twitter: {
+        requests: 180,
+        window: 900000, // 15 minutes
+      },
+      instagram: {
+        requests: 200,
+        window: 3600000, // 1 hour
+      },
+    };
+
+    this.counters = new Map();
+  }
+
+  async checkLimit(platform) {
+    const counter = this.getCounter(platform);
+    const limit = this.limits[platform.toLowerCase()];
+
+    if (counter.requests >= limit.requests) {
+      const waitTime = counter.startTime + limit.window - Date.now();
+
+      if (waitTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        this.resetCounter(platform);
+      }
+    }
+
+    counter.requests++;
+  }
+
+  getCounter(platform) {
+    if (!this.counters.has(platform)) {
+      this.resetCounter(platform);
+    }
+
+    return this.counters.get(platform);
+  }
+
+  resetCounter(platform) {
+    this.counters.set(platform, {
+      requests: 0,
+      startTime: Date.now(),
+    });
+  }
+}
+```
+
+### Error Handling
+
+```javascript
+class SocialScraperError extends Error {
+  constructor(message, platform, url) {
+    super(message);
+    this.name = 'SocialScraperError';
+    this.platform = platform;
+    this.url = url;
+  }
+}
+
+class ErrorHandler {
+  constructor() {
+    this.errors = [];
+  }
+
+  async withRetry(fn, options = {}) {
+    const { retries = 3, delay = 1000 } = options;
+
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await fn();
+      } catch (error) {
+        this.logError(error);
+
+        if (i === retries - 1) throw error;
+
+        if (error.name === 'RateLimitError') {
+          await new Promise((resolve) => setTimeout(resolve, error.retryAfter || delay * 10));
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
+        }
+      }
+    }
+  }
+
+  logError(error) {
+    this.errors.push({
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      platform: error.platform,
+      url: error.url,
+    });
+  }
+}
+```
+
+## Summary
+
+<Steps>
+  <Step title="Set Up Monitoring">Implement profile scraping and monitoring</Step>
+
+  <Step title="Analyze Content">Add sentiment analysis and engagement tracking</Step>
+
+  <Step title="Handle Rate Limits">Implement platform-specific rate limiting</Step>
+
+  <Step title="Manage Errors">Add proper error handling and retries</Step>
+</Steps>
+
+<Note>
+  Need help implementing social media monitoring? Contact our [support team](/support/contact) for assistance.
+</Note>{' '}
