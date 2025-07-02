@@ -2,6 +2,8 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import { jsonContent, jsonContentRequired } from 'stoker/openapi/helpers';
 import { createErrorSchema } from 'stoker/openapi/schemas';
 
+// Import error schema helper
+import { StandardErrorSchema } from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['System'];
@@ -31,10 +33,10 @@ const deleteAllBrowsersInputSchema = z.object({});
 const checkRemainingInputSchema = z.object({});
 
 /**
- * Output schemas for system operations
+ * Standardized output schemas following ApiSuccessResponse<T> format
  */
 const browserStatusOutputSchema = z.object({
-  success: z.boolean(),
+  success: z.literal(true),
   data: z.object({
     totalDOs: z.number(),
     maxCapacity: z.number(),
@@ -53,11 +55,13 @@ const browserStatusOutputSchema = z.object({
       }),
     ),
   }),
-  creditsCost: z.number(),
+  creditsCost: z.number().optional(),
+  requestId: z.string(),
+  timestamp: z.string(),
 });
 
 const sessionHealthOutputSchema = z.object({
-  success: z.boolean(),
+  success: z.literal(true),
   data: z.object({
     sessionId: z.string(),
     healthy: z.boolean(),
@@ -74,11 +78,13 @@ const sessionHealthOutputSchema = z.object({
       .optional(),
     testTimestamp: z.string(),
   }),
-  creditsCost: z.number(),
+  creditsCost: z.number().optional(),
+  requestId: z.string(),
+  timestamp: z.string(),
 });
 
 const createBrowsersOutputSchema = z.object({
-  success: z.boolean(),
+  success: z.literal(true),
   data: z.object({
     requested: z.number(),
     created: z.number(),
@@ -91,21 +97,25 @@ const createBrowsersOutputSchema = z.object({
       }),
     ),
   }),
-  creditsCost: z.number(),
+  creditsCost: z.number().optional(),
+  requestId: z.string(),
+  timestamp: z.string(),
 });
 
 const cleanupDoOutputSchema = z.object({
-  success: z.boolean(),
+  success: z.literal(true),
   data: z.object({
     action: z.literal('cleanup-do'),
     doId: z.string(),
     message: z.string(),
   }),
-  creditsCost: z.number(),
+  creditsCost: z.number().optional(),
+  requestId: z.string(),
+  timestamp: z.string(),
 });
 
 const deleteAllBrowsersOutputSchema = z.object({
-  success: z.boolean(),
+  success: z.literal(true),
   data: z.object({
     action: z.literal('delete-all'),
     message: z.string(),
@@ -123,18 +133,22 @@ const deleteAllBrowsersOutputSchema = z.object({
     ),
     storageCleared: z.boolean(),
   }),
-  creditsCost: z.number(),
+  creditsCost: z.number().optional(),
+  requestId: z.string(),
+  timestamp: z.string(),
 });
 
 const checkRemainingOutputSchema = z.object({
-  success: z.boolean(),
+  success: z.literal(true),
   data: z.object({
     activeSessions: z.number(),
     maxConcurrentSessions: z.number(),
     allowedBrowserAcquisitions: z.number(),
     timeUntilNextAllowedBrowserAcquisition: z.number(),
   }),
-  creditsCost: z.number(),
+  creditsCost: z.number().optional(),
+  requestId: z.string(),
+  timestamp: z.string(),
 });
 
 /**
@@ -152,18 +166,12 @@ export const browserStatus = createRoute({
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(browserStatusOutputSchema, 'Browser status retrieved successfully'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(browserStatusInputSchema),
       'Validation error',
     ),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -179,18 +187,12 @@ export const sessionHealth = createRoute({
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(sessionHealthOutputSchema, 'Session health test completed successfully'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(sessionHealthInputSchema),
       'Validation error',
     ),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -199,25 +201,19 @@ export const createBrowsers = createRoute({
   method: 'post',
   tags,
   security,
-  summary: 'Create browser instances',
+  summary: 'Create new browser instances',
   description: 'Create one or more browser durable object instances',
   request: {
     body: jsonContentRequired(createBrowsersInputSchema, 'Browser creation parameters'),
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(createBrowsersOutputSchema, 'Browsers created successfully'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(createBrowsersInputSchema),
       'Validation error',
     ),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -226,22 +222,16 @@ export const cleanupDo = createRoute({
   method: 'post',
   tags,
   security,
-  summary: 'Clean up browser durable object',
-  description: 'Clean up and reset a specific browser durable object',
+  summary: 'Cleanup a specific browser DO',
+  description: 'Cleanup and reset a specific browser durable object',
   request: {
-    body: jsonContentRequired(cleanupDoInputSchema, 'Browser DO cleanup parameters'),
+    body: jsonContentRequired(cleanupDoInputSchema, 'DO cleanup parameters'),
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(cleanupDoOutputSchema, 'Browser DO cleaned up successfully'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(cleanupDoInputSchema), 'Validation error'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -251,24 +241,18 @@ export const deleteAllBrowsers = createRoute({
   tags,
   security,
   summary: 'Delete all browser instances',
-  description: 'Delete all browser durable object instances and clear storage',
+  description: 'Delete all browser durable objects and clear storage',
   request: {
     body: jsonContentRequired(deleteAllBrowsersInputSchema, 'Delete all browsers parameters'),
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(deleteAllBrowsersOutputSchema, 'All browsers deleted successfully'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(deleteAllBrowsersInputSchema),
       'Validation error',
     ),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -277,29 +261,22 @@ export const checkRemaining = createRoute({
   method: 'post',
   tags,
   security,
-  summary: 'Check browser API limits',
-  description: 'Check remaining Cloudflare Browser API limits and quotas',
+  summary: 'Check remaining browser resources',
+  description: 'Check available browser sessions and acquisition limits',
   request: {
-    body: jsonContentRequired(checkRemainingInputSchema, 'Check remaining API limits parameters'),
+    body: jsonContentRequired(checkRemainingInputSchema, 'Check remaining parameters'),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(checkRemainingOutputSchema, 'Browser API limits retrieved successfully'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
+    [HttpStatusCodes.OK]: jsonContent(checkRemainingOutputSchema, 'Remaining resources checked successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(checkRemainingInputSchema),
       'Validation error',
     ),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
-// Export route types for handlers
 export type BrowserStatusRoute = typeof browserStatus;
 export type SessionHealthRoute = typeof sessionHealth;
 export type CreateBrowsersRoute = typeof createBrowsers;

@@ -3,16 +3,14 @@
 import { useSession } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { getErrorMessage } from '@/lib/error-utils';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   redirectTo?: string;
 }
 
-export function ProtectedRoute({
-  children,
-  redirectTo = '/login',
-}: ProtectedRouteProps) {
+export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRouteProps) {
   const { data: session, isPending, error } = useSession();
   const router = useRouter();
   const isAuthenticated = !!session?.user;
@@ -25,16 +23,16 @@ export function ProtectedRoute({
 
   if (isPending) {
     return (
-      <div className='min-h-screen flex items-center justify-center'>
-        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600'></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className='min-h-screen flex items-center justify-center'>
-        <div className='text-red-600'>Error: {error.message}</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-600">Error: {getErrorMessage(error)}</div>
       </div>
     );
   }

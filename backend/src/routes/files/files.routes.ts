@@ -2,6 +2,8 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import { jsonContent, jsonContentRequired } from 'stoker/openapi/helpers';
 import { createErrorSchema } from 'stoker/openapi/schemas';
 
+// Import error schema helper
+import { StandardErrorSchema } from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Files'];
@@ -24,10 +26,10 @@ const deleteFileInputSchema = z.object({
 });
 
 /**
- * Output schemas for file management operations
+ * Standardized output schemas following ApiSuccessResponse<T> format
  */
 const listFilesOutputSchema = z.object({
-  success: z.boolean(),
+  success: z.literal(true),
   data: z.object({
     sqliteStatus: z.object({
       enabled: z.boolean(),
@@ -49,10 +51,13 @@ const listFilesOutputSchema = z.object({
     ),
     totalFiles: z.number(),
   }),
+  creditsCost: z.number().optional(),
+  requestId: z.string(),
+  timestamp: z.string(),
 });
 
 const deleteFileOutputSchema = z.object({
-  success: z.boolean(),
+  success: z.literal(true),
   data: z.object({
     fileId: z.string(),
     wasFound: z.boolean(),
@@ -73,6 +78,9 @@ const deleteFileOutputSchema = z.object({
       .optional(),
     error: z.string().optional(),
   }),
+  creditsCost: z.number().optional(),
+  requestId: z.string(),
+  timestamp: z.string(),
 });
 
 /**
@@ -90,15 +98,9 @@ export const listFiles = createRoute({
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(listFilesOutputSchema, 'Files listed successfully'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(listFilesInputSchema), 'Validation error'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -114,15 +116,9 @@ export const deleteFile = createRoute({
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(deleteFileOutputSchema, 'File deleted successfully'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(deleteFileInputSchema), 'Validation error'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 

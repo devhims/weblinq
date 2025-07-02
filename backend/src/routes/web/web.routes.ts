@@ -2,6 +2,7 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import { jsonContent, jsonContentRequired } from 'stoker/openapi/helpers';
 import { createErrorSchema } from 'stoker/openapi/schemas';
 
+import { StandardErrorSchema } from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Web'];
@@ -297,14 +298,8 @@ export const screenshot = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(screenshotOutputSchema, 'Screenshot captured successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(screenshotInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -321,14 +316,8 @@ export const markdown = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(markdownOutputSchema, 'Markdown extracted successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(markdownInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -348,14 +337,8 @@ export const jsonExtraction = createRoute({
       createErrorSchema(jsonExtractionInputSchema),
       'Validation error',
     ),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -372,14 +355,8 @@ export const content = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(contentOutputSchema, 'HTML content retrieved successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(contentInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -396,14 +373,8 @@ export const scrape = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(scrapeOutputSchema, 'Elements scraped successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(scrapeInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -420,14 +391,8 @@ export const links = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(linksOutputSchema, 'Links extracted successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(linksInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -444,14 +409,8 @@ export const search = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(searchOutputSchema, 'Search completed successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(searchInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -468,14 +427,8 @@ export const pdf = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(pdfOutputSchema, 'PDF generated successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(pdfInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 

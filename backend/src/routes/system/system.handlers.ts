@@ -2,6 +2,8 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { AppRouteHandler } from '@/lib/types';
 
+import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
+
 import type {
   BrowserStatusRoute,
   CheckRemainingRoute,
@@ -44,13 +46,13 @@ export const browserStatus: AppRouteHandler<BrowserStatusRoute> = async (c: any)
     );
   } catch (error) {
     console.error('Browser status error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
   }
 };
 
@@ -128,13 +130,13 @@ export const sessionHealth: AppRouteHandler<SessionHealthRoute> = async (c: any)
     }
   } catch (error) {
     console.error('Session health test error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
   }
 };
 
@@ -171,13 +173,13 @@ export const createBrowsers: AppRouteHandler<CreateBrowsersRoute> = async (c: an
     );
   } catch (error) {
     console.error('Create browsers error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown create browsers error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Unknown create browsers error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
   }
 };
 
@@ -216,13 +218,13 @@ export const cleanupDo: AppRouteHandler<CleanupDoRoute> = async (c: any) => {
     );
   } catch (error) {
     console.error('Cleanup DO error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown cleanup DO error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Unknown cleanup DO error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
   }
 };
 
@@ -258,13 +260,13 @@ export const deleteAllBrowsers: AppRouteHandler<DeleteAllBrowsersRoute> = async 
     );
   } catch (error) {
     console.error('Delete all browsers error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown delete all browsers error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Unknown delete all browsers error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
   }
 };
 
@@ -311,12 +313,12 @@ export const checkRemaining: AppRouteHandler<CheckRemainingRoute> = async (c: an
     );
   } catch (error) {
     console.error('Check remaining API limits error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown check remaining error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Unknown check remaining error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
   }
 };

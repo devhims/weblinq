@@ -68,7 +68,7 @@ const actionParser = parseAsStringLiteral(ACTION_IDS).withDefault('markdown');
 
 export const studioParsers = {
   // Core parameters
-  url: parseAsString.withDefault('https://example.com'),
+  url: parseAsString,
   endpoint: endpointParser,
   action: actionParser,
 
@@ -137,11 +137,11 @@ export function useStudioParams() {
 
   // Ensure URL reflects defaults on initial load
   useEffect(() => {
-    if (!searchParams.has('endpoint') || !searchParams.has('action') || !searchParams.has('url')) {
-      // --> 2nd argument are per-call options
-      setParams({ endpoint, action, url }, { clearOnDefault: false, history: 'replace' });
+    if (!searchParams.has('endpoint') || !searchParams.has('action')) {
+      // Only set endpoint and action defaults, not URL
+      setParams({ endpoint, action }, { clearOnDefault: false, history: 'replace' });
     }
-  }, [searchParams, endpoint, action, url, setParams]);
+  }, [searchParams, endpoint, action, setParams]);
 
   // Build API payload using utility function (legacy bridge)
   const getApiPayload = () => buildApiPayloadFromParams(params);

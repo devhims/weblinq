@@ -2,13 +2,7 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { AppRouteHandler } from '@/lib/types';
 
-import {
-  getAuthType,
-  getCurrentApiToken,
-  getCurrentSession,
-  getCurrentUser,
-  isAuthenticated,
-} from '@/lib/auth-utils';
+import { getAuthType, getCurrentApiToken, getCurrentSession, getCurrentUser, isAuthenticated } from '@/lib/auth-utils';
 
 import type { GetMeRoute, GetProfileRoute } from './user.routes';
 

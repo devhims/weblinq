@@ -21,6 +21,7 @@ import type {
 import { ApiResult } from '../types';
 import { filterMainContent } from '../utils/mainContent';
 import { useStudioParams } from '../hooks/useStudioParams';
+import { getErrorMessage } from '@/lib/error-utils';
 
 /* ──────────────────────────────────────────────────────────────
    PURE NUQS + UTILITY FUNCTIONS APPROACH:
@@ -88,6 +89,12 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   ——————————————————————————————————————————— */
   const [loading, startTransition] = useTransition();
   const [buttonState, setButtonState] = useState<ButtonState>('idle');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Debug logging for submitError state changes
+  useEffect(() => {
+    console.log('submitError state changed:', submitError);
+  }, [submitError]);
 
   /* ———————————————————————————————————————————
      Notify parent about loading changes
@@ -114,6 +121,56 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
       setButtonState('idle');
     }, 1500); // Show status for 1.5 seconds
   };
+
+  /* ———————————————————————————————————————————
+     URL validation function (only called on submit)
+  ——————————————————————————————————————————— */
+  const validateUrl = (inputUrl: string): string | null => {
+    if (!inputUrl.trim()) return 'URL is required'; // Empty URLs are now caught
+
+    try {
+      const urlObj = new URL(inputUrl);
+      const hostname = urlObj.hostname;
+
+      // Allow local development URLs
+      if (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') ||
+        hostname.startsWith('172.')
+      ) {
+        return null;
+      }
+
+      // Must contain at least one dot for TLD
+      if (!hostname.includes('.')) {
+        return 'URL must include a valid domain name with a top-level domain (e.g., .com, .org, etc.)';
+      }
+
+      // Must have a valid TLD (at least 2 characters after the last dot)
+      const parts = hostname.split('.');
+      const tld = parts[parts.length - 1];
+
+      if (tld.length < 2 || !/^[a-zA-Z]+$/.test(tld)) {
+        return 'URL must include a valid domain name with a top-level domain (e.g., .com, .org, etc.)';
+      }
+
+      return null; // Valid URL
+    } catch {
+      return 'Please enter a valid URL (e.g., https://example.com)';
+    }
+  };
+
+  /* ———————————————————————————————————————————
+     Clear error when user starts typing again
+  ——————————————————————————————————————————— */
+  useEffect(() => {
+    if (submitError) {
+      console.log('Clearing submitError because URL changed'); // Debug log
+      setSubmitError(null);
+    }
+  }, [url]); // Only depend on URL changes, not submitError changes
 
   /* ———————————————————————————————————————————
      Helpers to update URL state from inputs
@@ -165,9 +222,32 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   };
 
   /* ———————————————————————————————————————————
-     Main action handler - much simpler now!
+     Main action handler - now includes validation on submit
   ——————————————————————————————————————————— */
   const handleApiCall = async () => {
+    // Clear any previous submit errors
+    setSubmitError(null);
+
+    console.log('handleApiCall called with:', { endpoint, url, action }); // Debug log
+
+    // Validate URL before proceeding (only for non-search endpoints)
+    if (endpoint !== 'search') {
+      const currentUrl = url || '';
+      console.log('Validating URL:', currentUrl); // Debug log
+      const urlValidationError = validateUrl(currentUrl);
+      console.log('Validation result:', urlValidationError); // Debug log
+
+      if (urlValidationError) {
+        console.log('URL validation failed:', urlValidationError); // Debug log
+        console.log('About to call setSubmitError with:', urlValidationError); // Debug log
+        setSubmitError(urlValidationError);
+        console.log('setSubmitError called'); // Debug log
+        showStatusBriefly('error');
+        return; // Stop execution here - don't proceed with API call
+      }
+    }
+
+    // Only proceed with API call if validation passes
     startTransition(async () => {
       try {
         // Build API payload using utility function (includes schema validation)
@@ -308,7 +388,11 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
         }
       } catch (err: any) {
         console.error('API call error:', err);
-        onApiResult(null, err?.message || 'An error occurred during the API call');
+
+        // Use error utilities to extract clean error message
+        const errorMessage = getErrorMessage(err);
+
+        onApiResult(null, errorMessage);
         showStatusBriefly('error');
       }
     });
@@ -371,22 +455,28 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
     );
   }
 
+  // Debug logging before render
+  console.log('About to render URL input with submitError:', submitError);
+
   return (
     <div className="space-y-2">
       <div className="flex space-x-2">
-        <Input
-          id="url-input"
-          value={url ?? ''}
-          onChange={(e) => onUrlChange(e.target.value)}
-          placeholder="https://example.com"
-          className="flex-1 text-sm sm:text-base h-8 sm:h-9"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              handleApiCall();
-            }
-          }}
-        />
+        <div className="flex-1">
+          <Input
+            id="url-input"
+            value={url ?? ''}
+            onChange={(e) => onUrlChange(e.target.value)}
+            placeholder="Enter URL (e.g., https://example.com)"
+            className={`flex-1 text-sm sm:text-base h-8 sm:h-9 ${submitError ? 'border-red-500' : ''}`}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleApiCall();
+              }
+            }}
+          />
+          {submitError && <p className="text-red-500 text-xs mt-1">{submitError}</p>}
+        </div>
         <Button
           onClick={handleApiCall}
           type="button"

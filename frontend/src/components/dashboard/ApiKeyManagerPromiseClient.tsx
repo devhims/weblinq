@@ -23,6 +23,7 @@ import {
   maskApiKey,
 } from '@/lib/utils/api-key-utils';
 import { isVercelPreview } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/error-utils';
 
 interface ApiKeyManagerPromiseClientProps {
   apiKeysPromise: Promise<ApiKeysListResponse>;
@@ -243,19 +244,19 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
       {/* Error Messages */}
       {queryError && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
-          Failed to load API keys: {queryError.message}
+          Failed to load API keys: {getErrorMessage(queryError)}
         </div>
       )}
 
       {createApiKeyMutation.isError && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
-          {createApiKeyMutation.error.message}
+          Failed to create API key: {getErrorMessage(createApiKeyMutation.error)}
         </div>
       )}
 
       {deleteApiKeyMutation.isError && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
-          Failed to delete API key: {deleteApiKeyMutation.error.message}
+          Failed to delete API key: {getErrorMessage(deleteApiKeyMutation.error)}
         </div>
       )}
 

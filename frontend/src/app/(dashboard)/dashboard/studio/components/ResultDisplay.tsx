@@ -16,6 +16,7 @@ import {
   CheckIcon,
   ClipboardIcon,
   MessageSquareText,
+  AlertCircle,
 } from 'lucide-react';
 import { ApiResult, ScreenshotResult, ScrapeResult, LinksResult, SearchResponse } from '../types';
 import { useState, useEffect } from 'react';
@@ -31,6 +32,7 @@ import { toast } from 'sonner';
 import pretty from 'pretty';
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
+import { getErrorMessage } from '@/lib/error-utils';
 
 interface ResultDisplayProps {
   loading: boolean;
@@ -253,8 +255,12 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
 
   if (error) {
     return (
-      <div className="bg-destructive/10 p-4 sm:p-5 rounded-md border border-destructive/20 overflow-hidden break-words">
-        <p className="text-destructive text-sm sm:text-base font-medium">{error}</p>
+      <div className="flex flex-col items-center justify-center h-[200px] sm:h-[300px] lg:h-[400px] text-center px-4">
+        <AlertCircle className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-destructive mb-3" />
+        <div className="space-y-2">
+          <p className="text-destructive font-medium text-sm sm:text-base">Error occurred</p>
+          <p className="text-muted-foreground text-xs sm:text-sm">{error}</p>
+        </div>
       </div>
     );
   }
@@ -522,12 +528,12 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
           // JSON response - display as formatted JSON
           return <CodeDisplay content={jsonResult.data.extracted} language="json" />;
         } else if (jsonResult.success === false) {
-          // Error response
+          // Error response - handle StandardErrorSchema format
+          const errorMessage = jsonResult.error?.message || 'Unknown error occurred';
+
           return (
             <div className="bg-destructive/10 p-4 sm:p-5 rounded-md border border-destructive/20 overflow-hidden break-words">
-              <p className="text-destructive text-sm sm:text-base font-medium">
-                {jsonResult.error?.message || 'Unknown error occurred'}
-              </p>
+              <p className="text-destructive text-sm sm:text-base font-medium">{errorMessage}</p>
             </div>
           );
         }
