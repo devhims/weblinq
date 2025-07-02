@@ -38,7 +38,7 @@ interface ScreenshotFailure {
 
 export type ScreenshotResult = ScreenshotSuccess | ScreenshotFailure;
 
-export async function screenshotV2(env: CloudflareBindings, params: ScreenshotParams): Promise<ScreenshotResult> {
+export async function screenshotV1(env: CloudflareBindings, params: ScreenshotParams): Promise<ScreenshotResult> {
   try {
     const viewportConfig = {
       width: params.viewport?.width ?? 1366,
@@ -91,7 +91,7 @@ export async function screenshotV2(env: CloudflareBindings, params: ScreenshotPa
       creditsCost: 1, // mirror CREDIT_COSTS.screenshot
     };
   } catch (err) {
-    console.error('screenshotV2 error', err);
+    console.error('screenshotV1 error', err);
     return {
       success: false,
       error: { message: String(err) },

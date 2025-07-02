@@ -94,7 +94,7 @@ const processor = unified()
     listItemIndent: 'one',
   });
 
-export async function markdownV2(env: CloudflareBindings, params: MarkdownParams): Promise<MarkdownResult> {
+export async function markdownV1(env: CloudflareBindings, params: MarkdownParams): Promise<MarkdownResult> {
   try {
     const content = await runWithBrowser(env, async (page: any) => {
       // Block heavy resources for faster loading
@@ -146,7 +146,7 @@ export async function markdownV2(env: CloudflareBindings, params: MarkdownParams
       creditsCost: 1,
     };
   } catch (err) {
-    console.error('markdownV2 error', err);
+    console.error('markdownV1 error', err);
     return {
       success: false as const,
       error: { message: String(err) },

@@ -14,8 +14,12 @@ export default function configureOpenAPI(app: AppOpenAPI) {
     },
     servers: [
       {
-        url: '/',
-        description: 'API Server',
+        url: 'https://api.weblinq.dev',
+        description: 'Production API Server',
+      },
+      {
+        url: 'http://localhost:8787',
+        description: 'Local Development Server',
       },
     ],
   });

@@ -1302,9 +1302,9 @@ const CREDIT_COST = 1;
  * Multi-engine browser-powered search using headless Chromium.
  * Tries DuckDuckGo, Startpage, and Bing with graceful degradation.
  */
-export async function searchV2(env: CloudflareBindings, params: SearchParams): Promise<SearchResult> {
+export async function searchV1(env: CloudflareBindings, params: SearchParams): Promise<SearchResult> {
   const overallStartTime = Date.now();
-  console.log(`🔍 [TIMING] searchV2 started at ${overallStartTime}ms`);
+  console.log(`🔍 [TIMING] searchV1 started at ${overallStartTime}ms`);
 
   try {
     const browserStartTime = Date.now();
@@ -1341,7 +1341,7 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
     const elapsed = Date.now() - overallStartTime;
     const sources = [...new Set(result.results.map((r) => r.source))];
 
-    console.log(`🔍 [TIMING] searchV2 completed in ${elapsed}ms total`);
+    console.log(`🔍 [TIMING] searchV1 completed in ${elapsed}ms total`);
 
     return {
       success: true,
@@ -1359,7 +1359,7 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
     };
   } catch (err) {
     const errorTime = Date.now() - overallStartTime;
-    console.error(`🔍 [TIMING] searchV2 failed after ${errorTime}ms:`, err);
+    console.error(`🔍 [TIMING] searchV1 failed after ${errorTime}ms:`, err);
     return {
       success: false,
       error: { message: String(err) },

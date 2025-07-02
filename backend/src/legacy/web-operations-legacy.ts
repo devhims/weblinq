@@ -4,7 +4,7 @@ import { Buffer } from 'node:buffer';
 
 import type { screenshotInputSchema } from '@/routes/web/web.routes';
 
-import { performWebSearch } from '@/routes/web/web.search-handler';
+import { performWebSearch } from './web-search-handler-legacy';
 
 // Credit costs configuration - matches frontend actions.ts
 const CREDIT_COSTS = {

@@ -107,7 +107,7 @@ export function isValidOrigin(origin: string, env: CloudflareBindings): boolean 
 
   if (isLocal) {
     // In development, allow localhost variants
-    const allowed = ['http://localhost:3000', 'http://localhost:8787'].includes(origin);
+    const allowed = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8787'].includes(origin);
     if (!allowed) {
       console.log(`🔒 [DEV] Origin rejected: ${origin}`);
     }
@@ -201,7 +201,7 @@ export function getTrustedOrigins(env: CloudflareBindings): string[] {
   const isLocal = env.BETTER_AUTH_URL?.startsWith('http://localhost');
 
   if (isLocal) {
-    return ['http://localhost:3000', 'http://localhost:8787'];
+    return ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8787'];
   }
 
   // For production, we'll dynamically check origins using isValidOrigin

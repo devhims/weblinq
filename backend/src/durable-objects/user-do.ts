@@ -3,14 +3,14 @@ import type { Buffer } from 'node:buffer';
 import { DurableObject } from 'cloudflare:workers';
 import { createHash } from 'node:crypto';
 
-import { contentV2 as contentV2Impl } from './web-v2/content';
-import { jsonExtractionV2 as jsonExtractionV2Impl } from './web-v2/json-extraction';
-import { linksV2 as linksV2Impl } from './web-v2/links';
-import { markdownV2 as markdownV2Impl } from './web-v2/markdown';
-import { pdfV2 as pdfV2Impl } from './web-v2/pdf';
-import { scrapeV2 as scrapeV2Impl } from './web-v2/scrape';
-import { screenshotV2 as screenshotV2Impl } from './web-v2/screenshot';
-import { searchV2 as searchV2Impl } from './web-v2/search';
+import { contentV1 } from '@/lib/v1/content';
+import { jsonExtractionV1 } from '@/lib/v1/json-extraction';
+import { linksV1 } from '@/lib/v1/links';
+import { markdownV1 } from '@/lib/v1/markdown';
+import { pdfV1 } from '@/lib/v1/pdf';
+import { scrapeV1 } from '@/lib/v1/scrape';
+import { screenshotV1 } from '@/lib/v1/screenshot';
+import { searchV1 } from '@/lib/v1/search';
 
 // Database record interfaces
 interface FileRecord {
@@ -548,58 +548,58 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   }
 
   /* ------------------------------------------------------------------------ */
-  /*  v2 – Browser-based screenshot                                          */
+  /*  v1 – Browser-based screenshot                                          */
   /* ------------------------------------------------------------------------ */
 
-  async screenshotV2(params: Parameters<typeof screenshotV2Impl>[1]) {
-    return screenshotV2Impl(this.env, params);
+  async screenshotV1(params: Parameters<typeof screenshotV1>[1]) {
+    return screenshotV1(this.env, params);
   }
 
   /* ------------------------------------------------------------------------ */
-  /*  v2 – Browser-based markdown extraction                                 */
+  /*  v1 – Browser-based markdown extraction                                 */
   /* ------------------------------------------------------------------------ */
 
-  async markdownV2(params: Parameters<typeof markdownV2Impl>[1]) {
-    return markdownV2Impl(this.env, params);
+  async markdownV1(params: Parameters<typeof markdownV1>[1]) {
+    return markdownV1(this.env, params);
   }
 
   /* ------------------------------------------------------------------------ */
-  /*  v2 – Browser-based HTML content extraction                              */
+  /*  v1 – Browser-based HTML content extraction                              */
   /* ------------------------------------------------------------------------ */
 
-  async contentV2(params: Parameters<typeof contentV2Impl>[1]) {
-    return contentV2Impl(this.env, params);
+  async contentV1(params: Parameters<typeof contentV1>[1]) {
+    return contentV1(this.env, params);
   }
 
   /* ------------------------------------------------------------------------ */
-  /*  v2 – Browser-based Link extraction                                      */
+  /*  v1 – Browser-based Link extraction                                      */
   /* ------------------------------------------------------------------------ */
 
-  async linksV2(params: Parameters<typeof linksV2Impl>[1]) {
-    return linksV2Impl(this.env, params);
+  async linksV1(params: Parameters<typeof linksV1>[1]) {
+    return linksV1(this.env, params);
   }
 
   /* ------------------------------------------------------------------------ */
-  /*  v2 – Browser-based Element scraping                                     */
+  /*  v1 – Browser-based Element scraping                                     */
   /* ------------------------------------------------------------------------ */
 
-  async scrapeV2(params: Parameters<typeof scrapeV2Impl>[1]) {
-    return scrapeV2Impl(this.env, params);
+  async scrapeV1(params: Parameters<typeof scrapeV1>[1]) {
+    return scrapeV1(this.env, params);
   }
 
-  async pdfV2(params: Parameters<typeof pdfV2Impl>[1]) {
-    return pdfV2Impl(this.env, params);
+  async pdfV1(params: Parameters<typeof pdfV1>[1]) {
+    return pdfV1(this.env, params);
   }
 
-  async searchV2(params: Parameters<typeof searchV2Impl>[1]) {
-    return searchV2Impl(this.env, params);
+  async searchV1(params: Parameters<typeof searchV1>[1]) {
+    return searchV1(this.env, params);
   }
 
   /* ------------------------------------------------------------------------ */
-  /*  v2 – AI-powered JSON extraction                                        */
+  /*  v1 – AI-powered JSON extraction                                        */
   /* ------------------------------------------------------------------------ */
 
-  async jsonExtractionV2(params: Parameters<typeof jsonExtractionV2Impl>[1]) {
-    return jsonExtractionV2Impl(this.env, params);
+  async jsonExtractionV1(params: Parameters<typeof jsonExtractionV1>[1]) {
+    return jsonExtractionV1(this.env, params);
   }
 }

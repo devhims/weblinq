@@ -39,13 +39,13 @@ export type PdfResult = PdfSuccess | PdfFailure;
 const CREDIT_COST = 1;
 
 /**
- * Browser-powered PDF generation (v2)
+ * Browser-powered PDF generation (v1)
  * – Loads the given URL in a hardened headless Chromium session via BrowserManagerDO
  * – Optionally waits for `params.waitTime` ms after networkidle2
  * – Generates a PDF via `page.pdf()` using hardened defaults (binary buffer)
  * – Returns the PDF as a Uint8Array by default, or base64 string when requested
  */
-export async function pdfV2(env: CloudflareBindings, params: PdfParams): Promise<PdfResult> {
+export async function pdfV1(env: CloudflareBindings, params: PdfParams): Promise<PdfResult> {
   try {
     /* ════════════════ Launch & render ════════════════ */
     const pdfU8: Uint8Array = await runWithBrowser(env, async (page: any) => {
@@ -113,7 +113,7 @@ export async function pdfV2(env: CloudflareBindings, params: PdfParams): Promise
       creditsCost: CREDIT_COST,
     };
   } catch (err) {
-    console.error('pdfV2 error', err);
+    console.error('pdfV1 error', err);
     return {
       success: false,
       error: { message: String(err) },

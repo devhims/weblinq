@@ -4,6 +4,7 @@ import type { AppRouteHandler } from '@/lib/types';
 
 import type {
   BrowserStatusRoute,
+  CheckRemainingRoute,
   CleanupDoRoute,
   CreateBrowsersRoute,
   DeleteAllBrowsersRoute,
@@ -261,6 +262,59 @@ export const deleteAllBrowsers: AppRouteHandler<DeleteAllBrowsersRoute> = async 
       {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown delete all browsers error',
+      },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
+  }
+};
+
+/**
+ * Check remaining endpoint - Check Cloudflare Browser API limits and quotas
+ */
+export const checkRemaining: AppRouteHandler<CheckRemainingRoute> = async (c: any) => {
+  try {
+    const user = c.get('user')!; // requireAuth ensures user exists
+
+    console.log('📊 Check remaining API limits request:', { userId: user.id });
+
+    // Import puppeteer dynamically to access limits
+    const puppeteer = await import('@cloudflare/puppeteer');
+
+    // Get browser API limits from Cloudflare
+    const limits = await puppeteer.limits(c.env.BROWSER);
+    const {
+      activeSessions,
+      maxConcurrentSessions,
+      allowedBrowserAcquisitions,
+      timeUntilNextAllowedBrowserAcquisition,
+    } = limits;
+
+    console.log('✅ Browser API limits retrieved:', {
+      activeSessions,
+      maxConcurrentSessions,
+      allowedBrowserAcquisitions,
+      timeUntilNext: timeUntilNextAllowedBrowserAcquisition,
+    });
+
+    return c.json(
+      {
+        success: true,
+        data: {
+          activeSessions,
+          maxConcurrentSessions,
+          allowedBrowserAcquisitions,
+          timeUntilNextAllowedBrowserAcquisition,
+        },
+        creditsCost: 0, // No credits cost for system monitoring
+      },
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    console.error('Check remaining API limits error:', error);
+    return c.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown check remaining error',
       },
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Key, Settings, CreditCard, Activity, Menu, Code, X, Settings2, Monitor } from 'lucide-react';
+import { Key, CreditCard, Activity, Menu, X, Settings2, Monitor } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { SidebarFooter } from './SidebarFooter';
 

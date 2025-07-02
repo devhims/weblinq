@@ -17,5 +17,6 @@ router.openapi(routes.sessionHealth, handlers.sessionHealth);
 router.openapi(routes.createBrowsers, handlers.createBrowsers);
 router.openapi(routes.cleanupDo, handlers.cleanupDo);
 router.openapi(routes.deleteAllBrowsers, handlers.deleteAllBrowsers);
+router.openapi(routes.checkRemaining, handlers.checkRemaining);
 
 export default router;

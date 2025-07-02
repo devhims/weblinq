@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 
-import type { BrowserManagerDO } from '@/browser/browser-manager-do';
+import type { BrowserManagerDO } from '@/durable-objects/browser/browser-manager-do';
 import type { Browser, Page } from '@cloudflare/puppeteer';
 import type { ExecutionContext } from '@cloudflare/workers-types';
 

@@ -41,9 +41,9 @@ export type LinksResult = LinksSuccess | LinksFailure;
 const CREDIT_COST = 1;
 
 /**
- * Browser-powered link extraction (v2)
+ * Browser-powered link extraction (v1)
  */
-export async function linksV2(env: CloudflareBindings, params: LinksParams): Promise<LinksResult> {
+export async function linksV1(env: CloudflareBindings, params: LinksParams): Promise<LinksResult> {
   try {
     const links: Array<{ href: string; text: string }> = await runWithBrowser(env, async (page: any) => {
       // Abort heavy resources to speed things up
@@ -120,7 +120,7 @@ export async function linksV2(env: CloudflareBindings, params: LinksParams): Pro
       creditsCost: CREDIT_COST,
     };
   } catch (err) {
-    console.error('linksV2 error', err);
+    console.error('linksV1 error', err);
     return {
       success: false,
       error: { message: String(err) },

@@ -1,7 +1,7 @@
 import type { z } from 'zod';
 
 import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
-import { markdownV2 } from './markdown';
+import { markdownV1 } from './markdown';
 
 interface JsonExtractionParams {
   /** The URL to extract data from */
@@ -64,7 +64,7 @@ const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as any;
  *
  * Uses markdown processing for superior content understanding and AI analysis
  */
-export async function jsonExtractionV2(
+export async function jsonExtractionV1(
   env: CloudflareBindings,
   params: JsonExtractionParams,
 ): Promise<JsonExtractionResult> {
@@ -85,7 +85,7 @@ export async function jsonExtractionV2(
     console.log('📄 Converting page to structured markdown for better AI processing...');
 
     // Use the battle-tested markdown processor for superior content extraction
-    const markdownResult = await markdownV2(env, {
+    const markdownResult = await markdownV1(env, {
       url: params.url,
       waitTime: params.waitTime || 0,
     });
@@ -478,7 +478,7 @@ Guidelines:
       creditsCost: CREDIT_COST,
     };
   } catch (error) {
-    console.error('jsonExtractionV2 error:', error);
+    console.error('jsonExtractionV1 error:', error);
     return {
       success: false,
       error: { message: error instanceof Error ? error.message : String(error) },
