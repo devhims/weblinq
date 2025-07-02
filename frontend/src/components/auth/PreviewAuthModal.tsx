@@ -33,12 +33,15 @@ export default function PreviewAuthModal({ onAuthenticated }: PreviewAuthModalPr
 
     try {
       // Test the API key by making a simple request
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}/api-keys/list`, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}/v1/api-keys/list`,
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
         },
-      });
+      );
 
       if (response.ok) {
         // API key is valid, store it
