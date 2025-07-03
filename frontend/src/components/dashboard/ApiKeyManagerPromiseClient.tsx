@@ -188,7 +188,7 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
       <div className="flex w-full justify-end items-center">
         <Button onClick={() => setShowCreateForm(!showCreateForm)} disabled={isLoading}>
           <Plus className="h-4 w-4 mr-2" />
-          Create new secret key
+          Create API key
         </Button>
       </div>
 

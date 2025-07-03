@@ -3,7 +3,7 @@ import { jsonContent, jsonContentRequired } from 'stoker/openapi/helpers';
 import { createErrorSchema } from 'stoker/openapi/schemas';
 
 // Import error schema helper
-import { StandardErrorSchema } from '@/lib/response-utils';
+import { createStandardSuccessSchema, StandardErrorSchema } from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Files'];
@@ -28,9 +28,8 @@ const deleteFileInputSchema = z.object({
 /**
  * Standardized output schemas following ApiSuccessResponse<T> format
  */
-const listFilesOutputSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
+const listFilesOutputSchema = createStandardSuccessSchema(
+  z.object({
     sqliteStatus: z.object({
       enabled: z.boolean(),
       available: z.boolean(),
@@ -51,14 +50,10 @@ const listFilesOutputSchema = z.object({
     ),
     totalFiles: z.number(),
   }),
-  creditsCost: z.number().optional(),
-  requestId: z.string(),
-  timestamp: z.string(),
-});
+);
 
-const deleteFileOutputSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
+const deleteFileOutputSchema = createStandardSuccessSchema(
+  z.object({
     fileId: z.string(),
     wasFound: z.boolean(),
     deletedFromDatabase: z.boolean(),
@@ -78,10 +73,7 @@ const deleteFileOutputSchema = z.object({
       .optional(),
     error: z.string().optional(),
   }),
-  creditsCost: z.number().optional(),
-  requestId: z.string(),
-  timestamp: z.string(),
-});
+);
 
 /**
  * Route definitions

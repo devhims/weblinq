@@ -2,7 +2,7 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import { jsonContent, jsonContentRequired } from 'stoker/openapi/helpers';
 import { createErrorSchema } from 'stoker/openapi/schemas';
 
-import { StandardErrorSchema } from '@/lib/response-utils';
+import { createStandardSuccessSchema, StandardErrorSchema } from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Web'];
@@ -129,9 +129,8 @@ const searchInputSchema = z.object({
 });
 
 // Output schemas
-const screenshotOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const screenshotOutputSchema = createStandardSuccessSchema(
+  z.object({
     image: z.string().describe('Base64 encoded image'),
     metadata: z.object({
       width: z.number(),
@@ -144,12 +143,10 @@ const screenshotOutputSchema = z.object({
     permanentUrl: z.string().optional().describe('Permanent R2 storage URL for the image'),
     fileId: z.string().optional().describe('Unique file ID for tracking'),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const markdownOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const markdownOutputSchema = createStandardSuccessSchema(
+  z.object({
     markdown: z.string(),
     metadata: z.object({
       title: z.string().optional(),
@@ -159,12 +156,10 @@ const markdownOutputSchema = z.object({
       wordCount: z.number(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const jsonExtractionOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const jsonExtractionOutputSchema = createStandardSuccessSchema(
+  z.object({
     // For JSON responses: structured data object
     extracted: z.record(z.any()).optional(),
     // For text responses: natural language text
@@ -180,12 +175,10 @@ const jsonExtractionOutputSchema = z.object({
       outputTokens: z.number().optional(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const contentOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const contentOutputSchema = createStandardSuccessSchema(
+  z.object({
     content: z.string(),
     metadata: z.object({
       title: z.string().optional(),
@@ -195,12 +188,10 @@ const contentOutputSchema = z.object({
       contentType: z.string(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const scrapeOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const scrapeOutputSchema = createStandardSuccessSchema(
+  z.object({
     elements: z.array(
       z.object({
         selector: z.string(),
@@ -213,12 +204,10 @@ const scrapeOutputSchema = z.object({
       elementsFound: z.number(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const linksOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const linksOutputSchema = createStandardSuccessSchema(
+  z.object({
     links: z.array(
       z.object({
         url: z.string(),
@@ -234,12 +223,10 @@ const linksOutputSchema = z.object({
       externalLinks: z.number(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const searchOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const searchOutputSchema = createStandardSuccessSchema(
+  z.object({
     results: z.array(
       z.object({
         title: z.string(),
@@ -256,8 +243,7 @@ const searchOutputSchema = z.object({
       timestamp: z.string(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
 // Add PDF input schema
 export const pdfInputSchema = z.object({
@@ -269,9 +255,8 @@ export const pdfInputSchema = z.object({
 });
 
 // PDF output schema
-const pdfOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const pdfOutputSchema = createStandardSuccessSchema(
+  z.object({
     pdf: z.string().describe('Base64 encoded PDF'),
     metadata: z.object({
       size: z.number(),
@@ -281,8 +266,7 @@ const pdfOutputSchema = z.object({
     permanentUrl: z.string().optional().describe('Permanent R2 storage URL for the PDF'),
     fileId: z.string().optional().describe('Unique file ID for tracking'),
   }),
-  creditsCost: z.number(),
-});
+);
 
 // Route definitions
 export const screenshot = createRoute({

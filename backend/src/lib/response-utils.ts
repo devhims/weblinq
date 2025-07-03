@@ -166,3 +166,48 @@ export const ERROR_CODES = {
   FILE_UPLOAD_FAILED: 'file_upload_failed',
   STORAGE_ERROR: 'storage_error',
 } as const;
+
+/**
+ * Create a standardized success schema that matches ApiSuccessResponse<T>
+ * This ensures all routes return consistent success response format
+ *
+ * @param dataSchema - The Zod schema for the response data
+ * @returns A standardized success response schema with proper TypeScript validation
+ */
+export function createStandardSuccessSchema<T extends z.ZodTypeAny>(
+  dataSchema: T,
+): z.ZodObject<{
+  success: z.ZodLiteral<true>;
+  data: T;
+  creditsCost: z.ZodOptional<z.ZodNumber>;
+  requestId: z.ZodString;
+  timestamp: z.ZodString;
+}> {
+  // Validate that we have a proper data schema
+  if (!dataSchema) {
+    throw new Error('dataSchema is required for createStandardSuccessSchema');
+  }
+
+  return z.object({
+    success: z.literal(true),
+    data: dataSchema,
+    creditsCost: z.number().optional().describe('Credits consumed by this operation'),
+    requestId: z.string().uuid().describe('Unique request identifier for tracing'),
+    timestamp: z.string().datetime().describe('ISO timestamp when the response was generated'),
+  });
+}
+
+/**
+ * Create a standard success response that matches ApiSuccessResponse<T>
+ * Use this in handlers to return consistent success responses
+ */
+export function createStandardSuccessResponse<T>(data: T, creditsCost?: number): ApiSuccessResponse<T> {
+  const requestId = randomUUID();
+  return {
+    success: true,
+    data,
+    creditsCost,
+    requestId,
+    timestamp: new Date().toISOString(),
+  };
+}

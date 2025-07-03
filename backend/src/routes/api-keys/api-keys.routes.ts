@@ -2,7 +2,7 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import { jsonContent } from 'stoker/openapi/helpers';
 import { createErrorSchema } from 'stoker/openapi/schemas';
 
-import { StandardErrorSchema } from '@/lib/response-utils';
+import { createStandardSuccessSchema, StandardErrorSchema } from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['API Keys'];
@@ -51,7 +51,10 @@ export const createApiKey = createRoute({
     body: jsonContent(createApiKeySchema, 'API key creation parameters'),
   },
   responses: {
-    [HttpStatusCodes.CREATED]: jsonContent(apiKeyCreationResponseSchema, 'API key created successfully'),
+    [HttpStatusCodes.CREATED]: jsonContent(
+      createStandardSuccessSchema(apiKeyCreationResponseSchema),
+      'API key created successfully',
+    ),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(createApiKeySchema), 'Validation error'),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
@@ -68,10 +71,12 @@ export const listApiKeys = createRoute({
   description: 'Get all API keys for the authenticated user',
   responses: {
     [HttpStatusCodes.OK]: jsonContent(
-      z.object({
-        apiKeys: z.array(apiKeyResponseSchema),
-        total: z.number(),
-      }),
+      createStandardSuccessSchema(
+        z.object({
+          apiKeys: z.array(apiKeyResponseSchema),
+          total: z.number(),
+        }),
+      ),
       'List of API keys',
     ),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
@@ -93,7 +98,7 @@ export const getApiKey = createRoute({
     }),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(apiKeyResponseSchema, 'API key details'),
+    [HttpStatusCodes.OK]: jsonContent(createStandardSuccessSchema(apiKeyResponseSchema), 'API key details'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(z.object({ id: z.string().min(1) })),
       'Validation error',
@@ -119,10 +124,12 @@ export const deleteApiKey = createRoute({
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(
-      z.object({
-        success: z.boolean(),
-        message: z.string(),
-      }),
+      createStandardSuccessSchema(
+        z.object({
+          success: z.boolean(),
+          message: z.string(),
+        }),
+      ),
       'API key deleted successfully',
     ),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(

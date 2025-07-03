@@ -3,7 +3,7 @@ import { jsonContent, jsonContentRequired } from 'stoker/openapi/helpers';
 import { createErrorSchema } from 'stoker/openapi/schemas';
 
 // Import error schema helper
-import { StandardErrorSchema } from '@/lib/response-utils';
+import { createStandardSuccessSchema, StandardErrorSchema } from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['System'];
@@ -35,9 +35,8 @@ const checkRemainingInputSchema = z.object({});
 /**
  * Standardized output schemas following ApiSuccessResponse<T> format
  */
-const browserStatusOutputSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
+const browserStatusOutputSchema = createStandardSuccessSchema(
+  z.object({
     totalDOs: z.number(),
     maxCapacity: z.number(),
     queuedRequests: z.number(),
@@ -55,14 +54,10 @@ const browserStatusOutputSchema = z.object({
       }),
     ),
   }),
-  creditsCost: z.number().optional(),
-  requestId: z.string(),
-  timestamp: z.string(),
-});
+);
 
-const sessionHealthOutputSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
+const sessionHealthOutputSchema = createStandardSuccessSchema(
+  z.object({
     sessionId: z.string(),
     healthy: z.boolean(),
     responseTime: z.number(),
@@ -78,14 +73,10 @@ const sessionHealthOutputSchema = z.object({
       .optional(),
     testTimestamp: z.string(),
   }),
-  creditsCost: z.number().optional(),
-  requestId: z.string(),
-  timestamp: z.string(),
-});
+);
 
-const createBrowsersOutputSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
+const createBrowsersOutputSchema = createStandardSuccessSchema(
+  z.object({
     requested: z.number(),
     created: z.number(),
     skipped: z.number(),
@@ -97,26 +88,18 @@ const createBrowsersOutputSchema = z.object({
       }),
     ),
   }),
-  creditsCost: z.number().optional(),
-  requestId: z.string(),
-  timestamp: z.string(),
-});
+);
 
-const cleanupDoOutputSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
+const cleanupDoOutputSchema = createStandardSuccessSchema(
+  z.object({
     action: z.literal('cleanup-do'),
     doId: z.string(),
     message: z.string(),
   }),
-  creditsCost: z.number().optional(),
-  requestId: z.string(),
-  timestamp: z.string(),
-});
+);
 
-const deleteAllBrowsersOutputSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
+const deleteAllBrowsersOutputSchema = createStandardSuccessSchema(
+  z.object({
     action: z.literal('delete-all'),
     message: z.string(),
     totalFound: z.number(),
@@ -133,23 +116,16 @@ const deleteAllBrowsersOutputSchema = z.object({
     ),
     storageCleared: z.boolean(),
   }),
-  creditsCost: z.number().optional(),
-  requestId: z.string(),
-  timestamp: z.string(),
-});
+);
 
-const checkRemainingOutputSchema = z.object({
-  success: z.literal(true),
-  data: z.object({
+const checkRemainingOutputSchema = createStandardSuccessSchema(
+  z.object({
     activeSessions: z.number(),
     maxConcurrentSessions: z.number(),
     allowedBrowserAcquisitions: z.number(),
     timeUntilNextAllowedBrowserAcquisition: z.number(),
   }),
-  creditsCost: z.number().optional(),
-  requestId: z.string(),
-  timestamp: z.string(),
-});
+);
 
 /**
  * Route definitions

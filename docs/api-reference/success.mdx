@@ -1,0 +1,164 @@
+---
+title: 'Success Responses'
+description: 'Understanding successful WebLinq API responses'
+---
+
+# Success Responses
+
+All successful WebLinq API responses follow a consistent format for predictable handling across all endpoints.
+
+## Standard Format
+
+Every successful response (HTTP status `2xx`) uses this structure:
+
+```json
+{
+  "success": true,
+  "data": {
+    // Endpoint-specific response data
+  },
+  "creditsCost": 1
+}
+```
+
+### Response Fields
+
+| Field         | Type    | Description                                            |
+| ------------- | ------- | ------------------------------------------------------ |
+| `success`     | boolean | Always `true` for successful responses                 |
+| `data`        | object  | Contains the actual response data (varies by endpoint) |
+| `creditsCost` | number  | Credits consumed by this operation                     |
+
+## Common Response Types
+
+### Screenshot Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "image": "iVBORw0KGgoAAAANSUhEUgAAA...",
+    "metadata": {
+      "width": 1920,
+      "height": 1080,
+      "format": "png",
+      "size": 245760,
+      "url": "https://example.com",
+      "timestamp": "2024-01-15T10:30:45.123Z"
+    },
+    "permanentUrl": "https://files.weblinq.dev/abc123.png",
+    "fileId": "file_abc123"
+  },
+  "creditsCost": 1
+}
+```
+
+### Markdown Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "markdown": "# Example Site\n\nThis is the converted content...",
+    "metadata": {
+      "title": "Example Site",
+      "description": "A sample website",
+      "url": "https://example.com",
+      "timestamp": "2024-01-15T10:30:45.123Z",
+      "wordCount": 245
+    }
+  },
+  "creditsCost": 1
+}
+```
+
+### JSON Extraction Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "extracted": {
+      "title": "Product Name",
+      "price": "$99.99",
+      "description": "Product description..."
+    },
+    "metadata": {
+      "url": "https://example.com",
+      "timestamp": "2024-01-15T10:30:45.123Z",
+      "model": "llama-3.2-3b-instruct",
+      "responseType": "json"
+    }
+  },
+  "creditsCost": 2
+}
+```
+
+## Handling Responses
+
+### Basic Response Handling
+
+```javascript
+const response = await fetch('https://api.weblinq.dev/v1/web/markdown', {
+  method: 'POST',
+  headers: {
+    Authorization: 'Bearer YOUR_API_KEY',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ url: 'https://example.com' }),
+});
+
+const result = await response.json();
+
+if (result.success) {
+  console.log('Markdown content:', result.data.markdown);
+  console.log('Credits used:', result.creditsCost);
+} else {
+  console.error('API error:', result.error);
+}
+```
+
+### TypeScript Types
+
+```typescript
+interface ApiSuccessResponse<T> {
+  success: true;
+  data: T;
+  creditsCost: number;
+}
+
+interface MarkdownResponse {
+  markdown: string;
+  metadata: {
+    title?: string;
+    description?: string;
+    url: string;
+    timestamp: string;
+    wordCount: number;
+  };
+}
+
+// Usage
+const response: ApiSuccessResponse<MarkdownResponse> = await apiCall();
+```
+
+## Response Metadata
+
+Most endpoints include metadata with additional information about the operation:
+
+- **url**: The source URL that was processed
+- **timestamp**: When the operation was completed
+- **format/type**: The type of content or format used
+- **size/wordCount**: Size metrics for the content
+
+## File Storage
+
+Screenshot and PDF endpoints may include file storage information:
+
+- **permanentUrl**: Permanent URL for accessing the file
+- **fileId**: Unique identifier for file management
+
+<Note>
+  Files are automatically stored in R2 cloud storage when available and can be accessed via the `permanentUrl` or
+  managed through the [Files API](/api-reference/files/list-user-files).
+</Note>

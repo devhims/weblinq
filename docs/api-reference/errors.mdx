@@ -3,8 +3,6 @@ title: 'Error Handling'
 description: 'Learn how to handle errors with the WebLinq API'
 ---
 
-# Error Handling
-
 The WebLinq API uses conventional HTTP response codes to indicate the success or failure of an API request:
 
 - `2xx` indicates success
@@ -183,53 +181,6 @@ if (response.status === 422) {
 } else {
   // Other error - display general message
   console.error(`Error (${data.error.code}): ${data.error.message}`);
-}
-```
-
-### 3. Implement Retry Logic
-
-```javascript
-async function makeApiRequest(url, data, maxRetries = 3) {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer your-api-key',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        return result;
-      }
-
-      // Don't retry validation errors (422) or auth errors (401)
-      if (response.status === 422 || response.status === 401) {
-        throw new Error(`${result.error.code}: ${result.error.message}`);
-      }
-
-      // Retry on server errors (5xx) and rate limits (429)
-      if (response.status >= 500 || response.status === 429) {
-        if (i === maxRetries - 1) {
-          throw new Error(`${result.error.code}: ${result.error.message}`);
-        }
-
-        // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, i) * 1000));
-        continue;
-      }
-
-      // Other 4xx errors - don't retry
-      throw new Error(`${result.error.code}: ${result.error.message}`);
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
-      await new Promise((resolve) => setTimeout(resolve, Math.pow(2, i) * 1000));
-    }
-  }
 }
 ```
 

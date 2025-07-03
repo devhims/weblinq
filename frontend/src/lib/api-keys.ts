@@ -106,7 +106,7 @@ async function serverApiRequest<T>(endpoint: string, options: RequestInit = {}):
 
   const data = await response.json();
   console.log(`🌐 [Server API Success] Response data:`, data);
-  return data;
+  return data.data;
 }
 
 // Client-side authenticated request helper (for mutations from client components)
@@ -167,7 +167,7 @@ async function clientApiRequest<T>(endpoint: string, options: RequestInit = {}):
 
   const data = await response.json();
   console.log(`🌐 [Client API Success] Response data:`, data);
-  return data;
+  return data.data;
 }
 
 // Server-side API functions (used by server components)

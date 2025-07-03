@@ -1,22 +1,15 @@
+import type { Context } from 'hono';
+
 import * as HttpStatusCodes from 'stoker/http-status-codes';
 
-import type { AppRouteHandler } from '@/lib/types';
+import type { AppBindings } from '@/lib/types';
 
-import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
-
-import type {
-  BrowserStatusRoute,
-  CheckRemainingRoute,
-  CleanupDoRoute,
-  CreateBrowsersRoute,
-  DeleteAllBrowsersRoute,
-  SessionHealthRoute,
-} from './system.routes';
+import { createStandardErrorResponse, createStandardSuccessResponse, ERROR_CODES } from '@/lib/response-utils';
 
 /**
  * Browser status endpoint - Get detailed status of all browser DOs for system monitoring
  */
-export const browserStatus: AppRouteHandler<BrowserStatusRoute> = async (c: any) => {
+export async function browserStatus(c: Context<AppBindings>) {
   try {
     const user = c.get('user')!; // requireAuth ensures user exists
 
@@ -37,11 +30,7 @@ export const browserStatus: AppRouteHandler<BrowserStatusRoute> = async (c: any)
     });
 
     return c.json(
-      {
-        success: true,
-        data: result,
-        creditsCost: 0, // No credits cost for system monitoring
-      },
+      createStandardSuccessResponse(result, 0), // No credits cost for system monitoring
       HttpStatusCodes.OK,
     );
   } catch (error) {
@@ -54,15 +43,20 @@ export const browserStatus: AppRouteHandler<BrowserStatusRoute> = async (c: any)
       'X-Request-ID': errorResponse.error.requestId!,
     });
   }
-};
+}
 
 /**
  * Session health test endpoint - Test if a specific browser session ID is healthy
  */
-export const sessionHealth: AppRouteHandler<SessionHealthRoute> = async (c: any) => {
+export async function sessionHealth(c: Context<AppBindings>) {
   try {
     const user = c.get('user')!; // requireAuth ensures user exists
-    const body = c.req.valid('json');
+    const body = await c.req.json();
+
+    if (!body.sessionId || typeof body.sessionId !== 'string') {
+      const errorResponse = createStandardErrorResponse('Session ID is required', ERROR_CODES.VALIDATION_ERROR);
+      return c.json(errorResponse, HttpStatusCodes.UNPROCESSABLE_ENTITY);
+    }
 
     console.log('🩺 Session health test request:', { userId: user.id, sessionId: body.sessionId });
 
@@ -90,17 +84,16 @@ export const sessionHealth: AppRouteHandler<SessionHealthRoute> = async (c: any)
       });
 
       return c.json(
-        {
-          success: true,
-          data: {
+        createStandardSuccessResponse(
+          {
             sessionId: body.sessionId,
             healthy: true,
             responseTime,
             browserInfo: version,
             testTimestamp: new Date().toISOString(),
           },
-          creditsCost: 0, // No credits cost for system monitoring
-        },
+          0,
+        ), // No credits cost for system monitoring
         HttpStatusCodes.OK,
       );
     } catch (sessionError) {
@@ -114,17 +107,16 @@ export const sessionHealth: AppRouteHandler<SessionHealthRoute> = async (c: any)
       });
 
       return c.json(
-        {
-          success: true, // Request succeeded, but session is unhealthy
-          data: {
+        createStandardSuccessResponse(
+          {
             sessionId: body.sessionId,
             healthy: false,
             responseTime,
             error: errorMessage,
             testTimestamp: new Date().toISOString(),
           },
-          creditsCost: 0,
-        },
+          0,
+        ), // Request succeeded, but session is unhealthy
         HttpStatusCodes.OK,
       );
     }
@@ -138,24 +130,33 @@ export const sessionHealth: AppRouteHandler<SessionHealthRoute> = async (c: any)
       'X-Request-ID': errorResponse.error.requestId!,
     });
   }
-};
+}
 
 /**
  * Create browser batch endpoint - Proactively create multiple browser DOs with staggered timing
  */
-export const createBrowsers: AppRouteHandler<CreateBrowsersRoute> = async (c: any) => {
+export async function createBrowsers(c: Context<AppBindings>) {
   try {
     const user = c.get('user')!; // requireAuth ensures user exists
-    const body = c.req.valid('json');
+    const body = await c.req.json();
 
-    console.log('🚀 Create browsers request:', { userId: user.id, count: body.count });
+    const count = body.count || 1;
+    if (typeof count !== 'number' || count < 1 || count > 4) {
+      const errorResponse = createStandardErrorResponse(
+        'Count must be a number between 1 and 4',
+        ERROR_CODES.VALIDATION_ERROR,
+      );
+      return c.json(errorResponse, HttpStatusCodes.UNPROCESSABLE_ENTITY);
+    }
+
+    console.log('🚀 Create browsers request:', { userId: user.id, count });
 
     // Get the browser manager
     const managerId = c.env.BROWSER_MANAGER_DO.idFromName('global');
     const managerStub = c.env.BROWSER_MANAGER_DO.get(managerId);
 
     // Create browsers batch
-    const result = await managerStub.createBrowsersBatch(body.count || 1);
+    const result = await managerStub.createBrowsersBatch(count);
 
     console.log('✅ Browsers batch result:', {
       requested: result.requested,
@@ -163,14 +164,7 @@ export const createBrowsers: AppRouteHandler<CreateBrowsersRoute> = async (c: an
       skipped: result.skipped,
     });
 
-    return c.json(
-      {
-        success: true,
-        data: result,
-        creditsCost: 0,
-      },
-      HttpStatusCodes.OK,
-    );
+    return c.json(createStandardSuccessResponse(result, 0), HttpStatusCodes.OK);
   } catch (error) {
     console.error('Create browsers error:', error);
     const errorResponse = createStandardErrorResponse(
@@ -181,15 +175,20 @@ export const createBrowsers: AppRouteHandler<CreateBrowsersRoute> = async (c: an
       'X-Request-ID': errorResponse.error.requestId!,
     });
   }
-};
+}
 
 /**
  * Cleanup DO endpoint - Remove a specific browser DO that may be stuck or problematic
  */
-export const cleanupDo: AppRouteHandler<CleanupDoRoute> = async (c: any) => {
+export async function cleanupDo(c: Context<AppBindings>) {
   try {
     const user = c.get('user')!; // requireAuth ensures user exists
-    const body = c.req.valid('json');
+    const body = await c.req.json();
+
+    if (!body.doId || typeof body.doId !== 'string') {
+      const errorResponse = createStandardErrorResponse('Browser DO ID is required', ERROR_CODES.VALIDATION_ERROR);
+      return c.json(errorResponse, HttpStatusCodes.UNPROCESSABLE_ENTITY);
+    }
 
     console.log('🧹 Cleanup DO request:', { userId: user.id, doId: body.doId });
 
@@ -201,37 +200,30 @@ export const cleanupDo: AppRouteHandler<CleanupDoRoute> = async (c: any) => {
     await managerStub.removeBrowserDO(body.doId);
 
     const result = {
-      action: 'cleanup-do',
+      action: 'cleanup-do' as const,
       doId: body.doId,
       message: `Successfully cleaned up and removed BrowserDO: ${body.doId}`,
     };
 
     console.log('✅ DO cleanup result:', result);
 
-    return c.json(
-      {
-        success: true,
-        data: result,
-        creditsCost: 0,
-      },
-      HttpStatusCodes.OK,
-    );
+    return c.json(createStandardSuccessResponse(result, 0), HttpStatusCodes.OK);
   } catch (error) {
     console.error('Cleanup DO error:', error);
     const errorResponse = createStandardErrorResponse(
-      error instanceof Error ? error.message : 'Unknown cleanup DO error',
+      error instanceof Error ? error.message : 'Unknown cleanup error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
     return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
       'X-Request-ID': errorResponse.error.requestId!,
     });
   }
-};
+}
 
 /**
  * Delete all browsers endpoint - Remove ALL browser DOs (useful for deployment cleanup)
  */
-export const deleteAllBrowsers: AppRouteHandler<DeleteAllBrowsersRoute> = async (c: any) => {
+export async function deleteAllBrowsers(c: Context<AppBindings>) {
   try {
     const user = c.get('user')!; // requireAuth ensures user exists
 
@@ -250,14 +242,7 @@ export const deleteAllBrowsers: AppRouteHandler<DeleteAllBrowsersRoute> = async 
       totalFound: result.totalFound,
     });
 
-    return c.json(
-      {
-        success: true,
-        data: result,
-        creditsCost: 0,
-      },
-      HttpStatusCodes.OK,
-    );
+    return c.json(createStandardSuccessResponse(result, 0), HttpStatusCodes.OK);
   } catch (error) {
     console.error('Delete all browsers error:', error);
     const errorResponse = createStandardErrorResponse(
@@ -268,12 +253,12 @@ export const deleteAllBrowsers: AppRouteHandler<DeleteAllBrowsersRoute> = async 
       'X-Request-ID': errorResponse.error.requestId!,
     });
   }
-};
+}
 
 /**
  * Check remaining endpoint - Check Cloudflare Browser API limits and quotas
  */
-export const checkRemaining: AppRouteHandler<CheckRemainingRoute> = async (c: any) => {
+export async function checkRemaining(c: Context<AppBindings>) {
   try {
     const user = c.get('user')!; // requireAuth ensures user exists
 
@@ -299,16 +284,15 @@ export const checkRemaining: AppRouteHandler<CheckRemainingRoute> = async (c: an
     });
 
     return c.json(
-      {
-        success: true,
-        data: {
+      createStandardSuccessResponse(
+        {
           activeSessions,
           maxConcurrentSessions,
           allowedBrowserAcquisitions,
           timeUntilNextAllowedBrowserAcquisition,
         },
-        creditsCost: 0, // No credits cost for system monitoring
-      },
+        0,
+      ), // No credits cost for system monitoring
       HttpStatusCodes.OK,
     );
   } catch (error) {
@@ -321,4 +305,4 @@ export const checkRemaining: AppRouteHandler<CheckRemainingRoute> = async (c: an
       'X-Request-ID': errorResponse.error.requestId!,
     });
   }
-};
+}
