@@ -15,14 +15,9 @@ import {
   type ApiKeysListResponse,
   type ApiKeyWithKey,
 } from '@/lib/api-keys';
-import {
-  formatApiKeyDisplay,
-  validateApiKeyName,
-  generateKeyNameSuggestion,
-  getApiKeyStatusColor,
-  maskApiKey,
-} from '@/lib/utils/api-key-utils';
+import { formatApiKeyDisplay, validateApiKeyName, getApiKeyStatusColor } from '@/lib/utils/api-key-utils';
 import { isVercelPreview } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/error-utils';
 
 interface ApiKeyManagerPromiseClientProps {
   apiKeysPromise: Promise<ApiKeysListResponse>;
@@ -58,6 +53,9 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
   const { data: apiKeysResponse, isLoading, error: queryError } = useQuery(queryOptions);
 
   const apiKeys = apiKeysResponse?.apiKeys || [];
+
+  const showTable = !isLoading && apiKeys.length > 0;
+  const showEmptyState = !isLoading && apiKeys.length === 0;
 
   // Create API key mutation
   const createApiKeyMutation = useMutation({
@@ -190,7 +188,7 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
       <div className="flex w-full justify-end items-center">
         <Button onClick={() => setShowCreateForm(!showCreateForm)} disabled={isLoading}>
           <Plus className="h-4 w-4 mr-2" />
-          Create new secret key
+          Create API key
         </Button>
       </div>
 
@@ -198,7 +196,7 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
       {showCreateForm && (
         <Card>
           <CardHeader>
-            <CardTitle>Create New Secret Key</CardTitle>
+            <CardTitle>Create API Key</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreateApiKey} className="space-y-4">
@@ -243,19 +241,19 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
       {/* Error Messages */}
       {queryError && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
-          Failed to load API keys: {queryError.message}
+          Failed to load API keys: {getErrorMessage(queryError)}
         </div>
       )}
 
       {createApiKeyMutation.isError && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
-          {createApiKeyMutation.error.message}
+          Failed to create API key: {getErrorMessage(createApiKeyMutation.error)}
         </div>
       )}
 
       {deleteApiKeyMutation.isError && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
-          Failed to delete API key: {deleteApiKeyMutation.error.message}
+          Failed to delete API key: {getErrorMessage(deleteApiKeyMutation.error)}
         </div>
       )}
 
@@ -294,13 +292,15 @@ export function ApiKeyManagerPromiseClient({ apiKeysPromise, className = '' }: A
       )}
 
       {/* API Keys Table */}
-      {!apiKeys || apiKeys.length === 0 ? (
+      {showEmptyState && (
         <div className="text-center py-12 border rounded-lg bg-muted/20">
           <div className="text-4xl mb-4">🔑</div>
           <h3 className="text-lg font-medium mb-2">No API keys found</h3>
           <p className="text-sm text-muted-foreground">Create your first API key to get started with our API.</p>
         </div>
-      ) : (
+      )}
+
+      {showTable && (
         <>
           {/* Desktop Table Layout (lg and up) */}
           <div className="hidden lg:block border rounded-lg overflow-hidden">

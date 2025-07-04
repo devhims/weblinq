@@ -10,7 +10,7 @@ Find answers to common questions about using the WebLinq API.
 ## General Questions
 
 <AccordionGroup>
-<Accordion title="What is WebLinq?" icon="circle-question">
+<Accordion title="What is WebLinq?">
   WebLinq is a powerful web scraping and content extraction API that helps you:
   
   - Extract clean, structured content from any webpage
@@ -22,7 +22,7 @@ Find answers to common questions about using the WebLinq API.
   Our API is designed to be reliable, scalable, and easy to use.
 </Accordion>
 
-<Accordion title="How much does it cost?" icon="credit-card">
+<Accordion title="How much does it cost?">
   WebLinq offers flexible pricing plans: - **Free Tier**: 1,000 credits/month, perfect for testing - **Developer**:
   $49/month for 10,000 credits - **Business**: $199/month for 50,000 credits - **Enterprise**: Custom pricing for
   high-volume needs
@@ -31,12 +31,12 @@ Find answers to common questions about using the WebLinq API.
   </Note>
 </Accordion>
 
-<Accordion title="Do you offer a free trial?" icon="sparkles">
+<Accordion title="Do you offer a free trial?">
   Yes! You can sign up for a free account and get 1,000 credits to test the API. No credit card required. The free tier
   includes: - Full API access - Basic rate limits - Community support - Core features and endpoints
 </Accordion>
 
-<Accordion title="What programming languages do you support?" icon="code">
+<Accordion title="What programming languages do you support?">
   WebLinq is a REST API that works with any programming language. We provide official SDKs for:
   
   - [Node.js](/sdks/node)
@@ -50,7 +50,7 @@ Find answers to common questions about using the WebLinq API.
 ## Technical Questions
 
 <AccordionGroup>
-<Accordion title="How do you handle JavaScript-heavy sites?" icon="js">
+<Accordion title="How do you handle JavaScript-heavy sites?">
   We provide several options for JavaScript-heavy sites:
   
   1. **Wait Until Options**:
@@ -77,14 +77,14 @@ Find answers to common questions about using the WebLinq API.
      ```
 </Accordion>
 
-<Accordion title="What about rate limiting?" icon="gauge-high">
+<Accordion title="What about rate limiting?">
   Rate limits vary by plan: - **Free**: 60 requests/minute - **Developer**: 300 requests/minute - **Business**: 1,000
   requests/minute - **Enterprise**: Custom limits We provide rate limit info in response headers: ```http
   X-RateLimit-Limit: 60 X-RateLimit-Remaining: 45 X-RateLimit-Reset: 1625097600 ```
   <Tip>Implement exponential backoff for rate-limited requests.</Tip>
 </Accordion>
 
-<Accordion title="How do you handle authentication?" icon="lock">
+<Accordion title="How do you handle authentication?">
   We support multiple authentication methods for target websites:
   
   1. **Cookie-based**:
@@ -135,7 +135,7 @@ Find answers to common questions about using the WebLinq API.
 ## Features & Capabilities
 
 <AccordionGroup>
-<Accordion title="What file formats do you support?" icon="file">
+<Accordion title="What file formats do you support?">
   We support multiple output formats:
   
   - **Text**: Clean, formatted text
@@ -154,7 +154,7 @@ Find answers to common questions about using the WebLinq API.
   ```
 </Accordion>
 
-<Accordion title="Can I extract specific elements?" icon="wand-magic-sparkles">
+<Accordion title="Can I extract specific elements?">
   Yes! Use CSS selectors to target specific elements:
   
   ```json
@@ -174,7 +174,7 @@ Find answers to common questions about using the WebLinq API.
   - AI-powered content extraction
 </Accordion>
 
-<Accordion title="How do you handle pagination?" icon="book">
+<Accordion title="How do you handle pagination?">
   We offer several pagination strategies:
   
   1. **Auto-pagination**:
@@ -209,7 +209,7 @@ Find answers to common questions about using the WebLinq API.
      ```
 </Accordion>
 
-<Accordion title="What about geolocation and proxies?" icon="globe">
+<Accordion title="What about geolocation and proxies?">
   We support geolocation-specific requests:
   
   ```json
@@ -231,7 +231,7 @@ Find answers to common questions about using the WebLinq API.
 ## Troubleshooting
 
 <AccordionGroup>
-<Accordion title="Common Error Codes" icon="triangle-exclamation">
+<Accordion title="Common Error Codes">
   Common error codes and solutions:
   
   - **401**: Invalid API key
@@ -243,19 +243,19 @@ Find answers to common questions about using the WebLinq API.
   See our [Error Handling](/api-reference/errors) guide for details.
 </Accordion>
 
-<Accordion title="Why is my request timing out?" icon="clock">
+<Accordion title="Why is my request timing out?">
   Timeouts can occur for several reasons: 1. **Slow Website**: - Increase timeout: `"timeout": 30000` - Use `wait_until:
   "networkidle0"` 2. **Complex JavaScript**: - Enable JS: `"javascript": true` - Add wait time: `"wait_time": 5000` 3.
   **Large Pages**: - Use selective extraction - Implement pagination
 </Accordion>
 
-<Accordion title="Content not being extracted correctly?" icon="bug">
+<Accordion title="Content not being extracted correctly?">
   Try these troubleshooting steps: 1. **Check Selectors**: - Use browser dev tools to verify - Try multiple selector
   options 2. **JavaScript Content**: - Enable JS execution - Add appropriate wait conditions 3. **Dynamic Content**: -
   Use `wait_for` with specific elements - Implement retry logic
 </Accordion>
 
-<Accordion title="Getting blocked by websites?" icon="ban">
+<Accordion title="Getting blocked by websites?">
   If you're getting blocked:
   
   1. **Implement Delays**:
@@ -287,7 +287,7 @@ Find answers to common questions about using the WebLinq API.
 ## Business & Support
 
 <AccordionGroup>
-<Accordion title="Do you offer enterprise support?" icon="building">
+<Accordion title="Do you offer enterprise support?">
   Yes! Enterprise plans include:
   
   - Dedicated support team
@@ -299,19 +299,19 @@ Find answers to common questions about using the WebLinq API.
   [Contact us](mailto:enterprise@weblinq.dev) for details.
 </Accordion>
 
-<Accordion title="What about data privacy?" icon="shield-check">
+<Accordion title="What about data privacy?">
   We take data privacy seriously: - Data encrypted in transit and at rest - No persistent storage of scraped content -
   GDPR and CCPA compliant - Regular security audits - SOC 2 Type II certified See our [Privacy Policy](/legal/privacy)
   for details.
 </Accordion>
 
-<Accordion title="Can I use the API in production?" icon="rocket">
+<Accordion title="Can I use the API in production?">
   Yes! Our API is production-ready with: - 99.9% uptime guarantee - Global CDN distribution - Automatic scaling -
   Real-time monitoring - Production support Many companies use WebLinq in production for: - Content aggregation - Price
   monitoring - Market research - Data analytics
 </Accordion>
 
-<Accordion title="How do I get help?" icon="life-ring">
+<Accordion title="How do I get help?">
   We offer multiple support channels:
   
   - [Documentation](/api-reference/overview)
@@ -326,10 +326,7 @@ Find answers to common questions about using the WebLinq API.
 ## Still have questions?
 
 <CardGroup cols={2}>
-  <Card title="Join our Discord" icon="discord" href="https://discord.gg/weblinq">
-    Get help from the community and share your projects
-  </Card>
-  <Card title="Contact Support" icon="envelope" href="mailto:support@weblinq.dev">
+  <Card title="Contact Support" icon="mail" href="mailto:support@weblinq.dev">
     Our team is ready to help with any questions
   </Card>
 </CardGroup>{' '}

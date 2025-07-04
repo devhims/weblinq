@@ -1,6 +1,9 @@
 // Remove server-only to allow client imports
 // import 'server-only'; // Commented out to allow client-side imports
 
+import { parseErrorResponse, makeApiRequest } from './error-utils';
+import { isVercelPreview, getApiKeyFromStorage } from '@/lib/utils';
+
 // Types based on the backend API schemas
 export interface CreateApiKeyRequest {
   name: string;
@@ -35,8 +38,6 @@ export interface DeleteApiKeyResponse {
   success: boolean;
   message: string;
 }
-
-import { isVercelPreview, getApiKeyFromStorage } from '@/lib/utils';
 
 // Get backend URL with cross-subdomain cookie support
 const getBackendUrl = () => process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787';
@@ -90,19 +91,22 @@ async function serverApiRequest<T>(endpoint: string, options: RequestInit = {}):
   console.log(`🌐 [Server API Response] Status: ${response.status} ${response.statusText}`);
 
   if (!response.ok) {
-    const error = await response.text();
-    console.error(`🌐 [Server API Error] ${response.status}: ${error}`);
+    const apiError = await parseErrorResponse(response);
+    console.error(`🌐 [Server API Error] ${response.status}: ${apiError.message}`, {
+      code: apiError.code,
+      requestId: apiError.requestId,
+    });
 
     if (response.status === 401) {
       console.error(`🔒 [Auth Error] Authentication required - server-side cookies may be missing`);
     }
 
-    throw new Error(`API Error ${response.status}: ${error}`);
+    throw apiError;
   }
 
   const data = await response.json();
   console.log(`🌐 [Server API Success] Response data:`, data);
-  return data;
+  return data.data;
 }
 
 // Client-side authenticated request helper (for mutations from client components)
@@ -148,19 +152,22 @@ async function clientApiRequest<T>(endpoint: string, options: RequestInit = {}):
   console.log(`🌐 [Client API Response] Status: ${response.status} ${response.statusText}`);
 
   if (!response.ok) {
-    const error = await response.text();
-    console.error(`🌐 [Client API Error] ${response.status}: ${error}`);
+    const apiError = await parseErrorResponse(response);
+    console.error(`🌐 [Client API Error] ${response.status}: ${apiError.message}`, {
+      code: apiError.code,
+      requestId: apiError.requestId,
+    });
 
     if (response.status === 401) {
       console.error(`🔒 [Auth Error] Authentication required - user may not be logged in`);
     }
 
-    throw new Error(`API Error ${response.status}: ${error}`);
+    throw apiError;
   }
 
   const data = await response.json();
   console.log(`🌐 [Client API Success] Response data:`, data);
-  return data;
+  return data.data;
 }
 
 // Server-side API functions (used by server components)

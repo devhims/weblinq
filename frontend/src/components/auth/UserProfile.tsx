@@ -3,20 +3,21 @@
 import { useSession, signOut } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
+import { getErrorMessage } from '@/lib/error-utils';
 
 export function UserProfile() {
   const { data: session, isPending, error } = useSession();
 
   if (isPending) {
-    return <div className='p-4'>Loading...</div>;
+    return <div className="p-4">Loading...</div>;
   }
 
   if (error) {
-    return <div className='p-4'>Error: {error.message}</div>;
+    return <div className="p-4">Error: {getErrorMessage(error)}</div>;
   }
 
   if (!session?.user) {
-    return <div className='p-4'>Not authenticated</div>;
+    return <div className="p-4">Not authenticated</div>;
   }
 
   const handleSignOut = async () => {
@@ -31,28 +32,26 @@ export function UserProfile() {
   };
 
   return (
-    <div className='p-4 border rounded-lg'>
-      <div className='flex items-center gap-4'>
+    <div className="p-4 border rounded-lg">
+      <div className="flex items-center gap-4">
         {session.user.image && (
           <Image
             src={session.user.image}
             alt={session.user.name || 'User'}
             width={48}
             height={48}
-            className='rounded-full'
+            className="rounded-full"
           />
         )}
         <div>
-          <h3 className='font-semibold'>{session.user.name || 'User'}</h3>
-          <p className='text-gray-600'>{session.user.email}</p>
-          <p className='text-xs text-gray-500'>
-            {session.user.emailVerified
-              ? '✅ Email verified'
-              : '⚠️ Email not verified'}
+          <h3 className="font-semibold">{session.user.name || 'User'}</h3>
+          <p className="text-gray-600">{session.user.email}</p>
+          <p className="text-xs text-gray-500">
+            {session.user.emailVerified ? '✅ Email verified' : '⚠️ Email not verified'}
           </p>
         </div>
       </div>
-      <Button onClick={handleSignOut} variant='outline' className='mt-4'>
+      <Button onClick={handleSignOut} variant="outline" className="mt-4">
         Sign Out
       </Button>
     </div>

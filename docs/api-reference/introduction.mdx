@@ -5,129 +5,57 @@ description: 'Complete reference for the WebLinq API'
 
 # API Reference
 
-Welcome to the WebLinq API reference documentation. Our API is organized around REST principles and uses standard HTTP verbs and response codes. All requests should be made to the base URL `https://api.weblinq.dev`.
+Welcome to the WebLinq API documentation. Our REST API enables powerful web automation, content extraction, and data transformation capabilities.
+
+## Base URL
+
+```bash
+https://api.weblinq.dev/v1
+```
 
 ## Authentication
 
-All API endpoints require authentication using a Bearer token. You can obtain an API key from your dashboard.
+All endpoints require authentication using a Bearer token:
 
 ```bash
 curl -H "Authorization: Bearer YOUR_API_KEY" https://api.weblinq.dev/v1/...
 ```
 
-## Available Endpoints
+<Note>Get your API key from the [dashboard](https://weblinq.dev/dashboard/api-keys).</Note>
 
-### Web Operations
+## Quick Start
 
-Extract and manipulate web content:
-
-<CardGroup cols={2}>
-  <Card title="Get HTML Content" href="/api-reference/web/get-raw-html-content-from-a-web-page">
-    Retrieve raw HTML content from any webpage
-  </Card>
-  <Card title="Take Screenshot" href="/api-reference/web/take-a-screenshot-of-a-web-page">
-    Capture webpage screenshots with custom settings
-  </Card>
-  <Card title="Extract Links" href="/api-reference/web/extract-links-from-a-web-page">
-    Extract all links from a webpage
-  </Card>
-  <Card title="Extract JSON" href="/api-reference/web/extract-structured-data-from-a-web-page">
-    Extract structured data in JSON format
-  </Card>
-  <Card title="Extract Markdown" href="/api-reference/web/extract-markdown-from-a-web-page">
-    Convert webpage content to Markdown
-  </Card>
-  <Card title="Generate PDF" href="/api-reference/web/generate-pdf-from-a-web-page">
-    Create PDF from any webpage
-  </Card>
-  <Card title="Scrape Elements" href="/api-reference/web/scrape-specific-elements-from-a-web-page">
-    Extract specific elements using selectors
-  </Card>
-  <Card title="Web Search" href="/api-reference/web/search-the-web">
-    Perform web searches with structured results
-  </Card>
-</CardGroup>
-
-### API Keys
-
-Manage your API keys:
-
-<CardGroup cols={2}>
-  <Card title="List Keys" href="/api-reference/api-keys/list-user-api-keys">
-    View all your API keys
-  </Card>
-  <Card title="Create Key" href="/api-reference/api-keys/create-a-new-api-key">
-    Generate a new API key
-  </Card>
-  <Card title="Get Key Details" href="/api-reference/api-keys/get-api-key-details">
-    View details of a specific key
-  </Card>
-  <Card title="Delete Key" href="/api-reference/api-keys/delete-api-key">
-    Revoke an API key
-  </Card>
-</CardGroup>
-
-### System Operations
-
-Manage browser instances:
-
-<CardGroup cols={2}>
-  <Card title="Create Browsers" href="/api-reference/system/create-browser-instances">
-    Create new browser instances
-  </Card>
-  <Card title="Delete Browsers" href="/api-reference/system/delete-all-browser-instances">
-    Remove all browser instances
-  </Card>
-  <Card title="Browser Status" href="/api-reference/system/get-browser-status-information">
-    Check browser instance status
-  </Card>
-  <Card title="Session Health" href="/api-reference/system/test-browser-session-health">
-    Verify browser session health
-  </Card>
-  <Card title="Cleanup" href="/api-reference/system/clean-up-browser-durable-object">
-    Clean up browser resources
-  </Card>
-</CardGroup>
-
-### User Management
-
-Manage user information:
-
-<CardGroup cols={2}>
-  <Card title="Current User" href="/api-reference/user/get-current-user-information">
-    Get current user details
-  </Card>
-  <Card title="User Profile" href="/api-reference/user/get-user-profile-protected">
-    Get protected user profile
-  </Card>
-</CardGroup>
-
-### File Management
-
-Manage uploaded files:
-
-<CardGroup cols={2}>
-  <Card title="List Files" href="/api-reference/files/list-user-files">
-    View all uploaded files
-  </Card>
-  <Card title="Delete File" href="/api-reference/files/delete-a-file">
-    Remove uploaded files
-  </Card>
-</CardGroup>
-
-## Rate Limiting
-
-The API implements rate limiting to ensure fair usage. Rate limits are applied on a per-API key basis. Current limits are:
-
-- 100 requests per minute for standard accounts
-- 1000 requests per minute for premium accounts
-
-Rate limit information is included in the response headers:
-
-- `X-RateLimit-Limit`: Total requests allowed per window
-- `X-RateLimit-Remaining`: Remaining requests in the current window
-- `X-RateLimit-Reset`: Time when the rate limit resets (Unix timestamp)
+<Steps>
+  <Step title="Get your API key">
+    [Create an API key](https://weblinq.dev/dashboard/api-keys) from your dashboard.
+  </Step>
+  <Step title="Make your first request">
+    Try extracting content from a webpage:
+    
+    ```bash
+    curl -X POST "https://api.weblinq.dev/v1/web/markdown" \
+      -H "Authorization: Bearer YOUR_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"url": "https://example.com"}'
+    ```
+  </Step>
+  <Step title="Explore endpoints">
+    Check out the [overview](/api-reference/overview) for all available endpoints.
+  </Step>
+</Steps>
 
 ## Response Format
 
-All responses are returned in JSON format. Successful responses will contain the requested data directly, while error responses follow a standard error format detailed in the [Error Handling](/api-reference/errors) section.
+All responses follow a consistent structure:
+
+```json
+{
+  "success": true,
+  "data": {
+    // Response data
+  },
+  "creditsCost": 1
+}
+```
+
+For detailed information about endpoints, error handling, and rate limits, see the [API overview](/api-reference/overview).

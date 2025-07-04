@@ -1,37 +1,33 @@
 ---
 title: 'Quickstart Guide'
-description: 'Get started with the WebLinq API in under 5 minutes'
+description: 'Get started with WebLinq API in under 5 minutes'
 ---
 
-# Quickstart Guide
-
-Follow this guide to make your first API request and start extracting web content in minutes.
+Get your first API response in minutes with this step-by-step guide.
 
 <Steps>
 <Step title="Get your API key">
-  1. Sign up for a [WebLinq account](https://weblinq.dev/signup)
-  2. Go to the [API Keys](https://weblinq.dev/dashboard/api-keys) section in your dashboard
-  3. Click "Create API Key" to generate your API key
+  1. [Sign up for WebLinq](https://weblinq.dev/sign-up) - it's free to start
+  2. Go to [API Keys](https://weblinq.dev/dashboard/api-keys) in your dashboard
+  3. Click "Create API Key" and give it a name
   
   <Warning>
-  Copy and save your API key securely - it won't be shown again!
+  Copy your API key immediately - you won't see it again after creation.
   </Warning>
 </Step>
 
 <Step title="Make your first request">
-  Let's start by extracting the content from a webpage. Choose your preferred language:
+  Let's extract content from a webpage using the markdown endpoint:
 
   <CodeGroup>
   ```bash cURL
   curl -X POST "https://api.weblinq.dev/v1/web/markdown" \
     -H "Authorization: Bearer YOUR_API_KEY" \
     -H "Content-Type: application/json" \
-    -d '{
-      "url": "https://example.com"
-    }'
+    -d '{"url": "https://example.com"}'
   ```
 
-```javascript Node.js
+```javascript JavaScript
 const response = await fetch('https://api.weblinq.dev/v1/web/markdown', {
   method: 'POST',
   headers: {
@@ -43,9 +39,8 @@ const response = await fetch('https://api.weblinq.dev/v1/web/markdown', {
   }),
 });
 
-const markdownResponse = await response.json();
-console.log(markdownResponse.data.markdown);
-console.log(markdownResponse.data.metadata);
+const data = await response.json();
+console.log(data.data.markdown);
 ```
 
 ```python Python
@@ -53,29 +48,22 @@ import requests
 
 response = requests.post(
     'https://api.weblinq.dev/v1/web/markdown',
-    headers={
-        'Authorization': 'Bearer YOUR_API_KEY',
-        'Content-Type': 'application/json'
-    },
-    json={
-        'url': 'https://example.com',
-    }
+    headers={'Authorization': 'Bearer YOUR_API_KEY'},
+    json={'url': 'https://example.com'}
 )
 
-markdownResponse = response.json()
-print(markdownResponse['data']['markdown'])
-print(markdownResponse['data']['metadata'])
+data = response.json()
+print(data['data']['markdown'])
 ```
 
   </CodeGroup>
 
-    <Note>
-    The `url` parameter in the request body is required.
-    </Note>
-
+  <Note>
+  Replace `YOUR_API_KEY` with the actual API key from your dashboard.
+  </Note>
 </Step>
 
-<Step title="Handle the response">
+<Step title="Understanding the response">
   You'll receive a JSON response with the extracted content:
 
 ```json
@@ -87,7 +75,7 @@ print(markdownResponse['data']['metadata'])
       "title": "Example Domain",
       "description": "This domain is for use in illustrative examples...",
       "url": "https://example.com",
-      "timestamp": "2024-06-01T12:00:00Z",
+      "timestamp": "2024-01-15T10:30:00Z",
       "wordCount": 42
     }
   },
@@ -96,79 +84,66 @@ print(markdownResponse['data']['metadata'])
 ```
 
   <Tip>
-  Use the `markdown` field for the extracted content. Metadata provides additional information about the page.
+  The `data.markdown` field contains the extracted content, while `metadata` provides additional page information.
   </Tip>
 </Step>
 
 <Step title="Try other endpoints">
-  Now that you've made your first request, try these popular endpoints:
+  Now explore these popular endpoints:
 
   <CardGroup cols={2}>
     <Card title="Take Screenshot" icon="camera" href="/api-reference/web/take-a-screenshot-of-a-web-page">
-    Capture pixel-perfect screenshots
-  </Card>
-   <Card title="Web Search" icon="globe" href="/api-reference/web/search-the-web">
-    Search the web for specific content
-  </Card>
+    Capture page screenshots
+    </Card>
+    <Card title="Extract Data" icon="code" href="/api-reference/web/extract-structured-data-from-a-web-page">
+    Get structured JSON data
+    </Card>
+    <Card title="Search Web" icon="globe" href="/api-reference/web/search-the-web">
+    Search the internet
+    </Card>
+    <Card title="Generate PDF" icon="file-pdf" href="/api-reference/web/generate-pdf-from-a-web-page">
+    Create PDF documents
+    </Card>
   </CardGroup>
 </Step>
 </Steps>
 
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="API Reference" icon="book" href="/api-reference/overview">
-    Explore all available endpoints and features
-  </Card>
-  <Card title="Error Handling" icon="triangle-exclamation" href="/api-reference/errors">
-    Learn about error codes and best practices
-  </Card>
-  <Card title="Rate Limits" icon="gauge" href="/api-reference/overview#rate-limiting">
-    Understand usage limits and quotas
-  </Card>
-  <Card title="Examples" icon="code" href="/examples">
-    View common integration patterns
-  </Card>
-</CardGroup>
-
-## Common Questions
+## Quick tips
 
 <AccordionGroup>
-<Accordion title="How do I handle rate limits?" icon="gauge-high">
-  The API includes rate limit information in response headers:
+<Accordion title="Rate limits" icon="gauge">
+  Check these headers in API responses:
   
-  - `X-RateLimit-Limit`: Total requests allowed per minute
-  - `X-RateLimit-Remaining`: Remaining requests
-  - `X-RateLimit-Reset`: Time until limit resets
+  - `X-RateLimit-Remaining`: Requests left in current window
+  - `X-RateLimit-Reset`: When the limit resets
   
-  Implement exponential backoff when retrying rate-limited requests:
+  Implement retry logic with exponential backoff for 429 responses.
+</Accordion>
+
+<Accordion title="Error handling" icon="shield">
+  Always check the `success` field in responses:
   
   ```javascript
-  if (response.status === 429) {
-    const retryAfter = response.headers.get('Retry-After');
-    await sleep(retryAfter * 1000);
+  if (!data.success) {
+    console.error('API Error:', data.error.message);
+    return;
   }
+  
+  // Process successful response
+  console.log(data.data);
   ```
 </Accordion>
 
-<Accordion title="What about authentication?" icon="lock">
-  For sites requiring authentication, pass cookies or headers:
-  
-  ```json
-  {
-    "url": "https://example.com",
-    "headers": {
-      "Cookie": "session=abc123"
-    }
-  }
-  ```
+<Accordion title="Security" icon="lock">
+  - Store API keys in environment variables
+  - Never commit keys to version control  
+  - Use different keys for development and production
+  - Rotate keys regularly
 </Accordion>
 </AccordionGroup>
 
-## Need Help?
+## Need help?
 
-<CardGroup cols={1}>
-  <Card title="Email Support" icon="envelope" href="mailto:support@weblinq.dev">
-    Enterprise customers get priority email support
-  </Card>
-</CardGroup>
+<Card title="Get Support" icon="envelope" href="mailto:support@weblinq.dev">
+  Email us for technical support and questions
+</Card>

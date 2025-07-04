@@ -5,6 +5,46 @@
 
 import { z } from 'zod';
 
+// Enhanced URL validation that requires proper domain names with TLDs
+const strictUrlSchema = z
+  .string()
+  .url()
+  .refine(
+    (url) => {
+      try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname;
+
+        // Must have at least one dot (for TLD) unless it's localhost
+        if (
+          hostname === 'localhost' ||
+          hostname === '127.0.0.1' ||
+          hostname.startsWith('192.168.') ||
+          hostname.startsWith('10.') ||
+          hostname.startsWith('172.')
+        ) {
+          return true; // Allow local development URLs
+        }
+
+        // Must contain at least one dot for TLD
+        if (!hostname.includes('.')) {
+          return false;
+        }
+
+        // Must have a valid TLD (at least 2 characters after the last dot)
+        const parts = hostname.split('.');
+        const tld = parts[parts.length - 1];
+
+        return tld.length >= 2 && /^[a-zA-Z]+$/.test(tld);
+      } catch {
+        return false;
+      }
+    },
+    {
+      message: 'URL must include a valid domain name with a top-level domain (e.g., .com, .org, etc.)',
+    },
+  );
+
 // IMPORTANT: Keep this union in sync with `EndpointAction` in api-builder.ts.
 export type EndpointAction =
   | 'scrape/markdown'
@@ -22,24 +62,24 @@ export type EndpointAction =
 ──────────────────────────────────────────────────────────────── */
 
 export const MarkdownRequestSchema = z.object({
-  url: z.string().url(),
+  url: strictUrlSchema,
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 });
 
 export const ContentRequestSchema = z.object({
-  url: z.string().url(),
+  url: strictUrlSchema,
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 });
 
 export const LinksRequestSchema = z.object({
-  url: z.string().url(),
+  url: strictUrlSchema,
   includeExternal: z.boolean().optional().default(true),
   visibleLinksOnly: z.boolean().optional().default(false),
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 });
 
 export const ScrapeRequestSchema = z.object({
-  url: z.string().url(),
+  url: strictUrlSchema,
   elements: z
     .array(
       z.object({
@@ -53,7 +93,7 @@ export const ScrapeRequestSchema = z.object({
 });
 
 export const ScreenshotRequestSchema = z.object({
-  url: z.string().url(),
+  url: strictUrlSchema,
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 
   // Return format preference - binary for optimal performance by default
@@ -105,7 +145,7 @@ export const ScreenshotRequestSchema = z.object({
 
 export const JsonExtractionRequestSchema = z
   .object({
-    url: z.string().url(),
+    url: strictUrlSchema,
     waitTime: z.number().int().min(0).max(5000).optional().default(0),
     // Response type: 'json' for structured data, 'text' for natural language
     responseType: z.enum(['json', 'text']).optional().default('json'),
@@ -136,11 +176,11 @@ export const JsonExtractionRequestSchema = z
 
 export const SearchRequestSchema = z.object({
   query: z.string().min(1),
-  limit: z.number().int().min(1).max(20).optional().default(10),
+  limit: z.number().int().min(1).max(10).optional().default(10),
 });
 
 export const PdfRequestSchema = z.object({
-  url: z.string().url(),
+  url: strictUrlSchema,
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
   // Return format preference - binary for optimal performance by default
   base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary data'),

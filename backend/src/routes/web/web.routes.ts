@@ -2,6 +2,7 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import { jsonContent, jsonContentRequired } from 'stoker/openapi/helpers';
 import { createErrorSchema } from 'stoker/openapi/schemas';
 
+import { createStandardSuccessSchema, StandardErrorSchema } from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Web'];
@@ -124,13 +125,12 @@ export const linksInputSchema = z.object({
 
 const searchInputSchema = z.object({
   query: z.string().min(1).max(500),
-  limit: z.number().min(1).max(20).optional().default(10),
+  limit: z.number().min(1).max(10).optional().default(5),
 });
 
 // Output schemas
-const screenshotOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const screenshotOutputSchema = createStandardSuccessSchema(
+  z.object({
     image: z.string().describe('Base64 encoded image'),
     metadata: z.object({
       width: z.number(),
@@ -143,12 +143,10 @@ const screenshotOutputSchema = z.object({
     permanentUrl: z.string().optional().describe('Permanent R2 storage URL for the image'),
     fileId: z.string().optional().describe('Unique file ID for tracking'),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const markdownOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const markdownOutputSchema = createStandardSuccessSchema(
+  z.object({
     markdown: z.string(),
     metadata: z.object({
       title: z.string().optional(),
@@ -158,12 +156,10 @@ const markdownOutputSchema = z.object({
       wordCount: z.number(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const jsonExtractionOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const jsonExtractionOutputSchema = createStandardSuccessSchema(
+  z.object({
     // For JSON responses: structured data object
     extracted: z.record(z.any()).optional(),
     // For text responses: natural language text
@@ -179,12 +175,10 @@ const jsonExtractionOutputSchema = z.object({
       outputTokens: z.number().optional(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const contentOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const contentOutputSchema = createStandardSuccessSchema(
+  z.object({
     content: z.string(),
     metadata: z.object({
       title: z.string().optional(),
@@ -194,12 +188,10 @@ const contentOutputSchema = z.object({
       contentType: z.string(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const scrapeOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const scrapeOutputSchema = createStandardSuccessSchema(
+  z.object({
     elements: z.array(
       z.object({
         selector: z.string(),
@@ -212,12 +204,10 @@ const scrapeOutputSchema = z.object({
       elementsFound: z.number(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const linksOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const linksOutputSchema = createStandardSuccessSchema(
+  z.object({
     links: z.array(
       z.object({
         url: z.string(),
@@ -233,12 +223,10 @@ const linksOutputSchema = z.object({
       externalLinks: z.number(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
-const searchOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const searchOutputSchema = createStandardSuccessSchema(
+  z.object({
     results: z.array(
       z.object({
         title: z.string(),
@@ -255,8 +243,7 @@ const searchOutputSchema = z.object({
       timestamp: z.string(),
     }),
   }),
-  creditsCost: z.number(),
-});
+);
 
 // Add PDF input schema
 export const pdfInputSchema = z.object({
@@ -268,9 +255,8 @@ export const pdfInputSchema = z.object({
 });
 
 // PDF output schema
-const pdfOutputSchema = z.object({
-  success: z.boolean(),
-  data: z.object({
+const pdfOutputSchema = createStandardSuccessSchema(
+  z.object({
     pdf: z.string().describe('Base64 encoded PDF'),
     metadata: z.object({
       size: z.number(),
@@ -280,8 +266,7 @@ const pdfOutputSchema = z.object({
     permanentUrl: z.string().optional().describe('Permanent R2 storage URL for the PDF'),
     fileId: z.string().optional().describe('Unique file ID for tracking'),
   }),
-  creditsCost: z.number(),
-});
+);
 
 // Route definitions
 export const screenshot = createRoute({
@@ -297,14 +282,8 @@ export const screenshot = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(screenshotOutputSchema, 'Screenshot captured successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(screenshotInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -321,14 +300,8 @@ export const markdown = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(markdownOutputSchema, 'Markdown extracted successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(markdownInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -348,14 +321,8 @@ export const jsonExtraction = createRoute({
       createErrorSchema(jsonExtractionInputSchema),
       'Validation error',
     ),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -372,14 +339,8 @@ export const content = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(contentOutputSchema, 'HTML content retrieved successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(contentInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -396,14 +357,8 @@ export const scrape = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(scrapeOutputSchema, 'Elements scraped successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(scrapeInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -420,14 +375,8 @@ export const links = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(linksOutputSchema, 'Links extracted successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(linksInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -444,14 +393,8 @@ export const search = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(searchOutputSchema, 'Search completed successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(searchInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -468,14 +411,8 @@ export const pdf = createRoute({
   responses: {
     [HttpStatusCodes.OK]: jsonContent(pdfOutputSchema, 'PDF generated successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(pdfInputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(z.object({ error: z.string() }), 'Authentication required'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      z.object({
-        success: z.literal(false),
-        error: z.string(),
-      }),
-      'Internal server error',
-    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 

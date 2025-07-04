@@ -247,6 +247,9 @@ export interface PdfResponse {
   creditsCost: number;
 }
 
+import { parseErrorResponse } from './error-utils';
+import { isVercelPreview, getApiKeyFromStorage } from '@/lib/utils';
+
 // Generic binary API request function for images, PDFs and binary content
 async function apiBinaryRequest(
   endpoint: string,
@@ -282,8 +285,8 @@ async function apiBinaryRequest(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API Error ${response.status}: ${error}`);
+    const apiError = await parseErrorResponse(response);
+    throw apiError;
   }
 
   // Check if we got binary or JSON response
@@ -347,8 +350,6 @@ async function apiBinaryRequest(
   }
 }
 
-import { isVercelPreview, getApiKeyFromStorage } from '@/lib/utils';
-
 // Base API request function with error handling
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   // Check if we're in preview mode and need API key auth
@@ -380,8 +381,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API Error ${response.status}: ${error}`);
+    const apiError = await parseErrorResponse(response);
+    throw apiError;
   }
 
   // Handle empty responses

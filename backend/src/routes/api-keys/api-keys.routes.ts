@@ -1,6 +1,8 @@
 import * as HttpStatusCodes from 'stoker/http-status-codes';
 import { jsonContent } from 'stoker/openapi/helpers';
+import { createErrorSchema } from 'stoker/openapi/schemas';
 
+import { createStandardSuccessSchema, StandardErrorSchema } from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['API Keys'];
@@ -36,12 +38,6 @@ const apiKeyCreationResponseSchema = apiKeyResponseSchema.extend({
   key: z.string().describe('Complete API key - shown only once during creation'),
 });
 
-// Schema for error response
-const errorSchema = z.object({
-  error: z.string(),
-  details: z.string().optional(),
-});
-
 // Create API Key Route
 export const createApiKey = createRoute({
   path: '/create',
@@ -55,9 +51,13 @@ export const createApiKey = createRoute({
     body: jsonContent(createApiKeySchema, 'API key creation parameters'),
   },
   responses: {
-    [HttpStatusCodes.CREATED]: jsonContent(apiKeyCreationResponseSchema, 'API key created successfully'),
-    [HttpStatusCodes.BAD_REQUEST]: jsonContent(errorSchema, 'Invalid request data'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(errorSchema, 'Authentication required'),
+    [HttpStatusCodes.CREATED]: jsonContent(
+      createStandardSuccessSchema(apiKeyCreationResponseSchema),
+      'API key created successfully',
+    ),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(createApiKeySchema), 'Validation error'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -71,13 +71,16 @@ export const listApiKeys = createRoute({
   description: 'Get all API keys for the authenticated user',
   responses: {
     [HttpStatusCodes.OK]: jsonContent(
-      z.object({
-        apiKeys: z.array(apiKeyResponseSchema),
-        total: z.number(),
-      }),
+      createStandardSuccessSchema(
+        z.object({
+          apiKeys: z.array(apiKeyResponseSchema),
+          total: z.number(),
+        }),
+      ),
       'List of API keys',
     ),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(errorSchema, 'Authentication required'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -95,9 +98,14 @@ export const getApiKey = createRoute({
     }),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(apiKeyResponseSchema, 'API key details'),
-    [HttpStatusCodes.NOT_FOUND]: jsonContent(errorSchema, 'API key not found'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(errorSchema, 'Authentication required'),
+    [HttpStatusCodes.OK]: jsonContent(createStandardSuccessSchema(apiKeyResponseSchema), 'API key details'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(z.object({ id: z.string().min(1) })),
+      'Validation error',
+    ),
+    [HttpStatusCodes.NOT_FOUND]: jsonContent(StandardErrorSchema, 'API key not found'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 
@@ -116,14 +124,21 @@ export const deleteApiKey = createRoute({
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(
-      z.object({
-        success: z.boolean(),
-        message: z.string(),
-      }),
+      createStandardSuccessSchema(
+        z.object({
+          success: z.boolean(),
+          message: z.string(),
+        }),
+      ),
       'API key deleted successfully',
     ),
-    [HttpStatusCodes.NOT_FOUND]: jsonContent(errorSchema, 'API key not found'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(errorSchema, 'Authentication required'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(z.object({ id: z.string().min(1) })),
+      'Validation error',
+    ),
+    [HttpStatusCodes.NOT_FOUND]: jsonContent(StandardErrorSchema, 'API key not found'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
 });
 

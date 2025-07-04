@@ -1,7 +1,8 @@
-import { HTTPException } from 'hono/http-exception';
 import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { AppRouteHandler } from '@/lib/types';
+
+import { createStandardErrorResponse, createStandardSuccessResponse, ERROR_CODES } from '@/lib/response-utils';
 
 import type { CreateApiKeyRoute, DeleteApiKeyRoute, GetApiKeyRoute, ListApiKeysRoute } from './api-keys.routes';
 
@@ -22,11 +23,15 @@ export const createApiKey: AppRouteHandler<CreateApiKeyRoute> = async (c) => {
       headers: c.req.header(),
     });
 
-    return c.json(result, HttpStatusCodes.CREATED);
+    return c.json(createStandardSuccessResponse(result), HttpStatusCodes.CREATED);
   } catch (error) {
     console.error('Create API key error:', error);
-    throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
-      message: 'Failed to create API key',
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Failed to create API key',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
     });
   }
 };
@@ -72,7 +77,10 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
 
     if (!(auth as any).api?.listApiKeys) {
       console.error('ListApiKeys - listApiKeys method not found on auth.api');
-      return c.json({ error: 'API key functionality not available', apiKeys: [], total: 0 }, HttpStatusCodes.OK);
+      return c.json(
+        createStandardSuccessResponse({ error: 'API key functionality not available', apiKeys: [], total: 0 }),
+        HttpStatusCodes.OK,
+      );
     }
 
     const result = await (auth.api as any).listApiKeys({
@@ -96,10 +104,10 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
     const apiKeys = Array.isArray(result) ? result : [];
 
     return c.json(
-      {
+      createStandardSuccessResponse({
         apiKeys,
         total: apiKeys.length,
-      },
+      }),
       HttpStatusCodes.OK,
     );
   } catch (error) {
@@ -124,8 +132,12 @@ export const listApiKeys: AppRouteHandler<ListApiKeysRoute> = async (c) => {
       console.error('Error statusCode:', (error as any)?.statusCode);
     }
 
-    throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
-      message: 'Failed to list API keys',
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Failed to list API keys',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
     });
   }
 };
@@ -143,11 +155,22 @@ export const getApiKey: AppRouteHandler<GetApiKeyRoute> = async (c) => {
       headers: c.req.header(),
     });
 
-    return c.json(result, HttpStatusCodes.OK);
+    if (!result || !result.id) {
+      const errorResponse = createStandardErrorResponse('API key not found', ERROR_CODES.RESOURCE_NOT_FOUND);
+      return c.json(errorResponse, HttpStatusCodes.NOT_FOUND, {
+        'X-Request-ID': errorResponse.error.requestId!,
+      });
+    }
+
+    return c.json(createStandardSuccessResponse(result), HttpStatusCodes.OK);
   } catch (error) {
     console.error('Get API key error:', error);
-    throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
-      message: 'Failed to get API key',
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Failed to get API key',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
     });
   }
 };
@@ -157,24 +180,35 @@ export const deleteApiKey: AppRouteHandler<DeleteApiKeyRoute> = async (c) => {
     const auth = c.get('auth');
     const { id } = c.req.valid('param');
 
-    const _result = await (auth.api as any).deleteApiKey({
+    const deleteResult = await (auth.api as any).deleteApiKey({
       body: {
         keyId: id,
       },
       headers: c.req.header(),
     });
 
+    if ((deleteResult as any)?.deleted === false) {
+      const errorResponse = createStandardErrorResponse('API key not found', ERROR_CODES.RESOURCE_NOT_FOUND);
+      return c.json(errorResponse, HttpStatusCodes.NOT_FOUND, {
+        'X-Request-ID': errorResponse.error.requestId!,
+      });
+    }
+
     return c.json(
-      {
+      createStandardSuccessResponse({
         success: true,
         message: 'API key deleted successfully',
-      },
+      }),
       HttpStatusCodes.OK,
     );
   } catch (error) {
     console.error('Delete API key error:', error);
-    throw new HTTPException(HttpStatusCodes.INTERNAL_SERVER_ERROR, {
-      message: 'Failed to delete API key',
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Failed to delete API key',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
     });
   }
 };

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Key, ExternalLink } from 'lucide-react';
 import { setApiKeyInStorage, removeApiKeyFromStorage } from '@/lib/utils';
+import { parseErrorResponse, getErrorMessage } from '@/lib/error-utils';
 
 interface PreviewAuthModalProps {
   onAuthenticated: () => void;
@@ -48,8 +49,8 @@ export default function PreviewAuthModal({ onAuthenticated }: PreviewAuthModalPr
         setApiKeyInStorage(apiKey);
         onAuthenticated();
       } else {
-        const errorText = await response.text();
-        setError(`Invalid API key: ${errorText}`);
+        const apiError = await parseErrorResponse(response);
+        setError(`Invalid API key: ${getErrorMessage(apiError)}`);
       }
     } catch (err) {
       setError('Failed to validate API key. Please check your connection.');

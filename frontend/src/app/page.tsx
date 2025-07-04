@@ -259,15 +259,21 @@ export default async function HomePage() {
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center">
                     <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Basic scraping tools</span>
+                    <span>Up to 2 concurrent requests</span>
                   </li>
                   <li className="flex items-center">
                     <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Community support</span>
+                    <span>
+                      Access to <b>all API endpoints</b>
+                    </span>
                   </li>
                   <li className="flex items-center">
                     <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Rate limiting</span>
+                    <span>API usage tracking</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
+                    <span>24/7 customer support</span>
                   </li>
                 </ul>
                 <Button variant="outline" className="w-full">
@@ -288,20 +294,34 @@ export default async function HomePage() {
                     $20
                     <span className="text-lg text-muted-foreground">/month</span>
                   </div>
-                  <p className="text-muted-foreground mt-2">Everything in Free, plus...</p>
+                  <p className="text-muted-foreground mt-2">5,000 API requests</p>
                 </div>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center">
                     <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Advanced scraping & monitoring</span>
+                    <span>Upto 10 concurrent requests</span>
                   </li>
                   <li className="flex items-center">
                     <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Browser profiles</span>
+                    <span>
+                      Access to <b>all API endpoints</b>
+                    </span>
                   </li>
                   <li className="flex items-center">
                     <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>24/7 customer support</span>
+                    <span>Early access to new features</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
+                    <span>Advanced rate limit & usage dashboard</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
+                    <span>Overage alerts & usage thresholds</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
+                    <span>Priority customer support</span>
                   </li>
                 </ul>
                 <Button className="w-full">Subscribe →</Button>
@@ -317,19 +337,27 @@ export default async function HomePage() {
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center">
                     <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Most powerful agent modules</span>
+                    <span>Unlimited concurrent requests</span>
                   </li>
                   <li className="flex items-center">
                     <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>24/7 premium support</span>
+                    <span>Custom API integrations</span>
                   </li>
                   <li className="flex items-center">
                     <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Custom integrations</span>
+                    <span>SLA & compliance support</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
+                    <span>Dedicated infrastructure or region</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-400 mr-3" />
+                    <span>Monthly strategy calls</span>
                   </li>
                 </ul>
                 <Button variant="outline" className="w-full">
-                  Contact Sales →
+                  Contact Support →
                 </Button>
               </div>
             </div>

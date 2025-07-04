@@ -3,6 +3,8 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import type { WebDurableObject } from '@/durable-objects/user-do';
 import type { AppRouteHandler } from '@/lib/types';
 
+import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
+
 import type { DeleteFileRoute, ListFilesRoute } from './files.routes';
 
 /**
@@ -55,13 +57,13 @@ export const listFiles: AppRouteHandler<ListFilesRoute> = async (c: any) => {
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('List files error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
   }
 };
 
@@ -93,12 +95,12 @@ export const deleteFile: AppRouteHandler<DeleteFileRoute> = async (c: any) => {
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Delete file error:', error);
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
   }
 };

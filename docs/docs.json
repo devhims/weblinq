@@ -1,13 +1,23 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "maple",
+  "theme": "mint",
   "name": "Weblinq API",
   "colors": {
-    "primary": "#2563EB",
-    "light": "#3B82F6",
-    "dark": "#1D4ED8"
+    "primary": "#c46449",
+    "light": "#d4795c",
+    "dark": "#a35038"
+  },
+  "appearance": {
+    "default": "dark",
+    "strict": true
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude"]
   },
   "favicon": "/favicon.svg",
+  "icons": {
+    "library": "lucide"
+  },
   "navigation": {
     "tabs": [
       {
@@ -20,24 +30,14 @@
           {
             "group": "Guides",
             "pages": [
-              "examples",
+              "guides/examples",
               {
                 "group": "Use Cases",
                 "pages": ["guides/e-commerce", "guides/news-extraction", "guides/social-media"]
               },
               {
                 "group": "Best Practices",
-                "pages": ["guides/security", "guides/rate-limiting", "guides/error-handling", "guides/performance"]
-              }
-            ]
-          },
-          {
-            "group": "Development",
-            "pages": [
-              "development",
-              {
-                "group": "SDKs & Libraries",
-                "pages": ["sdks/node", "sdks/python", "sdks/php"]
+                "pages": ["guides/security", "guides/rate-limiting", "guides/error-handling"]
               }
             ]
           }
@@ -50,8 +50,8 @@
             "group": "Overview",
             "pages": [
               "api-reference/overview",
+              "api-reference/success",
               "api-reference/errors",
-              "api-reference/authentication",
               "api-reference/rate-limits"
             ]
           }
@@ -85,7 +85,7 @@
         {
           "anchor": "Support",
           "href": "mailto:support@weblinq.dev",
-          "icon": "envelope"
+          "icon": "mail"
         }
       ]
     }
@@ -95,16 +95,6 @@
     "dark": "/logo/logo.png"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Dashboard",
-        "href": "https://weblinq.dev/dashboard"
-      },
-      {
-        "label": "Status",
-        "href": "https://status.weblinq.dev"
-      }
-    ],
     "primary": {
       "type": "button",
       "label": "Get API Key",
@@ -118,10 +108,7 @@
   "search": {
     "prompt": "Search the docs..."
   },
-  "topAnchor": {
-    "name": "Documentation",
-    "icon": "book-open"
-  },
+
   "footer": {
     "socials": {
       "github": "https://github.com/devhims",

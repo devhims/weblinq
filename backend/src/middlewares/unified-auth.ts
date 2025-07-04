@@ -1,6 +1,10 @@
 import type { MiddlewareHandler } from 'hono';
 
+import * as HttpStatusCodes from 'stoker/http-status-codes';
+
 import type { AppBindings } from '@/lib/types';
+
+import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
 
 /**
  * Unified authentication middleware for cross-domain architecture
@@ -23,8 +27,7 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
 
     if (!session) {
       // Enhanced debug logging for development
-      const isDev =
-        c.env.NODE_ENV === 'development' || c.env.NODE_ENV === 'preview';
+      const isDev = c.env.NODE_ENV === 'development' || c.env.NODE_ENV === 'preview';
 
       if (isDev) {
         const cookies = c.req.raw.headers.get('cookie');
@@ -41,8 +44,7 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
           cookiePreview: cookies?.substring(0, 100),
           authPreview: authorization?.substring(0, 50),
           userAgent: userAgent?.substring(0, 50),
-          isSafari:
-            userAgent?.includes('Safari') && !userAgent?.includes('Chrome'),
+          isSafari: userAgent?.includes('Safari') && !userAgent?.includes('Chrome'),
         });
       }
 
@@ -55,8 +57,7 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
     c.set('session', session.session);
 
     // Success logging for development
-    const isDev =
-      c.env.NODE_ENV === 'development' || c.env.NODE_ENV === 'preview';
+    const isDev = c.env.NODE_ENV === 'development' || c.env.NODE_ENV === 'preview';
     if (isDev) {
       const authHeader = c.req.raw.headers.get('authorization');
       console.log('✅ Session validated successfully:', {
@@ -95,26 +96,13 @@ export const requireAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const session = c.get('session');
 
   if (!user || !session) {
-    // Enhanced error response for debugging
-    const isDev =
-      c.env.NODE_ENV === 'development' || c.env.NODE_ENV === 'preview';
+    // Use type-safe error response with auto-generated UUID
+    const errorResponse = createStandardErrorResponse('Authentication required', ERROR_CODES.AUTHENTICATION_REQUIRED);
 
-    return c.json(
-      {
-        error: 'Authentication required',
-        message: 'Valid session or API key required',
-        ...(isDev && {
-          debug: {
-            hasUser: !!user,
-            hasSession: !!session,
-            path: c.req.path,
-            method: c.req.method,
-            timestamp: new Date().toISOString(),
-          },
-        }),
-      },
-      401,
-    );
+    // Add request ID to response headers for easier debugging
+    return c.json(errorResponse, HttpStatusCodes.UNAUTHORIZED, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
   }
 
   await next();
