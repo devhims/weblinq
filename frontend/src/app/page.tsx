@@ -373,7 +373,7 @@ export default async function HomePage() {
           <div className="grid lg:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <Logo className="h-8" />
+                <Logo className="h-10" />
               </div>
               <p className="text-muted-foreground mb-4">
                 Professional web scraping API platform built for developers and enterprises.

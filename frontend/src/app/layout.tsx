@@ -24,8 +24,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Weblinq',
-  description: 'Linking AI Agents to the Web',
+  title: 'WebLinq',
+  description:
+    'Extract data, capture screenshots, and search the internet with our web scraping and browser automation API.',
+  metadataBase: new URL('https://weblinq.dev'),
+  openGraph: {
+    type: 'website',
+    title: 'WebLinq',
+    description:
+      'Extract data, capture screenshots, and search the internet with our web scraping and browser automation API.',
+    locale: 'en_US',
+    siteName: 'WebLinq',
+    url: 'https://weblinq.dev',
+  },
+  icons: {
+    icon: '/favicon.ico',
+  },
+  themeColor: '#000000',
 };
 
 export default function RootLayout({
