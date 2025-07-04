@@ -16,8 +16,10 @@ const security = [{ bearerAuth: [] }];
  */
 const listFilesInputSchema = z.object({
   type: z.enum(['screenshot', 'pdf']).optional(),
-  limit: z.number().int().min(1).max(100).optional().default(20),
-  offset: z.number().int().min(0).optional().default(0),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+  sort_by: z.enum(['created_at', 'filename']).optional().default('created_at'),
+  order: z.enum(['asc', 'desc']).optional().default('desc'),
 });
 
 const deleteFileInputSchema = z.object({
@@ -49,6 +51,7 @@ const listFilesOutputSchema = createStandardSuccessSchema(
       }),
     ),
     totalFiles: z.number(),
+    hasMore: z.boolean(),
   }),
 );
 
@@ -80,13 +83,13 @@ const deleteFileOutputSchema = createStandardSuccessSchema(
  */
 export const listFiles = createRoute({
   path: '/files/list',
-  method: 'post',
+  method: 'get',
   tags,
   security,
   summary: 'List user files',
   description: 'List all files (screenshots, PDFs) associated with the authenticated user',
   request: {
-    body: jsonContentRequired(listFilesInputSchema, 'File listing parameters'),
+    query: listFilesInputSchema,
   },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(listFilesOutputSchema, 'Files listed successfully'),

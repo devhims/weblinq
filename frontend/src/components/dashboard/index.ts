@@ -5,6 +5,11 @@ export { ApiKeyManagerClient } from './ApiKeyManagerClient';
 export { ApiKeyManagerPromiseClient } from './ApiKeyManagerPromiseClient';
 export { ApiKeyManagerLoading } from './ApiKeyManagerLoading';
 
+// Export Activity components
+export { ActivityLoading } from './ActivityLoading';
+
 // Export other dashboard components
-export { SignOutButton } from './SignOutButton';
+export { DashboardLayoutClient } from './DashboardLayoutClient';
 export { SidebarFooter } from './SidebarFooter';
+export { SignOutButton } from './SignOutButton';
+export { VerificationSuccessToast } from './VerificationSuccessToast';

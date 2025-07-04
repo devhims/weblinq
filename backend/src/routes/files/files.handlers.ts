@@ -37,14 +37,30 @@ function getWebDurableObject(c: { env: CloudflareBindings }, userId: string): Du
 export const listFiles: AppRouteHandler<ListFilesRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
-    const body = c.req.valid('json');
 
-    console.log('🔍 List files request:', { userId: user.id, params: body });
+    // Use Hono's validated query parameters (schema now properly coerces strings to numbers)
+    const { type, limit = 20, offset = 0, sort_by = 'created_at', order = 'desc' } = c.req.valid('query');
+
+    console.log('🔍 List files request:', {
+      userId: user.id,
+      params: { type, limit, offset, sortBy: sort_by, order },
+    });
+
+    // Enforce hard cap on limit (should already be validated, but double-check)
+    if (limit > 100) {
+      const errorResponse = createStandardErrorResponse(
+        `Limit parameter must be 100 or less (received ${limit})`,
+        ERROR_CODES.INVALID_PARAMETER,
+      );
+      return c.json(errorResponse, HttpStatusCodes.UNPROCESSABLE_ENTITY, {
+        'X-Request-ID': errorResponse.error.requestId!,
+      });
+    }
 
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.debugListFiles(body);
+    const result = await webDurableObject.debugListFiles({ type, limit, offset, sortBy: sort_by, order });
 
     console.log('📋 List files result:', {
       success: result.success,
@@ -52,6 +68,7 @@ export const listFiles: AppRouteHandler<ListFilesRoute> = async (c: any) => {
       sqliteAvailable: result.data.sqliteStatus.available,
       filesCount: result.data.files.length,
       totalFiles: result.data.totalFiles,
+      hasMore: result.data.hasMore,
     });
 
     return c.json(result, HttpStatusCodes.OK);
