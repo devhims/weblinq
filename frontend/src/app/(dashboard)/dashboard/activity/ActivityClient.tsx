@@ -13,6 +13,7 @@ import { isVercelPreview } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/error-utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ActivityLoading } from '@/components/dashboard';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Pagination,
   PaginationContent,
@@ -34,6 +35,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
   const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 
   // Filter and sorting state
   const [fileType, setFileType] = useState<'all' | 'screenshot' | 'pdf'>('all');
@@ -97,7 +99,32 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
     if (newSortBy !== undefined) setSortBy(newSortBy);
     if (newOrder !== undefined) setOrder(newOrder);
     setCurrentPage(1); // Reset to first page when filters change
+    setSelectedFiles(new Set()); // Clear selections when filters change
   };
+
+  // Handle individual file selection
+  const handleFileSelect = (fileId: string, checked: boolean) => {
+    const newSelected = new Set(selectedFiles);
+    if (checked) {
+      newSelected.add(fileId);
+    } else {
+      newSelected.delete(fileId);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  // Handle select all/none
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedFiles(new Set(files.map((file) => file.id)));
+    } else {
+      setSelectedFiles(new Set());
+    }
+  };
+
+  // Check if all files are selected
+  const allFilesSelected = files.length > 0 && files.every((file) => selectedFiles.has(file.id));
+  const someFilesSelected = selectedFiles.size > 0 && !allFilesSelected;
 
   // Delete file mutation
   const deleteFileMutation = useMutation({
@@ -204,29 +231,48 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
+      setSelectedFiles(new Set()); // Clear selections when changing pages
     }
   };
 
-  const handleDeleteFile = (fileId: string, filename: string) => {
-    const confirmMessage = `Are you sure you want to delete "${filename}"? This action cannot be undone and will remove the file from both the database and storage.`;
+  const handleBulkDelete = async () => {
+    if (selectedFiles.size === 0) return;
+
+    const selectedFileNames = files.filter((file) => selectedFiles.has(file.id)).map((file) => file.filename);
+
+    const confirmMessage = `Are you sure you want to delete ${selectedFiles.size} file${
+      selectedFiles.size === 1 ? '' : 's'
+    }?\n\n${selectedFileNames.join(
+      '\n',
+    )}\n\nThis action cannot be undone and will remove the files from both the database and storage.`;
+
     if (!confirm(confirmMessage)) {
       return;
     }
 
-    setDeletingIds((prev) => new Set(prev).add(fileId));
+    // Add all selected files to deleting state
+    setDeletingIds(new Set([...deletingIds, ...selectedFiles]));
 
-    deleteFileMutation.mutate(
-      { fileId, deleteFromR2: true }, // Delete from both database and R2 storage
-      {
-        onSettled: () => {
-          setDeletingIds((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(fileId);
-            return newSet;
-          });
-        },
-      },
-    );
+    // Delete files sequentially to avoid overwhelming the server
+    const deletePromises = Array.from(selectedFiles).map(async (fileId) => {
+      try {
+        await deleteFileMutation.mutateAsync({ fileId, deleteFromR2: true });
+      } catch (error) {
+        console.error(`Failed to delete file ${fileId}:`, error);
+      }
+    });
+
+    try {
+      await Promise.all(deletePromises);
+      setSelectedFiles(new Set()); // Clear selections after successful deletion
+    } finally {
+      // Remove from deleting state
+      setDeletingIds((prev) => {
+        const newSet = new Set(prev);
+        selectedFiles.forEach((id) => newSet.delete(id));
+        return newSet;
+      });
+    }
   };
 
   // Generate page numbers for pagination
@@ -339,10 +385,18 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
               </Badge>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
-            Refresh
-          </Button>
+          <div className="flex items-center space-x-2">
+            {selectedFiles.size > 0 && (
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={deletingIds.size > 0}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete ({selectedFiles.size}) file{selectedFiles.size === 1 ? '' : 's'}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
+              Refresh
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -438,6 +492,13 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={allFilesSelected}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all files"
+                      />
+                    </TableHead>
                     <TableHead>File</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Source URL</TableHead>
@@ -451,9 +512,18 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                     const metadata = getFileMetadata(file.metadata);
                     const size = getFileSize(file.metadata);
                     const isDeleting = deletingIds.has(file.id);
+                    const isSelected = selectedFiles.has(file.id);
 
                     return (
-                      <TableRow key={file.id} className={cn(isDeleting && 'opacity-50')}>
+                      <TableRow key={file.id} className={cn(isDeleting && 'opacity-50', isSelected && 'bg-muted/50')}>
+                        <TableCell>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => handleFileSelect(file.id, checked as boolean)}
+                            disabled={isDeleting}
+                            aria-label={`Select ${file.filename}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             {getFileIcon(file.type)}
@@ -496,16 +566,6 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                               <span>Open</span>
                               <ExternalLink className="h-3 w-3" />
                             </a>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteFile(file.id, file.filename)}
-                              disabled={isDeleting}
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Delete file</span>
-                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -521,11 +581,18 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                 const metadata = getFileMetadata(file.metadata);
                 const size = getFileSize(file.metadata);
                 const isDeleting = deletingIds.has(file.id);
+                const isSelected = selectedFiles.has(file.id);
 
                 return (
-                  <Card key={file.id} className={cn('p-4', isDeleting && 'opacity-50')}>
+                  <Card key={file.id} className={cn('p-4', isDeleting && 'opacity-50', isSelected && 'bg-muted/50')}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-2 flex-1 min-w-0">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleFileSelect(file.id, checked as boolean)}
+                          disabled={isDeleting}
+                          aria-label={`Select ${file.filename}`}
+                        />
                         {getFileIcon(file.type)}
                         <span className="font-medium truncate">{file.filename}</span>
                       </div>
@@ -570,16 +637,6 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                           <span>Open file</span>
                           <ExternalLink className="h-3 w-3" />
                         </a>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteFile(file.id, file.filename)}
-                          disabled={isDeleting}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete file</span>
-                        </Button>
                       </div>
                     </div>
                   </Card>
@@ -640,6 +697,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
             <div className="text-center text-sm text-muted-foreground">
               Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, totalFiles)} of{' '}
               {totalFiles} files
+              {selectedFiles.size > 0 && <span className="ml-2 text-primary">({selectedFiles.size} selected)</span>}
             </div>
           </>
         )}

@@ -45,6 +45,9 @@ export function ActivityLoading({ className }: ActivityLoadingProps) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Skeleton className="h-4 w-4" />
+                </TableHead>
                 <TableHead>File</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Source URL</TableHead>
@@ -56,6 +59,9 @@ export function ActivityLoading({ className }: ActivityLoadingProps) {
             <TableBody>
               {[1, 2, 3, 4].map((i) => (
                 <TableRow key={i}>
+                  <TableCell>
+                    <Skeleton className="h-4 w-4" />
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <Skeleton className="h-4 w-4" />
@@ -77,7 +83,6 @@ export function ActivityLoading({ className }: ActivityLoadingProps) {
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <Skeleton className="h-4 w-8" />
-                      <Skeleton className="h-8 w-8" />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -92,6 +97,7 @@ export function ActivityLoading({ className }: ActivityLoadingProps) {
             <Card key={i} className="p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-2 flex-1 min-w-0">
+                  <Skeleton className="h-4 w-4" />
                   <Skeleton className="h-4 w-4" />
                   <Skeleton className={`h-4 ${i === 1 ? 'w-48' : i === 2 ? 'w-36' : 'w-44'}`} />
                 </div>
@@ -117,7 +123,6 @@ export function ActivityLoading({ className }: ActivityLoadingProps) {
 
                 <div className="flex items-center justify-between pt-2">
                   <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-8 w-8" />
                 </div>
               </div>
             </Card>
