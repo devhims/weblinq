@@ -594,8 +594,8 @@ export async function listFilesServer(params?: ListFilesParams): Promise<ListFil
   // Add query parameters
   if (params) {
     if (params.type) url.searchParams.set('type', params.type);
-    if (params.limit) url.searchParams.set('limit', params.limit.toString());
-    if (params.offset) url.searchParams.set('offset', params.offset.toString());
+    if (params.limit !== undefined) url.searchParams.set('limit', params.limit.toString());
+    if (params.offset !== undefined) url.searchParams.set('offset', params.offset.toString());
     if (params.sort_by) url.searchParams.set('sort_by', params.sort_by);
     if (params.order) url.searchParams.set('order', params.order);
   }
