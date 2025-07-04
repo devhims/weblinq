@@ -118,7 +118,7 @@ export default async function HomePage() {
                   as="h1"
                   className="mt-8 font-medium text-balance text-4xl md:text-6xl lg:mt-16 xl:text-7xl"
                 >
-                  Linking AI agents to the web
+                  Linking AI agentsƒ to the web
                 </TextEffect>
 
                 <TextEffect
@@ -129,8 +129,8 @@ export default async function HomePage() {
                   as="p"
                   className="mx-auto mt-8 max-w-4xl text-balance text-sm md:text-lg"
                 >
-                  Extract web data, capture screenshots, and search the internet with our web scraping and data
-                  extraction platform.
+                  Extract data, capture screenshots, and search the internet with our web scraping and browser
+                  automation platform
                 </TextEffect>
 
                 <AnimatedGroup

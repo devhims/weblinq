@@ -10,13 +10,14 @@ import { scrollToSection } from '@/lib/scroll-utils';
 type MenuItem = {
   name: string;
   href: string;
+  target?: string;
   action?: () => void;
 };
 
 const menuItems: MenuItem[] = [
   { name: 'Features', href: '#features', action: () => scrollToSection('features') },
   { name: 'Pricing', href: '#pricing', action: () => scrollToSection('pricing') },
-  { name: 'API Docs', href: '#api-docs' },
+  { name: 'API Docs', href: 'https://docs.weblinq.dev', target: '_blank' },
 ];
 
 export const HeroHeader = () => {
@@ -103,6 +104,7 @@ export const HeroHeader = () => {
                           'text-muted-foreground hover:text-foreground',
                           'hover:bg-background/20 backdrop-blur-sm',
                         )}
+                        target={item.target}
                       >
                         <span className="relative z-10">{item.name}</span>
                         {/* Hover glow effect */}
