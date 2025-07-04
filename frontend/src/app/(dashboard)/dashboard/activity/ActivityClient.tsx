@@ -1,13 +1,15 @@
 'use client';
 
 import { use, useState } from 'react';
-import { type ListFilesResponse } from '@/lib/studio-api';
+import { useQuery } from '@tanstack/react-query';
+import { type ListFilesResponse, filesApi } from '@/lib/studio-api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExternalLink, FileText, Image, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { isVercelPreview } from '@/lib/utils';
 
 interface ActivityClientProps {
   filesPromise: Promise<ListFilesResponse>;
@@ -17,11 +19,35 @@ interface ActivityClientProps {
 export function ActivityClient({ filesPromise, className }: ActivityClientProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Use React 18's use() hook to unwrap the promise
-  const filesResponse = use(filesPromise);
+  // Use React 18's use() hook to unwrap the server promise
+  const initialFiles = use(filesPromise);
 
-  const files = filesResponse.data?.files || [];
-  const hasMore = filesResponse.data?.hasMore || false;
+  const preview = isVercelPreview();
+
+  // Use React Query for client-side data fetching (especially needed for preview mode)
+  const queryOptions = {
+    queryKey: ['files', { limit: 50, offset: 0, sort_by: 'created_at', order: 'desc' }] as const,
+    queryFn: () =>
+      filesApi.list({
+        limit: 50,
+        offset: 0,
+        sort_by: 'created_at',
+        order: 'desc',
+      }),
+    staleTime: preview ? 0 : 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+    // In preview mode, don't use server data as initialData since it's empty
+    // In production, use server data as initialData for instant rendering
+    ...(preview ? {} : { initialData: initialFiles }),
+  } as const;
+
+  const { data: filesResponse, isLoading, error: queryError, refetch } = useQuery(queryOptions);
+
+  const files = filesResponse?.data?.files || [];
+  const hasMore = filesResponse?.data?.hasMore || false;
 
   const formatFileSize = (sizeBytes: number): string => {
     if (sizeBytes < 1024) return `${sizeBytes} B`;
@@ -59,11 +85,66 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Trigger a page refresh to get new data
-    window.location.reload();
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
+
+  // Show loading state while React Query is fetching
+  if (isLoading) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Recent Files</span>
+            <Button variant="outline" size="sm" disabled>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Loading...
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-12">
+            <div className="text-sm text-muted-foreground">Loading files...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show error state
+  if (queryError) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Recent Files</span>
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
+              Retry
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">⚠️</div>
+            <h3 className="text-lg font-medium mb-2">Failed to load files</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              {queryError.message || 'An error occurred while loading files.'}
+            </p>
+            <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (files.length === 0) {
     return (
