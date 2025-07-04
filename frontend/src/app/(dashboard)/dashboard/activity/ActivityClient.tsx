@@ -471,7 +471,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                               href={getSourceUrl(file)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 underline"
+                              className="text-white hover:text-white/80 underline"
                             >
                               {getSourceUrl(file)}
                             </a>
@@ -491,7 +491,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                               href={file.public_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm"
+                              className="inline-flex items-center space-x-1 text-white hover:text-white/80 text-sm"
                             >
                               <span>Open</span>
                               <ExternalLink className="h-3 w-3" />
@@ -542,7 +542,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                             href={getSourceUrl(file)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 underline"
+                            className="text-white hover:text-white/80 underline"
                           >
                             {getSourceUrl(file)}
                           </a>
@@ -565,7 +565,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                           href={file.public_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm"
+                          className="inline-flex items-center space-x-1 text-white hover:text-white/80 text-sm"
                         >
                           <span>Open file</span>
                           <ExternalLink className="h-3 w-3" />
