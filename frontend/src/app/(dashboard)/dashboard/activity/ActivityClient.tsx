@@ -10,13 +10,25 @@ import { ExternalLink, FileText, Image, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { isVercelPreview } from '@/lib/utils';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
 
 interface ActivityClientProps {
   filesPromise: Promise<ListFilesResponse>;
   className?: string;
 }
 
+const PAGE_SIZE = 50;
+
 export function ActivityClient({ filesPromise, className }: ActivityClientProps) {
+  const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Use React 18's use() hook to unwrap the server promise
@@ -24,13 +36,16 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
 
   const preview = isVercelPreview();
 
+  // Calculate offset based on current page
+  const offset = (currentPage - 1) * PAGE_SIZE;
+
   // Use React Query for client-side data fetching (especially needed for preview mode)
   const queryOptions = {
-    queryKey: ['files', { limit: 50, offset: 0, sort_by: 'created_at', order: 'desc' }] as const,
+    queryKey: ['files', { limit: PAGE_SIZE, offset, sort_by: 'created_at', order: 'desc' }] as const,
     queryFn: () =>
       filesApi.list({
-        limit: 50,
-        offset: 0,
+        limit: PAGE_SIZE,
+        offset,
         sort_by: 'created_at',
         order: 'desc',
       }),
@@ -40,14 +55,20 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
     refetchOnReconnect: false,
     refetchInterval: false,
     // In preview mode, don't use server data as initialData since it's empty
-    // In production, use server data as initialData for instant rendering
-    ...(preview ? {} : { initialData: initialFiles }),
+    // In production, use server data as initialData only for the first page
+    ...(preview ? {} : currentPage === 1 ? { initialData: initialFiles } : {}),
   } as const;
 
   const { data: filesResponse, isLoading, error: queryError, refetch } = useQuery(queryOptions);
 
   const files = filesResponse?.data?.files || [];
+  const totalFiles = filesResponse?.data?.totalFiles || 0;
   const hasMore = filesResponse?.data?.hasMore || false;
+
+  // Calculate pagination info
+  const totalPages = Math.ceil(totalFiles / PAGE_SIZE);
+  const hasNextPage = currentPage < totalPages;
+  const hasPrevPage = currentPage > 1;
 
   const formatFileSize = (sizeBytes: number): string => {
     if (sizeBytes < 1024) return `${sizeBytes} B`;
@@ -94,13 +115,60 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
     }
   };
 
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const showEllipsis = totalPages > 7;
+
+    if (!showEllipsis) {
+      // Show all pages if 7 or fewer
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show first page, current page area, and last page with ellipsis
+      if (currentPage <= 4) {
+        // Near beginning
+        for (let i = 1; i <= 5; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        // Near end
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // In middle
+        pages.push(1);
+        pages.push('ellipsis');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
+
   // Show loading state while React Query is fetching
   if (isLoading) {
     return (
       <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Recent Files</span>
+            <span>Files</span>
             <Button variant="outline" size="sm" disabled>
               <RefreshCw className="h-4 w-4 mr-2" />
               Loading...
@@ -122,7 +190,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
       <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Recent Files</span>
+            <span>Files</span>
             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
               <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
               Retry
@@ -146,12 +214,12 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
     );
   }
 
-  if (files.length === 0) {
+  if (totalFiles === 0) {
     return (
       <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Recent Files</span>
+            <span>Files</span>
             <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
               <RefreshCw className={cn('h-4 w-4 mr-2', isRefreshing && 'animate-spin')} />
               Refresh
@@ -176,10 +244,9 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span>Recent Files</span>
+            <span>Files</span>
             <Badge variant="secondary">
-              {files.length}
-              {hasMore ? '+' : ''} file{files.length !== 1 ? 's' : ''}
+              Page {currentPage} of {totalPages} ({totalFiles} total)
             </Badge>
           </div>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
@@ -188,7 +255,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
           </Button>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {/* Desktop Table Layout */}
         <div className="hidden lg:block">
           <Table>
@@ -301,13 +368,60 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
           })}
         </div>
 
-        {hasMore && (
-          <div className="mt-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              Showing latest {files.length} files. More files available via API.
-            </p>
-          </div>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (hasPrevPage) handlePageChange(currentPage - 1);
+                  }}
+                  className={!hasPrevPage ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+
+              {getPageNumbers().map((page, index) => (
+                <PaginationItem key={index}>
+                  {page === 'ellipsis' ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handlePageChange(page as number);
+                      }}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (hasNextPage) handlePageChange(currentPage + 1);
+                  }}
+                  className={!hasNextPage ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         )}
+
+        {/* Results summary */}
+        <div className="text-center text-sm text-muted-foreground">
+          Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, totalFiles)} of {totalFiles}{' '}
+          files
+        </div>
       </CardContent>
     </Card>
   );
