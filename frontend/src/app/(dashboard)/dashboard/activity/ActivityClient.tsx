@@ -135,9 +135,11 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
   });
 
   const formatFileSize = (sizeBytes: number): string => {
-    if (sizeBytes < 1024) return `${sizeBytes} B`;
-    if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
-    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+    // Use decimal (1000-based) calculation to match Cloudflare R2 dashboard
+    if (sizeBytes < 1000) return `${sizeBytes} B`;
+    if (sizeBytes < 1000 * 1000) return `${(sizeBytes / 1000).toFixed(1)} KB`;
+    if (sizeBytes < 1000 * 1000 * 1000) return `${(sizeBytes / (1000 * 1000)).toFixed(1)} MB`;
+    return `${(sizeBytes / (1000 * 1000 * 1000)).toFixed(1)} GB`;
   };
 
   const formatDate = (dateString: string): string => {
