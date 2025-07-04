@@ -247,6 +247,44 @@ export interface PdfResponse {
   creditsCost: number;
 }
 
+// --------------------------------------------------------------
+//  File listing (debug) types
+// --------------------------------------------------------------
+
+export interface ListFilesParams {
+  type?: 'screenshot' | 'pdf';
+  limit?: number;
+  offset?: number;
+  sort_by?: 'created_at' | 'filename';
+  order?: 'asc' | 'desc';
+}
+
+export interface FileRecord {
+  id: string;
+  type: 'screenshot' | 'pdf';
+  url: string;
+  filename: string;
+  r2_key: string;
+  public_url: string;
+  metadata: string;
+  created_at: string;
+  expires_at?: string;
+}
+
+export interface ListFilesResponse {
+  success: boolean;
+  data: {
+    sqliteStatus: {
+      enabled: boolean;
+      available: boolean;
+      userId: string;
+    };
+    files: FileRecord[];
+    totalFiles: number;
+    hasMore: boolean;
+  };
+}
+
 import { parseErrorResponse } from './error-utils';
 import { isVercelPreview, getApiKeyFromStorage } from '@/lib/utils';
 
@@ -466,5 +504,81 @@ export const studioApi = {
         body: JSON.stringify({ ...data, base64: false }),
       },
       'application/pdf',
+    ),
+
+  // List stored files
+  listFiles: (params: ListFilesParams = {}, extraHeaders: Record<string, string> = {}): Promise<ListFilesResponse> => {
+    const qs = new URLSearchParams();
+    if (params.type) qs.append('type', params.type);
+    if (params.limit) qs.append('limit', params.limit.toString());
+    if (params.offset) qs.append('offset', params.offset.toString());
+    if (params.sort_by) qs.append('sort_by', params.sort_by);
+    if (params.order) qs.append('order', params.order);
+
+    const queryString = qs.toString() ? `?${qs.toString()}` : '';
+
+    return apiRequest(`/v1/files/list${queryString}`, {
+      method: 'GET',
+      headers: {
+        ...extraHeaders,
+      },
+    });
+  },
+};
+
+// Server-side files API function (for server components)
+export async function listFilesServer(params?: ListFilesParams): Promise<ListFilesResponse> {
+  // Dynamic import to avoid issues in client-side bundling
+  const { cookies } = await import('next/headers');
+
+  const url = new URL('/v1/files/list', process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787');
+
+  // Add query parameters
+  if (params) {
+    if (params.type) url.searchParams.set('type', params.type);
+    if (params.limit) url.searchParams.set('limit', params.limit.toString());
+    if (params.offset) url.searchParams.set('offset', params.offset.toString());
+    if (params.sort_by) url.searchParams.set('sort_by', params.sort_by);
+    if (params.order) url.searchParams.set('order', params.order);
+  }
+
+  console.log(`🌐 [Server Files API] Making request to: ${url.toString()}`);
+
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(cookieHeader && { Cookie: cookieHeader }),
+  };
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers,
+  });
+
+  console.log(`🌐 [Server Files API] Status: ${response.status} ${response.statusText}`);
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error(`🌐 [Server Files API Error] ${response.status}: ${error}`);
+    throw new Error(`Failed to fetch files: ${response.status} ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  console.log(`🌐 [Server Files API Success] Response data:`, result);
+  return result;
+}
+
+// Add files to the client API exports
+export const filesApi = {
+  list: (params?: ListFilesParams): Promise<ListFilesResponse> =>
+    apiRequest(
+      `/v1/files/list?${new URLSearchParams(
+        Object.entries(params || {})
+          .filter(([, value]) => value !== undefined)
+          .map(([key, value]) => [key, value.toString()]),
+      ).toString()}`,
+      { method: 'GET' },
     ),
 };

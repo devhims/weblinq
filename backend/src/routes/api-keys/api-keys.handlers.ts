@@ -15,7 +15,7 @@ export const createApiKey: AppRouteHandler<CreateApiKeyRoute> = async (c) => {
     const result = await (auth.api as any).createApiKey({
       body: {
         name,
-        prefix: c.env.API_KEY_PREFIX || 'wq_',
+        prefix: c.env.API_KEY_PREFIX || 'wq-',
         metadata: {
           plan: c.get('plan') || 'free',
         },

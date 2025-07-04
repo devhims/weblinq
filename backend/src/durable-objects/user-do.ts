@@ -278,6 +278,8 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
     type?: 'screenshot' | 'pdf',
     limit: number = 50,
     offset: number = 0,
+    sortBy: 'created_at' | 'filename' = 'created_at',
+    order: 'asc' | 'desc' = 'desc',
   ): Promise<FileRecord[]> {
     if (!this.sqlEnabled || !this.sql) {
       return [];
@@ -291,7 +293,12 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       params.push(type);
     }
 
-    query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+    // Validate sortBy and order to prevent SQL injection
+    const validSortColumns = ['created_at', 'filename'];
+    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+    const sortDirection = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+    query += ` ORDER BY ${sortColumn} ${sortDirection} LIMIT ? OFFSET ?`;
     params.push(limit, offset);
 
     const cursor = this.sql.exec(query, ...params);
@@ -329,6 +336,8 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       type?: 'screenshot' | 'pdf';
       limit?: number;
       offset?: number;
+      sortBy?: 'created_at' | 'filename';
+      order?: 'asc' | 'desc';
     } = {},
   ): Promise<{
     success: boolean;
@@ -340,10 +349,11 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       };
       files: FileRecord[];
       totalFiles: number;
+      hasMore: boolean;
     };
   }> {
     try {
-      const { type, limit = 20, offset = 0 } = params;
+      const { type, limit = 20, offset = 0, sortBy = 'created_at', order = 'desc' } = params;
 
       // Get SQLite status
       const sqliteStatus = {
@@ -368,11 +378,13 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
           totalFiles = countResult.done ? 0 : (countResult.value as any).count;
 
           // Get files
-          files = await this.listPermanentFiles(type, limit, offset);
+          files = await this.listPermanentFiles(type, limit, offset, sortBy, order);
         } catch (sqlError) {
           console.error('Error querying SQLite:', sqlError);
         }
       }
+
+      const hasMore = offset + files.length < totalFiles;
 
       return {
         success: true,
@@ -380,6 +392,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
           sqliteStatus,
           files,
           totalFiles,
+          hasMore,
         },
       };
     } catch (error) {
@@ -394,6 +407,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
           },
           files: [],
           totalFiles: 0,
+          hasMore: false,
         },
       };
     }
