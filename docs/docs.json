@@ -25,7 +25,7 @@
         "groups": [
           {
             "group": "Introduction",
-            "pages": ["index", "quickstart", "authentication"]
+            "pages": ["index", "getting-started/quickstart", "getting-started/authentication"]
           },
           {
             "group": "Guides",
@@ -37,7 +37,7 @@
               },
               {
                 "group": "Best Practices",
-                "pages": ["guides/security", "guides/rate-limiting", "guides/error-handling"]
+                "pages": ["guides/security"]
               }
             ]
           }
