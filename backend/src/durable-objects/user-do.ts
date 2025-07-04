@@ -214,16 +214,30 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
       // Store metadata in SQLite
       console.log('💾 Storing metadata in SQLite...');
+
+      // Combine the original metadata with R2 information for richer data
+      const enrichedMetadata = {
+        ...metadata, // Original operation metadata (screenshot dimensions, etc.)
+        r2Size: r2Object.size, // Actual R2 file size
+        r2Uploaded: r2Object.uploaded?.toISOString() || new Date().toISOString(), // R2 upload timestamp
+        r2Key: r2Object.key,
+        r2Checksum: r2Object.checksums?.md5,
+      };
+
+      // Use R2 upload time or current time for created_at
+      const createdAt = r2Object.uploaded?.toISOString() || new Date().toISOString();
+
       this.sql.exec(
-        `INSERT INTO permanent_files (id, type, url, filename, r2_key, public_url, metadata) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO permanent_files (id, type, url, filename, r2_key, public_url, metadata, created_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         fileId,
         type,
         url,
         filename,
         r2Key,
         publicUrl,
-        JSON.stringify(metadata),
+        JSON.stringify(enrichedMetadata),
+        createdAt,
       );
 
       console.log('✅ SQLite metadata stored successfully');

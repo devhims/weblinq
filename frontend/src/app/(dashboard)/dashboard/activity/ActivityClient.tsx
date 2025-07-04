@@ -170,6 +170,25 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
     }
   };
 
+  const getFileSize = (metadataString: string): number => {
+    try {
+      const metadata = JSON.parse(metadataString);
+      // Prefer R2 size (actual file size) over original metadata size
+      return metadata.r2Size || metadata.size || 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const getSourceUrl = (file: any): string => {
+    try {
+      const metadata = JSON.parse(file.metadata);
+      return metadata.url || file.url || '';
+    } catch {
+      return file.url || '';
+    }
+  };
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -444,7 +463,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                 <TableBody>
                   {files.map((file) => {
                     const metadata = getFileMetadata(file.metadata);
-                    const size = metadata.size || 0;
+                    const size = getFileSize(file.metadata);
                     const isDeleting = deletingIds.has(file.id);
 
                     return (
@@ -462,7 +481,14 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-muted-foreground truncate max-w-[300px] block">
-                            {metadata.url || file.url || 'N/A'}
+                            <a
+                              href={getSourceUrl(file)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline"
+                            >
+                              {getSourceUrl(file)}
+                            </a>
                           </span>
                         </TableCell>
                         <TableCell>
@@ -507,7 +533,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
             <div className="block lg:hidden space-y-3">
               {files.map((file) => {
                 const metadata = getFileMetadata(file.metadata);
-                const size = metadata.size || 0;
+                const size = getFileSize(file.metadata);
                 const isDeleting = deletingIds.has(file.id);
 
                 return (
@@ -525,7 +551,16 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                     <div className="space-y-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Source: </span>
-                        <span className="break-all">{metadata.url || file.url || 'N/A'}</span>
+                        <span className="break-all">
+                          <a
+                            href={getSourceUrl(file)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                          >
+                            {getSourceUrl(file)}
+                          </a>
+                        </span>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
