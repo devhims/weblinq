@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { isVercelPreview } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/error-utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ActivityLoading } from '@/components/dashboard';
 import {
   Pagination,
   PaginationContent,
@@ -293,24 +294,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
 
   // Show loading state while React Query is fetching
   if (isLoading) {
-    return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Files</span>
-            <Button variant="outline" size="sm" disabled>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Loading...
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <div className="text-sm text-muted-foreground">Loading files...</div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <ActivityLoading className={className} />;
   }
 
   // Show error state
