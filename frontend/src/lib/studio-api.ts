@@ -285,6 +285,23 @@ export interface ListFilesResponse {
   };
 }
 
+export interface DeleteFileRequest {
+  fileId: string;
+  deleteFromR2?: boolean;
+}
+
+export interface DeleteFileResponse {
+  success: boolean;
+  data: {
+    fileId: string;
+    wasFound: boolean;
+    deletedFromDatabase: boolean;
+    deletedFromR2: boolean;
+    deletedFile?: FileRecord;
+    error?: string;
+  };
+}
+
 import { parseErrorResponse } from './error-utils';
 import { isVercelPreview, getApiKeyFromStorage } from '@/lib/utils';
 
@@ -430,6 +447,47 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 
   return null as T;
+}
+
+// Client-side authenticated request helper (for mutations from client components)
+async function clientApiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}${endpoint}`;
+
+  // Prepare headers with potential API key auth for preview environments
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Merge existing headers safely
+  if (options.headers) {
+    Object.entries(options.headers).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        headers[key] = value;
+      }
+    });
+  }
+
+  // Add API key for preview environments
+  if (isVercelPreview()) {
+    const apiKey = getApiKeyFromStorage();
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    credentials: 'include', // Cross-subdomain cookies
+    headers,
+  });
+
+  if (!response.ok) {
+    const apiError = await parseErrorResponse(response);
+    throw apiError;
+  }
+
+  const data = await response.json();
+  return data.data || data; // Handle both wrapped and unwrapped responses
 }
 
 // Studio API functions
@@ -581,4 +639,10 @@ export const filesApi = {
       ).toString()}`,
       { method: 'GET' },
     ),
+
+  delete: (data: DeleteFileRequest): Promise<DeleteFileResponse> =>
+    clientApiRequest('/v1/files/delete', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

@@ -1,15 +1,16 @@
 'use client';
 
 import { use, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { type ListFilesResponse, filesApi } from '@/lib/studio-api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { type ListFilesResponse, filesApi, type DeleteFileRequest } from '@/lib/studio-api';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ExternalLink, FileText, Image, RefreshCw } from 'lucide-react';
+import { ExternalLink, FileText, Image, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { isVercelPreview } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/error-utils';
 import {
   Pagination,
   PaginationContent,
@@ -30,11 +31,13 @@ const PAGE_SIZE = 50;
 export function ActivityClient({ filesPromise, className }: ActivityClientProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   // Use React 18's use() hook to unwrap the server promise
   const initialFiles = use(filesPromise);
 
   const preview = isVercelPreview();
+  const queryClient = useQueryClient();
 
   // Calculate offset based on current page
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -69,6 +72,42 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
   const totalPages = Math.ceil(totalFiles / PAGE_SIZE);
   const hasNextPage = currentPage < totalPages;
   const hasPrevPage = currentPage > 1;
+
+  // Delete file mutation
+  const deleteFileMutation = useMutation({
+    mutationFn: filesApi.delete,
+    onMutate: async (deleteRequest) => {
+      await queryClient.cancelQueries({ queryKey: ['files'] });
+
+      // Update all cached pages by removing the deleted file
+      const queryCache = queryClient.getQueryCache();
+      const queries = queryCache.findAll({ queryKey: ['files'] });
+
+      queries.forEach((query) => {
+        const data = query.state.data as ListFilesResponse | undefined;
+        if (data) {
+          queryClient.setQueryData(query.queryKey, {
+            ...data,
+            data: {
+              ...data.data,
+              files: data.data.files.filter((file) => file.id !== deleteRequest.fileId),
+              totalFiles: Math.max(0, data.data.totalFiles - 1),
+            },
+          });
+        }
+      });
+
+      return { deletedFileId: deleteRequest.fileId };
+    },
+    onError: (err, deleteRequest, context) => {
+      // Invalidate all file queries to refresh from server
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+    },
+    onSettled: () => {
+      // Always refresh the current page after delete operation
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+    },
+  });
 
   const formatFileSize = (sizeBytes: number): string => {
     if (sizeBytes < 1024) return `${sizeBytes} B`;
@@ -119,6 +158,28 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
+  };
+
+  const handleDeleteFile = (fileId: string, filename: string) => {
+    const confirmMessage = `Are you sure you want to delete "${filename}"? This action cannot be undone and will remove the file from both the database and storage.`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setDeletingIds((prev) => new Set(prev).add(fileId));
+
+    deleteFileMutation.mutate(
+      { fileId, deleteFromR2: true }, // Delete from both database and R2 storage
+      {
+        onSettled: () => {
+          setDeletingIds((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(fileId);
+            return newSet;
+          });
+        },
+      },
+    );
   };
 
   // Generate page numbers for pagination
@@ -256,6 +317,13 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Error Messages */}
+        {deleteFileMutation.isError && (
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
+            Failed to delete file: {getErrorMessage(deleteFileMutation.error)}
+          </div>
+        )}
+
         {/* Desktop Table Layout */}
         <div className="hidden lg:block">
           <Table>
@@ -266,16 +334,17 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                 <TableHead>Source URL</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Created</TableHead>
-                <TableHead>Action</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {files.map((file) => {
                 const metadata = getFileMetadata(file.metadata);
                 const size = metadata.size || 0;
+                const isDeleting = deletingIds.has(file.id);
 
                 return (
-                  <TableRow key={file.id}>
+                  <TableRow key={file.id} className={cn(isDeleting && 'opacity-50')}>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         {getFileIcon(file.type)}
@@ -299,15 +368,27 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                       <span className="text-sm text-muted-foreground">{formatDate(file.created_at)}</span>
                     </TableCell>
                     <TableCell>
-                      <a
-                        href={file.public_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm"
-                      >
-                        <span>Open</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                      <div className="flex items-center space-x-2">
+                        <a
+                          href={file.public_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          <span>Open</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteFile(file.id, file.filename)}
+                          disabled={isDeleting}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete file</span>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -321,9 +402,10 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
           {files.map((file) => {
             const metadata = getFileMetadata(file.metadata);
             const size = metadata.size || 0;
+            const isDeleting = deletingIds.has(file.id);
 
             return (
-              <Card key={file.id} className="p-4">
+              <Card key={file.id} className={cn('p-4', isDeleting && 'opacity-50')}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-2 flex-1 min-w-0">
                     {getFileIcon(file.type)}
@@ -351,7 +433,7 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                     </div>
                   </div>
 
-                  <div className="pt-2">
+                  <div className="flex items-center justify-between pt-2">
                     <a
                       href={file.public_url}
                       target="_blank"
@@ -361,6 +443,16 @@ export function ActivityClient({ filesPromise, className }: ActivityClientProps)
                       <span>Open file</span>
                       <ExternalLink className="h-3 w-3" />
                     </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteFile(file.id, file.filename)}
+                      disabled={isDeleting}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Delete file</span>
+                    </Button>
                   </div>
                 </div>
               </Card>
