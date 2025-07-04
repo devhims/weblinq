@@ -1,0 +1,322 @@
+---
+title: 'Workflow Automation'
+description: 'Build powerful workflows by combining WebLinq APIs'
+---
+
+WebLinq endpoints are designed to snap together. Mix-and-match them to build rich automations.
+
+---
+
+## Complete Research Workflow
+
+Use this workflow to research a topic efficiently. It searches the web for relevant pages and then extracts key findings using structured or text-based prompts. You can choose between structured JSON results or quick text summaries.
+
+<CodeGroup>
+
+```javascript Research (Structured)
+// Searches the web and extracts structured key findings
+const apiKey = process.env.WEBLINQ_API_KEY;
+const base = 'https://api.weblinq.dev/v1';
+
+export async function researchTopic(query) {
+  // 1️⃣ search
+  const {
+    data: { results },
+  } = await post('/web/search', { query, limit: 5 });
+
+  // 2️⃣ minimal schema
+  const schema = {
+    type: 'object',
+    properties: {
+      title: { type: 'string' },
+      keyFindings: { type: 'array', items: { type: 'string' } },
+      conclusions: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['title', 'keyFindings'],
+  };
+
+  // 3️⃣ structured extract
+  const extracted = await Promise.all(
+    results.map((r) =>
+      post('/web/extract-json', {
+        url: r.url,
+        response_format: { type: 'json_schema', json_schema: schema },
+        prompt: `Key findings on "${query}"`,
+      }),
+    ),
+  );
+
+  return results.map((r, i) => ({ url: r.url, ...extracted[i].data.extracted }));
+}
+
+function post(p, body) {
+  return fetch(`${base}${p}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then((r) => r.json());
+}
+```
+
+```javascript Research (Text Insights)
+// Quick text summaries of search results for a given query
+const apiKey = process.env.WEBLINQ_API_KEY;
+const base = 'https://api.weblinq.dev/v1';
+
+export async function researchInsights(query) {
+  const {
+    data: { results },
+  } = await post('/web/search', { query, limit: 4 });
+
+  const insights = await Promise.all(
+    results.map((r) =>
+      post('/web/extract-json', {
+        url: r.url,
+        responseType: 'text',
+        prompt: `Summarise important insights about "${query}".`,
+      }).then((res) => ({ url: r.url, analysis: res.data.text })),
+    ),
+  );
+
+  return { query, insights };
+}
+
+function post(p, body) {
+  // same helper as above
+}
+```
+
+```python Python Mini-Workflow
+# Python version of the structured research workflow
+import requests, os
+
+API = 'https://api.weblinq.dev/v1'
+KEY = os.environ['WEBLINQ_API_KEY']
+
+def quick_research(q):
+    search = req('/web/search', {'query': q, 'limit': 3})['data']['results']
+    schema = {
+        "type":"object",
+        "properties":{
+            "title":{"type":"string"},
+            "keyFindings":{"type":"array","items":{"type":"string"}}
+        },
+        "required":["title","keyFindings"]
+    }
+    return [ req('/web/extract-json',{
+                "url": r['url'],
+                "response_format":{ "type":"json_schema", "json_schema":schema },
+                "prompt":f'Key findings on "{q}"'
+             })['data']['extracted']
+             for r in search ]
+
+def req(path, payload):
+    return requests.post(
+        f'{API}{path}',
+        headers={'Authorization':f'Bearer {KEY}','Content-Type':'application/json'},
+        json=payload
+    ).json()
+```
+
+</CodeGroup>
+
+---
+
+## E-commerce Monitoring Workflow
+
+Track product listings on e-commerce sites. This workflow captures a screenshot of the page, extracts visible product links, and parses out product names and prices using a custom schema.
+
+<CodeGroup>
+
+```javascript Product Monitor
+// Tracks products, captures screenshot, extracts data
+const apiKey = process.env.WEBLINQ_API_KEY;
+const base = 'https://api.weblinq.dev/v1';
+
+export async function monitor(url) {
+  const shot = await post('/web/screenshot', { url, screenshotOptions: { fullPage: true } });
+
+  const {
+    data: { links },
+  } = await post('/web/links', { url, visibleLinksOnly: true });
+  const productLinks = links.filter((l) => /\/product\//.test(l.url)).slice(0, 10);
+
+  const schema = {
+    type: 'object',
+    properties: {
+      products: {
+        type: 'array',
+        items: { type: 'object', properties: { name: { type: 'string' }, price: { type: 'number' } } },
+      },
+    },
+  };
+
+  const products = await post('/web/extract-json', {
+    url,
+    response_format: { type: 'json_schema', json_schema: schema },
+    prompt: 'List products and prices you can see.',
+  });
+
+  return {
+    url,
+    screenshot: shot.data.permanentUrl,
+    productLinks,
+    products: products.data.extracted,
+  };
+}
+
+function post(p, b) {
+  // helper
+}
+```
+
+</CodeGroup>
+
+---
+
+## Content Creation Pipeline
+
+Turn webpages into content assets like summaries, PDFs, and Markdown. This is useful for archiving pages or preparing content for blog posts and reports.
+
+<CodeGroup>
+
+```javascript Report Generator
+// Converts a list of URLs into PDFs, Markdown, and structured summaries
+const apiKey = process.env.WEBLINQ_API_KEY;
+const base = 'https://api.weblinq.dev/v1';
+
+export async function generateReport(urls) {
+  const schema = {
+    type: 'object',
+    properties: { title: { type: 'string' }, summary: { type: 'string' } },
+  };
+
+  return Promise.all(
+    urls.map(async (url) => {
+      const [md, pdf, info] = await Promise.all([
+        post('/web/markdown', { url }),
+        post('/web/pdf', { url }),
+        post('/web/extract-json', {
+          url,
+          response_format: { type: 'json_schema', json_schema: schema },
+          prompt: 'Short summary',
+        }),
+      ]);
+
+      return {
+        url,
+        title: info.data.extracted.title,
+        summary: info.data.extracted.summary,
+        pdf: pdf.data.permanentUrl,
+      };
+    }),
+  );
+}
+
+function post(p, b) {
+  // helper
+}
+```
+
+</CodeGroup>
+
+---
+
+## Hybrid Extraction (CSS + Schema)
+
+Combine raw scraping (CSS selectors) with structured schema-based extraction for more flexible data collection.
+
+<CodeGroup>
+
+```javascript Hybrid Extractor
+// Scrapes with CSS selectors and adds structured schema extraction
+const apiKey = process.env.WEBLINQ_API_KEY;
+const base = 'https://api.weblinq.dev/v1';
+
+export async function extractBusiness(url) {
+  const scraped = await post('/web/scrape', {
+    url,
+    elements: [
+      { selector: '.contact-info', attributes: ['text'] },
+      { selector: '.business-hours', attributes: ['text'] },
+    ],
+  });
+
+  const schema = {
+    type: 'object',
+    properties: { businessName: { type: 'string' }, phone: { type: 'string' } },
+  };
+
+  const {
+    data: { extracted },
+  } = await post('/web/extract-json', {
+    url,
+    response_format: { type: 'json_schema', json_schema: schema },
+  });
+
+  return { url, scraped: scraped.data.elements, structured: extracted };
+}
+
+function post(p, b) {
+  // helper
+}
+```
+
+</CodeGroup>
+
+---
+
+## Content Intelligence
+
+Design a content strategy based on what your competitors are doing. This automation searches for guides, analyzes them, and generates a content plan.
+
+<CodeGroup>
+
+```javascript Content Strategy
+// Builds a content plan based on competitor analysis
+const apiKey = process.env.WEBLINQ_API_KEY;
+const base = 'https://api.weblinq.dev/v1';
+
+export async function buildStrategy(topic) {
+  // 1️⃣ search
+  const {
+    data: { results },
+  } = await post('/web/search', { query: `${topic} guide`, limit: 5 });
+
+  // 2️⃣ analyse competitors
+  const schema = {
+    type: 'object',
+    properties: {
+      wordCount: { type: 'number' },
+      keyTakeaways: { type: 'array', items: { type: 'string' } },
+    },
+  };
+
+  const analysis = await Promise.all(
+    results.map((r) =>
+      post('/web/extract-json', {
+        url: r.url,
+        response_format: { type: 'json_schema', json_schema: schema },
+        prompt: `Analyse strengths for "${topic}".`,
+      }).then((a) => ({ url: r.url, ...a.data.extracted })),
+    ),
+  );
+
+  // 3️⃣ content plan (text mode)
+  const {
+    data: { text: strategy },
+  } = await post('/web/extract-json', {
+    url: 'data:text/plain;base64,' + Buffer.from(JSON.stringify(analysis)).toString('base64'),
+    responseType: 'text',
+    prompt: `Create a content plan for "${topic}" using this JSON.`,
+  });
+
+  return { topic, analysis, strategy };
+}
+
+function post(p, b) {
+  // helper
+}
+```
+
+</CodeGroup>

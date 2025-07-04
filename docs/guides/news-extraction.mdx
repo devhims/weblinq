@@ -1,801 +1,955 @@
 ---
-title: 'News Extraction Use Cases'
-description: 'Learn how to extract and monitor news content using WebLinq API'
+title: 'News Extraction'
+description: 'Extract and monitor news content using WebLinq API'
 ---
 
-# News Extraction Use Cases
+# News Extraction
 
-Learn how to extract, monitor, and analyze news content at scale using WebLinq API.
+Extract clean, structured news content using WebLinq API workflows and JSON schemas.
 
-## Overview
+## Comprehensive News Analysis
 
-<Note>This guide demonstrates how to implement common news extraction use cases using WebLinq API.</Note>
-
-## Article Extraction
-
-### Basic Article Scraping
+Extract structured news data with precise JSON schemas and flexible text analysis:
 
 <CodeGroup>
-```javascript Node.js
-const WebLinq = require('weblinq');
+```javascript Structured News Schema
+async function extractNewsArticle(articleUrl) {
+  const apiKey = process.env.WEBLINQ_API_KEY;
+  
+  // Define comprehensive news article schema
+  const newsSchema = {
+    type: "object",
+    properties: {
+      headline: { type: "string" },
+      subheadline: { type: "string" },
+      author: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          email: { type: "string" },
+          twitter: { type: "string" }
+        }
+      },
+      publishDate: { type: "string", format: "date-time" },
+      lastModified: { type: "string", format: "date-time" },
+      category: { type: "string" },
+      tags: { type: "array", items: { type: "string" } },
+      summary: { type: "string", maxLength: 300 },
+      keyPoints: { type: "array", items: { type: "string" } },
+      quotes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            text: { type: "string" },
+            speaker: { type: "string" },
+            role: { type: "string" }
+          }
+        }
+      },
+      readingTime: { type: "number" },
+      wordCount: { type: "number" },
+      credibilityScore: { type: "number", minimum: 1, maximum: 10 },
+      sources: { type: "array", items: { type: "string" } }
+    },
+    required: ["headline", "publishDate", "summary", "keyPoints"]
+  };
 
-class ArticleScraper {
-constructor(apiKey) {
-this.client = new WebLinq(apiKey);
-}
-
-async scrapeArticle(url) {
-const response = await this.client.extract({
-url,
-selectors: {
-title: {
-selector: 'h1, .article-title',
-type: 'text'
+const response = await fetch('https://api.weblinq.dev/v1/web/extract-json', {
+method: 'POST',
+headers: {
+'Authorization': `Bearer ${apiKey}`,
+'Content-Type': 'application/json'
 },
-author: {
-selector: '.author-name, .byline',
-type: 'text'
+body: JSON.stringify({
+url: articleUrl,
+response_format: {
+type: "json_schema",
+json_schema: newsSchema
 },
-publishDate: {
-selector: '.publish-date, time',
-attr: 'datetime'
-},
-content: {
-selector: '.article-content, .story-content',
-type: 'html'
-},
-summary: {
-selector: '.article-summary, .story-description',
-type: 'text'
-},
-categories: {
-selector: '.article-categories a, .tags a',
-type: 'list'
-},
-images: {
-selector: '.article-content img',
-type: 'list',
-attr: 'src'
-}
-}
+prompt: "Extract comprehensive news article information including metadata, key points, and quotes"
+})
 });
 
-    return {
-      ...response,
-      url,
-      extractedAt: new Date().toISOString()
-    };
+const data = await response.json();
 
+if (!data.success) {
+throw new Error(data.error?.message || 'Failed to extract news data');
 }
 
-cleanContent(content) {
-// Remove ads, social media embeds, etc.
-return content
-.replace(/<div class="ad">._?<\/div>/g, '')
-.replace(/<blockquote class="twitter-tweet">._?<\/blockquote>/g, '')
-.trim();
-}
+return data.data.extracted;
 }
 
-// Usage
-const scraper = new ArticleScraper('YOUR_API_KEY');
+````javascript Editorial Analysis (Text)
+async function analyzeNewsEditorial(articleUrl) {
+  const apiKey = process.env.WEBLINQ_API_KEY;
 
-const article = await scraper.scrapeArticle('https://news-site.com/article');
-console.log(article);
+  // Use text response for nuanced editorial analysis
+  const response = await fetch('https://api.weblinq.dev/v1/web/extract-json', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      url: articleUrl,
+      prompt: `Provide an in-depth editorial analysis of this news article:
 
-````
+      1. **Bias Assessment**: Identify any potential bias in language, source selection, or framing
+      2. **Fact vs Opinion**: Distinguish between factual reporting and editorial opinion
+      3. **Completeness**: What important context or perspectives might be missing?
+      4. **Impact Analysis**: How might this story affect different stakeholders?
+      5. **Credibility Factors**: What makes this reporting trustworthy or questionable?
+      6. **Follow-up Questions**: What questions should readers ask or investigate further?
 
-```python Python
-from weblinq import WebLinq
-from datetime import datetime
-from typing import Dict, List
+      Write this as a media literacy analysis that helps readers think critically about the information presented.`,
+      response_format: { type: "text" }
+    })
+  });
 
-class ArticleScraper:
-    def __init__(self, api_key: str):
-        self.client = WebLinq(api_key)
+  const data = await response.json();
 
-    async def scrape_article(self, url: str) -> dict:
-        response = await self.client.extract({
-            'url': url,
-            'selectors': {
-                'title': {
-                    'selector': 'h1, .article-title',
-                    'type': 'text'
-                },
-                'author': {
-                    'selector': '.author-name, .byline',
-                    'type': 'text'
-                },
-                'publish_date': {
-                    'selector': '.publish-date, time',
-                    'attr': 'datetime'
-                },
-                'content': {
-                    'selector': '.article-content, .story-content',
-                    'type': 'html'
-                },
-                'summary': {
-                    'selector': '.article-summary, .story-description',
-                    'type': 'text'
-                },
-                'categories': {
-                    'selector': '.article-categories a, .tags a',
-                    'type': 'list'
-                },
-                'images': {
-                    'selector': '.article-content img',
-                    'type': 'list',
-                    'attr': 'src'
+  if (!data.success) {
+    throw new Error(data.error?.message || 'Failed to analyze article');
+  }
+
+  return data.data.extracted;
+}
+
+```javascript News Summary (Text)
+async function generateNewsSummary(articleUrl, audienceType = 'general') {
+  const apiKey = process.env.WEBLINQ_API_KEY;
+
+  const audiencePrompts = {
+    general: "Write a clear, accessible summary for the general public",
+    technical: "Write a detailed summary for industry professionals and experts",
+    executive: "Write a concise executive briefing focusing on business implications",
+    student: "Write an educational summary with background context for students"
+  };
+
+  const response = await fetch('https://api.weblinq.dev/v1/web/extract-json', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      url: articleUrl,
+      prompt: `${audiencePrompts[audienceType]}.
+
+      Include:
+      - Main story in 2-3 sentences
+      - Why this matters now
+      - Key people/organizations involved
+      - Potential implications or next steps
+      - Background context if needed
+
+      Keep it engaging and informative.`,
+      response_format: { type: "text" }
+    })
+  });
+
+  const data = await response.json();
+
+  if (!data.success) {
+    throw new Error(data.error?.message || 'Failed to generate summary');
+  }
+
+  return data.data.extracted;
+}
+
+```python Python Dual Approach
+import requests
+
+def comprehensive_news_analysis(article_url):
+    api_key = "your_api_key_here"
+
+    # Structured data extraction
+    news_schema = {
+        "type": "object",
+        "properties": {
+            "headline": {"type": "string"},
+            "author": {"type": "string"},
+            "publishDate": {"type": "string"},
+            "category": {"type": "string"},
+            "summary": {"type": "string", "maxLength": 300},
+            "keyPoints": {"type": "array", "items": {"type": "string"}},
+            "quotes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string"},
+                        "speaker": {"type": "string"}
+                    }
                 }
-            }
-        })
+            },
+            "readingTime": {"type": "number"},
+            "credibilityScore": {"type": "number", "minimum": 1, "maximum": 10}
+        },
+        "required": ["headline", "publishDate", "summary"]
+    }
 
-        return {
-            **response,
-            'url': url,
-            'extracted_at': datetime.now().isoformat()
+    # Get structured metadata
+    structured_response = requests.post(
+        'https://api.weblinq.dev/v1/web/extract-json',
+        headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+        json={
+            'url': article_url,
+            'response_format': {'type': 'json_schema', 'json_schema': news_schema},
+            'prompt': 'Extract comprehensive news article information'
         }
+    )
 
-    def clean_content(self, content: str) -> str:
-        import re
+    # Get contextual analysis
+    analysis_response = requests.post(
+        'https://api.weblinq.dev/v1/web/extract-json',
+        headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+        json={
+            'url': article_url,
+            'prompt': '''Analyze this news story for:
+            - Historical context and background
+            - Potential long-term implications
+            - Different stakeholder perspectives
+            - Related stories or trends
+            - Questions this raises for further investigation
 
-        # Remove ads, social media embeds, etc.
-        content = re.sub(r'<div class="ad">.*?</div>', '', content)
-        content = re.sub(r'<blockquote class="twitter-tweet">.*?</blockquote>', '', content)
-        return content.strip()
+            Provide thoughtful analysis that goes beyond just summarizing the facts.''',
+            'response_format': {'type': 'text'}
+        }
+    )
 
-# Usage
-async def main():
-    scraper = ArticleScraper('YOUR_API_KEY')
-    article = await scraper.scrape_article('https://news-site.com/article')
-    print(article)
-
-asyncio.run(main())
+    return {
+        'metadata': structured_response.json()['data']['extracted'],
+        'analysis': analysis_response.json()['data']['extracted']
+    }
 ````
 
 </CodeGroup>
 
-### News Feed Monitoring
+## News Monitoring Workflow
+
+Automated news monitoring combining search, extraction, and archival:
 
 <CodeGroup>
-```javascript Node.js
-class NewsFeedMonitor {
-  constructor(apiKey) {
-    this.client = new WebLinq(apiKey);
-    this.feeds = new Map();
-    this.scraper = new ArticleScraper(apiKey);
-  }
-
-async addFeed(url, options = {}) {
-const { name, interval = 3600000 } = options;
-
-    this.feeds.set(url, {
-      name,
-      interval,
-      lastCheck: null,
-      articles: new Set()
+```javascript News Monitoring System
+async function monitorNewsTopics(topics, maxArticlesPerTopic = 5) {
+  const apiKey = process.env.WEBLINQ_API_KEY;
+  const baseUrl = 'https://api.weblinq.dev/v1';
+  
+  const allArticles = [];
+  
+  for (const topic of topics) {
+    // Step 1: Search for recent news on the topic
+    const searchResponse = await fetch(`${baseUrl}/web/search`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        query: `${topic} news site:cnn.com OR site:bbc.com OR site:reuters.com OR site:apnews.com`,
+        limit: maxArticlesPerTopic
+      })
     });
+
+    const searchData = await searchResponse.json();
+
+    if (!searchData.success) {
+      console.error(`Search failed for topic: ${topic}`);
+      continue;
+    }
+
+    // Step 2: Extract clean content from each article
+    for (const result of searchData.data.results) {
+      try {
+        // Get clean markdown content
+        const markdownResponse = await fetch(`${baseUrl}/web/markdown`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ url: result.url })
+        });
+
+        // Extract structured data
+        const newsSchema = {
+          type: "object",
+          properties: {
+            headline: { type: "string" },
+            author: { type: "string" },
+            publishDate: { type: "string" },
+            category: { type: "string" },
+            sentiment: {
+              type: "string",
+              enum: ["positive", "negative", "neutral"]
+            },
+            keyPoints: { type: "array", items: { type: "string" } },
+            entities: {
+              type: "object",
+              properties: {
+                people: { type: "array", items: { type: "string" } },
+                organizations: { type: "array", items: { type: "string" } },
+                locations: { type: "array", items: { type: "string" } }
+              }
+            },
+            credibilityScore: { type: "number", minimum: 1, maximum: 10 }
+          }
+        };
+
+        const extractResponse = await fetch(`${baseUrl}/web/extract-json`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            url: result.url,
+            response_format: {
+              type: "json_schema",
+              json_schema: newsSchema
+            },
+            prompt: `Analyze this news article about "${topic}" and extract key information`
+          })
+        });
+
+        // Take screenshot for visual record
+        const screenshotResponse = await fetch(`${baseUrl}/web/screenshot`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            url: result.url,
+            screenshotOptions: { fullPage: false, type: 'png' }
+          })
+        });
+
+        const [markdown, extracted, screenshot] = await Promise.all([
+          markdownResponse.json(),
+          extractResponse.json(),
+          screenshotResponse.json()
+        ]);
+
+        if (extracted.success) {
+          allArticles.push({
+            topic,
+            url: result.url,
+            source: new URL(result.url).hostname,
+            searchTitle: result.title,
+            content: markdown.success ? markdown.data.markdown : null,
+            structured: extracted.data.extracted,
+            screenshot: screenshot.success ? screenshot.data.permanentUrl : null,
+            extractedAt: new Date().toISOString()
+          });
+        }
+
+      } catch (error) {
+        console.error(`Error processing ${result.url}:`, error);
+      }
+
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
 
 }
 
-async monitorFeed(url) {
-const feed = this.feeds.get(url);
+return {
+topics,
+totalArticles: allArticles.length,
+articles: allArticles,
+byTopic: topics.reduce((acc, topic) => {
+acc[topic] = allArticles.filter(article => article.topic === topic);
+return acc;
+}, {}),
+bySentiment: {
+positive: allArticles.filter(a => a.structured?.sentiment === 'positive'),
+negative: allArticles.filter(a => a.structured?.sentiment === 'negative'),
+neutral: allArticles.filter(a => a.structured?.sentiment === 'neutral')
+}
+};
+}
+
+```python Python News Extraction
+import requests
+
+def extract_news_article(article_url):
+    api_key = "your_api_key_here"
+
+    news_schema = {
+        "type": "object",
+        "properties": {
+            "headline": {"type": "string"},
+            "author": {"type": "string"},
+            "publishDate": {"type": "string"},
+            "category": {"type": "string"},
+            "summary": {"type": "string", "maxLength": 300},
+            "keyPoints": {"type": "array", "items": {"type": "string"}},
+            "quotes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string"},
+                        "speaker": {"type": "string"}
+                    }
+                }
+            },
+            "readingTime": {"type": "number"},
+            "credibilityScore": {"type": "number", "minimum": 1, "maximum": 10}
+        },
+        "required": ["headline", "publishDate", "summary"]
+    }
+
+    response = requests.post(
+        'https://api.weblinq.dev/v1/web/extract-json',
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'url': article_url,
+            'response_format': {
+                'type': 'json_schema',
+                'json_schema': news_schema
+            },
+            'prompt': 'Extract comprehensive news article information'
+        }
+    )
+
+    data = response.json()
+    if not data['success']:
+        raise Exception(data.get('error', {}).get('message', 'Failed to extract'))
+
+    return data['data']['extracted']
+```
+
+</CodeGroup>
+
+## Breaking News Alerts
+
+Real-time news monitoring with instant alerts:
+
+<CodeGroup>
+```javascript Breaking News Monitor
+async function monitorBreakingNews(keywords, checkInterval = 300000) { // 5 minutes
+  const apiKey = process.env.WEBLINQ_API_KEY;
+  const baseUrl = 'https://api.weblinq.dev/v1';
+
+let lastCheckTime = new Date();
+
+const alertSchema = {
+type: "object",
+properties: {
+urgency: {
+type: "string",
+enum: ["low", "medium", "high", "critical"]
+},
+headline: { type: "string" },
+summary: { type: "string", maxLength: 200 },
+impact: {
+type: "object",
+properties: {
+geographic: { type: "string" },
+sectors: { type: "array", items: { type: "string" } },
+stakeholders: { type: "array", items: { type: "string" } }
+}
+},
+timeline: {
+type: "object",
+properties: {
+when: { type: "string" },
+expectedDuration: { type: "string" }
+}
+},
+actionRequired: { type: "boolean" }
+}
+};
+
+async function checkForBreakingNews() {
+const searchQuery = keywords.map(keyword =>
+`"${keyword}" breaking news OR "${keyword}" urgent OR "${keyword}" alert`
+).join(' OR ');
 
     try {
-      const response = await this.client.extract({
-        url,
-        selectors: {
-          articles: {
-            selector: '.article-item, .story-card',
-            type: 'list',
-            data: {
-              title: '.article-title',
-              url: {
-                selector: 'a',
-                attr: 'href'
-              },
-              summary: '.article-summary'
-            }
-          }
-        }
+      const searchResponse = await fetch(`${baseUrl}/web/search`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query: searchQuery + ` after:${lastCheckTime.toISOString().split('T')[0]}`,
+          limit: 10
+        })
       });
 
-      for (const article of response.articles) {
-        if (!feed.articles.has(article.url)) {
-          await this.processNewArticle(article, feed);
+      const searchData = await searchResponse.json();
+
+      if (!searchData.success) return;
+
+      for (const result of searchData.data.results) {
+        // Extract alert information
+        const alertResponse = await fetch(`${baseUrl}/web/extract-json`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            url: result.url,
+            response_format: {
+              type: "json_schema",
+              json_schema: alertSchema
+            },
+            prompt: "Analyze if this is breaking news and extract urgency, impact, and action requirements"
+          })
+        });
+
+        const alertData = await alertResponse.json();
+
+        if (alertData.success && alertData.data.extracted.urgency !== 'low') {
+          await sendAlert({
+            ...alertData.data.extracted,
+            url: result.url,
+            source: new URL(result.url).hostname,
+            detectedAt: new Date().toISOString()
+          });
         }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      feed.lastCheck = new Date();
+      lastCheckTime = new Date();
+
     } catch (error) {
-      console.error(`Error monitoring feed ${url}:`, error);
+      console.error('Error checking breaking news:', error);
     }
 
 }
 
-async processNewArticle(article, feed) {
-try {
-const fullArticle = await this.scraper.scrapeArticle(article.url);
-feed.articles.add(article.url);
+async function sendAlert(alert) {
+console.log(`🚨 BREAKING NEWS ALERT - ${alert.urgency.toUpperCase()}`);
+console.log(`Headline: ${alert.headline}`);
+console.log(`Summary: ${alert.summary}`);
+console.log(`Source: ${alert.source}`);
+console.log(`URL: ${alert.url}`);
 
-      await this.storeArticle(fullArticle);
-      await this.notifyNewArticle(fullArticle, feed);
-    } catch (error) {
-      console.error(`Error processing article ${article.url}:`, error);
+    if (alert.actionRequired) {
+      console.log('⚠️ ACTION REQUIRED');
     }
 
+    // Here you would integrate with your notification system:
+    // - Send email alerts
+    // - Push notifications
+    // - Slack/Discord webhooks
+    // - SMS alerts for critical news
+
 }
 
-async storeArticle(article) {
-// Implement your storage logic
-console.log('Storing article:', article.title);
-}
+// Start monitoring
+console.log(`Starting breaking news monitoring for: ${keywords.join(', ')}`);
 
-async notifyNewArticle(article, feed) {
-// Implement your notification logic
-console.log(`New article in ${feed.name}:`, article.title);
-}
+// Initial check
+await checkForBreakingNews();
 
-startMonitoring() {
-for (const [url, feed] of this.feeds) {
-setInterval(() => this.monitorFeed(url), feed.interval);
-}
-}
+// Set up interval
+setInterval(checkForBreakingNews, checkInterval);
 }
 
 // Usage
-const monitor = new NewsFeedMonitor('YOUR_API_KEY');
+await monitorBreakingNews(['earthquake', 'market crash', 'cyber attack'], 300000);
 
-await monitor.addFeed('https://news-site.com/feed', {
-name: 'Tech News',
-interval: 1800000 // 30 minutes
-});
-
-monitor.startMonitoring();
-
-````
-
-```python Python
-class NewsFeedMonitor:
-    def __init__(self, api_key: str):
-        self.client = WebLinq(api_key)
-        self.feeds: Dict[str, dict] = {}
-        self.scraper = ArticleScraper(api_key)
-
-    async def add_feed(self, url: str, **options):
-        name = options.get('name', url)
-        interval = options.get('interval', 3600)  # 1 hour default
-
-        self.feeds[url] = {
-            'name': name,
-            'interval': interval,
-            'last_check': None,
-            'articles': set()
-        }
-
-    async def monitor_feed(self, url: str):
-        feed = self.feeds[url]
-
-        try:
-            response = await self.client.extract({
-                'url': url,
-                'selectors': {
-                    'articles': {
-                        'selector': '.article-item, .story-card',
-                        'type': 'list',
-                        'data': {
-                            'title': '.article-title',
-                            'url': {
-                                'selector': 'a',
-                                'attr': 'href'
-                            },
-                            'summary': '.article-summary'
-                        }
-                    }
-                }
-            })
-
-            for article in response['articles']:
-                if article['url'] not in feed['articles']:
-                    await self.process_new_article(article, feed)
-
-            feed['last_check'] = datetime.now()
-        except Exception as e:
-            print(f"Error monitoring feed {url}: {e}")
-
-    async def process_new_article(self, article: dict, feed: dict):
-        try:
-            full_article = await self.scraper.scrape_article(article['url'])
-            feed['articles'].add(article['url'])
-
-            await self.store_article(full_article)
-            await self.notify_new_article(full_article, feed)
-        except Exception as e:
-            print(f"Error processing article {article['url']}: {e}")
-
-    async def store_article(self, article: dict):
-        # Implement your storage logic
-        print('Storing article:', article['title'])
-
-    async def notify_new_article(self, article: dict, feed: dict):
-        # Implement your notification logic
-        print(f"New article in {feed['name']}:", article['title'])
-
-    async def start_monitoring(self):
-        while True:
-            tasks = []
-            for url in self.feeds:
-                tasks.append(self.monitor_feed(url))
-
-            await asyncio.gather(*tasks)
-            await asyncio.sleep(min(
-                feed['interval']
-                for feed in self.feeds.values()
-            ))
-
-# Usage
-async def main():
-    monitor = NewsFeedMonitor('YOUR_API_KEY')
-
-    await monitor.add_feed('https://news-site.com/feed',
-                          name='Tech News',
-                          interval=1800)  # 30 minutes
-
-    await monitor.start_monitoring()
-
-asyncio.run(main())
 ````
 
 </CodeGroup>
 
-## Content Analysis
+## News Aggregation Report
 
-### Sentiment Analysis
+Generate comprehensive news reports with PDF summaries:
 
 <CodeGroup>
-```javascript Node.js
-class ContentAnalyzer {
-  constructor(apiKey) {
-    this.client = new WebLinq(apiKey);
-  }
+```javascript News Report Generator
+async function generateNewsReport(topics, timeframe = '24h') {
+  const apiKey = process.env.WEBLINQ_API_KEY;
+  const baseUrl = 'https://api.weblinq.dev/v1';
 
-async analyzeArticle(url) {
-const article = await this.client.extract({
-url,
-selectors: {
-title: 'h1',
-content: '.article-content',
-summary: '.article-summary'
-}
-});
+  const reportData = [];
 
-    const analysis = await this.analyzeSentiment(article);
-    const entities = await this.extractEntities(article);
-    const topics = await this.classifyTopics(article);
-
-    return {
-      url,
-      article,
-      analysis: {
-        sentiment: analysis,
-        entities,
-        topics
+  for (const topic of topics) {
+    // Search for news on this topic
+    const searchResponse = await fetch(`${baseUrl}/web/search`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
       },
-      timestamp: new Date().toISOString()
-    };
-
-}
-
-async analyzeSentiment(article) {
-// Implement sentiment analysis
-// You can use services like Google Cloud Natural Language API
-return {
-score: 0.8, // -1 to 1
-magnitude: 0.6
-};
-}
-
-async extractEntities(article) {
-// Extract named entities
-return {
-organizations: [],
-people: [],
-locations: []
-};
-}
-
-async classifyTopics(article) {
-// Classify article topics
-return ['technology', 'ai', 'business'];
-}
-}
-
-// Usage
-const analyzer = new ContentAnalyzer('YOUR_API_KEY');
-const analysis = await analyzer.analyzeArticle('https://news-site.com/article');
-
-````
-
-```python Python
-from typing import Dict, List
-import json
-
-class ContentAnalyzer:
-    def __init__(self, api_key: str):
-        self.client = WebLinq(api_key)
-
-    async def analyze_article(self, url: str) -> dict:
-        article = await self.client.extract({
-            'url': url,
-            'selectors': {
-                'title': 'h1',
-                'content': '.article-content',
-                'summary': '.article-summary'
-            }
-        })
-
-        analysis = await self.analyze_sentiment(article)
-        entities = await self.extract_entities(article)
-        topics = await self.classify_topics(article)
-
-        return {
-            'url': url,
-            'article': article,
-            'analysis': {
-                'sentiment': analysis,
-                'entities': entities,
-                'topics': topics
-            },
-            'timestamp': datetime.now().isoformat()
-        }
-
-    async def analyze_sentiment(self, article: dict) -> dict:
-        # Implement sentiment analysis
-        # You can use services like Google Cloud Natural Language API
-        return {
-            'score': 0.8,  # -1 to 1
-            'magnitude': 0.6
-        }
-
-    async def extract_entities(self, article: dict) -> dict:
-        # Extract named entities
-        return {
-            'organizations': [],
-            'people': [],
-            'locations': []
-        }
-
-    async def classify_topics(self, article: dict) -> List[str]:
-        # Classify article topics
-        return ['technology', 'ai', 'business']
-
-# Usage
-async def main():
-    analyzer = ContentAnalyzer('YOUR_API_KEY')
-    analysis = await analyzer.analyze_article('https://news-site.com/article')
-    print(json.dumps(analysis, indent=2))
-
-asyncio.run(main())
-````
-
-</CodeGroup>
-
-### Trend Analysis
-
-<CodeGroup>
-```javascript Node.js
-class TrendAnalyzer {
-  constructor(apiKey) {
-    this.client = new WebLinq(apiKey);
-    this.trends = new Map();
-  }
-
-async trackTrend(keyword, sources) {
-const articles = await this.searchArticles(keyword, sources);
-const analysis = await this.analyzeTrend(keyword, articles);
-
-    this.trends.set(keyword, {
-      keyword,
-      analysis,
-      timestamp: new Date().toISOString()
+      body: JSON.stringify({
+        query: `${topic} news`,
+        limit: 8
+      })
     });
 
-    return analysis;
+    const searchData = await searchResponse.json();
+
+    if (!searchData.success) continue;
+
+    // Extract key information from top articles
+    const topicArticles = [];
+
+    for (const result of searchData.data.results.slice(0, 5)) {
+      const summarySchema = {
+        type: "object",
+        properties: {
+          headline: { type: "string" },
+          keyPoints: { type: "array", items: { type: "string" } },
+          impact: { type: "string" },
+          trend: { type: "string", enum: ["rising", "stable", "declining"] },
+          sentiment: { type: "string", enum: ["positive", "negative", "neutral"] }
+        }
+      };
+
+      const extractResponse = await fetch(`${baseUrl}/web/extract-json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: result.url,
+          response_format: {
+            type: "json_schema",
+            json_schema: summarySchema
+          },
+          prompt: `Summarize this news article about "${topic}"`
+        })
+      });
+
+      const extractData = await extractResponse.json();
+
+      if (extractData.success) {
+        topicArticles.push({
+          url: result.url,
+          source: new URL(result.url).hostname,
+          ...extractData.data.extracted
+        });
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    reportData.push({
+      topic,
+      articles: topicArticles,
+      summary: generateTopicSummary(topicArticles)
+    });
 
 }
 
-async searchArticles(keyword, sources) {
-const articles = [];
+// Create HTML report
+const reportHtml = generateReportHTML(reportData, timeframe);
 
-    for (const source of sources) {
-      const response = await this.client.extract({
-        url: source,
-        selectors: {
-          articles: {
-            selector: '.article-item',
-            type: 'list',
-            data: {
-              title: '.article-title',
-              date: '.article-date',
-              url: {
-                selector: 'a',
-                attr: 'href'
+// Convert to PDF
+const dataUri = 'data:text/html;base64,' + Buffer.from(reportHtml).toString('base64');
+
+const pdfResponse = await fetch(`${baseUrl}/web/pdf`, {
+method: 'POST',
+headers: {
+'Authorization': `Bearer ${apiKey}`,
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({
+url: dataUri
+})
+});
+
+const pdf = await pdfResponse.json();
+
+return {
+topics,
+reportData,
+pdfUrl: pdf.success ? pdf.data.permanentUrl : null,
+generatedAt: new Date().toISOString(),
+stats: {
+totalArticles: reportData.reduce((sum, topic) => sum + topic.articles.length, 0),
+sentimentBreakdown: calculateSentimentBreakdown(reportData),
+trendAnalysis: calculateTrendAnalysis(reportData)
+}
+};
+}
+
+function generateReportHTML(reportData, timeframe) {
+return `
+<html>
+<head>
+<title>News Report - ${new Date().toLocaleDateString()}</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+h2 { color: #34495e; margin-top: 30px; }
+.article { margin: 20px 0; padding: 15px; border-left: 4px solid #3498db; background: #f8f9fa; }
+.positive { border-left-color: #27ae60; }
+.negative { border-left-color: #e74c3c; }
+.neutral { border-left-color: #95a5a6; }
+.source { font-size: 0.9em; color: #7f8c8d; }
+.key-points { margin-top: 10px; }
+.key-points li { margin: 5px 0; }
+</style>
+</head>
+<body>
+<h1>News Report - ${timeframe}</h1>
+<p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+
+        ${reportData.map(topic => `
+          <h2>${topic.topic}</h2>
+          <div class="topic-summary">
+            <p><strong>Articles Analyzed:</strong> ${topic.articles.length}</p>
+            <p><strong>Overall Trend:</strong> ${topic.summary.trend}</p>
+            <p><strong>Key Themes:</strong> ${topic.summary.themes.join(', ')}</p>
+          </div>
+
+          ${topic.articles.map(article => `
+            <div class="article ${article.sentiment}">
+              <h3>${article.headline}</h3>
+              <p class="source">Source: ${article.source}</p>
+              <div class="key-points">
+                <strong>Key Points:</strong>
+                <ul>
+                  ${article.keyPoints.map(point => `<li>${point}</li>`).join('')}
+                </ul>
+              </div>
+              <p><strong>Impact:</strong> ${article.impact}</p>
+            </div>
+          `).join('')}
+        `).join('')}
+      </body>
+    </html>
+
+`;
+}
+
+```python Python News Extraction
+import requests
+
+def extract_news_article(article_url):
+    api_key = "your_api_key_here"
+
+    news_schema = {
+        "type": "object",
+        "properties": {
+            "headline": {"type": "string"},
+            "author": {"type": "string"},
+            "publishDate": {"type": "string"},
+            "category": {"type": "string"},
+            "summary": {"type": "string", "maxLength": 300},
+            "keyPoints": {"type": "array", "items": {"type": "string"}},
+            "quotes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string"},
+                        "speaker": {"type": "string"}
+                    }
+                }
+            },
+            "readingTime": {"type": "number"},
+            "credibilityScore": {"type": "number", "minimum": 1, "maximum": 10}
+        },
+        "required": ["headline", "publishDate", "summary"]
+    }
+
+    response = requests.post(
+        'https://api.weblinq.dev/v1/web/extract-json',
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'url': article_url,
+            'response_format': {
+                'type': 'json_schema',
+                'json_schema': news_schema
+            },
+            'prompt': 'Extract comprehensive news article information'
+        }
+    )
+
+    data = response.json()
+    if not data['success']:
+        raise Exception(data.get('error', {}).get('message', 'Failed to extract'))
+
+    return data['data']['extracted']
+````
+
+</CodeGroup>
+
+## Real-time Source Monitoring
+
+Monitor specific news sources for new content:
+
+<CodeGroup>
+```javascript Source Monitor
+async function monitorNewsSources(sources, categories = []) {
+  const apiKey = process.env.WEBLINQ_API_KEY;
+  const baseUrl = 'https://api.weblinq.dev/v1';
+
+const results = [];
+
+for (const source of sources) {
+try {
+// Extract all news links from the homepage
+const linksResponse = await fetch(`${baseUrl}/web/links`, {
+method: 'POST',
+headers: {
+'Authorization': `Bearer ${apiKey}`,
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({
+url: source.url,
+includeExternal: false,
+visibleLinksOnly: true
+})
+});
+
+      const linksData = await linksResponse.json();
+
+      if (!linksData.success) continue;
+
+      // Filter for article links
+      const articleLinks = linksData.data.links.filter(link =>
+        link.url.match(/\/(article|story|news|post)\//) ||
+        link.url.match(/\/\d{4}\/\d{2}\/\d{2}\//) // Date-based URLs
+      );
+
+      // Extract headlines and metadata
+      const sourceSchema = {
+        type: "object",
+        properties: {
+          topStories: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                headline: { type: "string" },
+                category: { type: "string" },
+                publishTime: { type: "string" },
+                urgency: { type: "string", enum: ["low", "medium", "high"] }
               }
             }
-          }
+          },
+          breakingNews: { type: "array", items: { type: "string" } },
+          trendingTopics: { type: "array", items: { type: "string" } }
         }
+      };
+
+      const extractResponse = await fetch(`${baseUrl}/web/extract-json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: source.url,
+          response_format: {
+            type: "json_schema",
+            json_schema: sourceSchema
+          },
+          prompt: "Extract current top stories, breaking news, and trending topics from this news homepage"
+        })
       });
 
-      articles.push(...response.articles.filter(article =>
-        article.title.toLowerCase().includes(keyword.toLowerCase())
-      ));
+      const extractData = await extractResponse.json();
+
+      results.push({
+        source: source.name,
+        url: source.url,
+        articles: articleLinks.slice(0, 15),
+        metadata: extractData.success ? extractData.data.extracted : null,
+        scannedAt: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error(`Error monitoring ${source.name}:`, error);
     }
 
-    return articles;
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
 }
 
-async analyzeTrend(keyword, articles) {
-const timeline = this.buildTimeline(articles);
-const sentiment = await this.analyzeSentiment(articles);
-const relatedTerms = this.findRelatedTerms(articles);
-
-    return {
-      keyword,
-      articleCount: articles.length,
-      timeline,
-      sentiment,
-      relatedTerms
-    };
-
+return {
+sources: sources.map(s => s.name),
+results,
+summary: {
+totalArticles: results.reduce((sum, r) => sum + r.articles.length, 0),
+breakingNewsCount: results.reduce((sum, r) =>
+sum + (r.metadata?.breakingNews?.length || 0), 0
+),
+activeSources: results.filter(r => r.articles.length > 0).length
+}
+};
 }
 
-buildTimeline(articles) {
-const timeline = new Map();
-
-    for (const article of articles) {
-      const date = new Date(article.date).toISOString().split('T')[0];
-      timeline.set(date, (timeline.get(date) || 0) + 1);
-    }
-
-    return Object.fromEntries(timeline);
-
-}
-
-findRelatedTerms(articles) {
-const terms = new Map();
-
-    for (const article of articles) {
-      const words = article.title.toLowerCase().split(/\W+/);
-
-      for (const word of words) {
-        if (word.length > 3) {  // Skip short words
-          terms.set(word, (terms.get(word) || 0) + 1);
-        }
-      }
-    }
-
-    return Array.from(terms.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([term, count]) => ({ term, count }));
-
-}
-}
-
-// Usage
-const analyzer = new TrendAnalyzer('YOUR_API_KEY');
-
-const sources = [
-'https://news-site.com/tech',
-'https://another-news.com/technology'
+// Usage with major news sources
+const newsSources = [
+{ name: 'CNN', url: 'https://cnn.com' },
+{ name: 'BBC', url: 'https://bbc.com/news' },
+{ name: 'Reuters', url: 'https://reuters.com' },
+{ name: 'AP News', url: 'https://apnews.com' }
 ];
 
-const trend = await analyzer.trackTrend('artificial intelligence', sources);
-console.log(trend);
+const sourceUpdate = await monitorNewsSources(newsSources);
 
-````
-
-```python Python
-from collections import defaultdict
-from datetime import datetime
-from typing import Dict, List
-
-class TrendAnalyzer:
-    def __init__(self, api_key: str):
-        self.client = WebLinq(api_key)
-        self.trends: Dict[str, dict] = {}
-
-    async def track_trend(self, keyword: str, sources: List[str]) -> dict:
-        articles = await self.search_articles(keyword, sources)
-        analysis = await self.analyze_trend(keyword, articles)
-
-        self.trends[keyword] = {
-            'keyword': keyword,
-            'analysis': analysis,
-            'timestamp': datetime.now().isoformat()
-        }
-
-        return analysis
-
-    async def search_articles(self, keyword: str, sources: List[str]) -> List[dict]:
-        articles = []
-
-        for source in sources:
-            response = await self.client.extract({
-                'url': source,
-                'selectors': {
-                    'articles': {
-                        'selector': '.article-item',
-                        'type': 'list',
-                        'data': {
-                            'title': '.article-title',
-                            'date': '.article-date',
-                            'url': {
-                                'selector': 'a',
-                                'attr': 'href'
-                            }
-                        }
-                    }
-                }
-            })
-
-            articles.extend([
-                article for article in response['articles']
-                if keyword.lower() in article['title'].lower()
-            ])
-
-        return articles
-
-    async def analyze_trend(self, keyword: str, articles: List[dict]) -> dict:
-        timeline = self.build_timeline(articles)
-        sentiment = await self.analyze_sentiment(articles)
-        related_terms = self.find_related_terms(articles)
-
-        return {
-            'keyword': keyword,
-            'article_count': len(articles),
-            'timeline': timeline,
-            'sentiment': sentiment,
-            'related_terms': related_terms
-        }
-
-    def build_timeline(self, articles: List[dict]) -> Dict[str, int]:
-        timeline = defaultdict(int)
-
-        for article in articles:
-            date = datetime.fromisoformat(article['date']).date().isoformat()
-            timeline[date] += 1
-
-        return dict(timeline)
-
-    def find_related_terms(self, articles: List[dict]) -> List[dict]:
-        from collections import Counter
-        import re
-
-        terms = Counter()
-
-        for article in articles:
-            words = re.findall(r'\w+', article['title'].lower())
-            terms.update(word for word in words if len(word) > 3)
-
-        return [
-            {'term': term, 'count': count}
-            for term, count in terms.most_common(10)
-        ]
-
-# Usage
-async def main():
-    analyzer = TrendAnalyzer('YOUR_API_KEY')
-
-    sources = [
-        'https://news-site.com/tech',
-        'https://another-news.com/technology'
-    ]
-
-    trend = await analyzer.track_trend('artificial intelligence', sources)
-    print(json.dumps(trend, indent=2))
-
-asyncio.run(main())
-````
+```
 
 </CodeGroup>
 
-## Best Practices
+## API Coverage for News
 
-### Content Deduplication
+<AccordionGroup>
+<Accordion title="🔍 Search API">
+Find the latest news articles across multiple sources and topics.
+</Accordion>
 
-```javascript
-class ContentDeduplicator {
-  constructor() {
-    this.articles = new Map();
-  }
+<Accordion title="📄 Markdown API">
+  Extract clean, readable content from news articles without ads or clutter.
+</Accordion>
 
-  async isDuplicate(article) {
-    const hash = this.hashContent(article.content);
-    const similarity = this.findSimilarContent(article.content);
+<Accordion title="🤖 Extract JSON API">
+  Use structured schemas to extract headlines, quotes, entities, and sentiment from news.
+</Accordion>
 
-    if (this.articles.has(hash) || similarity > 0.8) {
-      return true;
-    }
+<Accordion title="🔗 Links API">Monitor news homepages and discover new articles as they're published.</Accordion>
 
-    this.articles.set(hash, {
-      url: article.url,
-      timestamp: Date.now(),
-    });
+<Accordion title="📸 Screenshot API">Capture visual records of breaking news for archival and verification.</Accordion>
 
-    return false;
-  }
+<Accordion title="📋 PDF API">
+Generate comprehensive news reports and summaries for distribution.
+</Accordion>
+</AccordionGroup>
 
-  hashContent(content) {
-    return crypto.createHash('sha256').update(this.normalizeContent(content)).digest('hex');
-  }
+<Tip>
+  **News Monitoring Pro Tip**: Combine search for discovery, extract-json for structured analysis, markdown for clean
+  content, and PDF for professional reports. This creates a complete news intelligence pipeline.
+</Tip>
 
-  normalizeContent(content) {
-    return content.toLowerCase().replace(/\s+/g, ' ').trim();
-  }
+<AccordionGroup>
+<Accordion title="📊 JSON Schema for News">
+- **Database integration** for news aggregation systems
+- **Consistent metadata** across multiple sources
+- **Automated categorization** and tagging
+- **Structured fact-checking** workflows
+- **Search and filtering** by specific fields
+</Accordion>
 
-  findSimilarContent(content) {
-    // Implement fuzzy matching or similarity scoring
-    return 0;
-  }
-}
+<Accordion title="📝 Text Response for News">
+- **Editorial analysis** and bias detection
+- **Context and background** explanation
+- **Audience-specific summaries** (executive, general, technical)
+- **Creative rewrites** for different platforms
+- **Critical thinking** and media literacy analysis
+</Accordion>
+</AccordionGroup>
 ```
-
-### Error Handling
-
-```javascript
-class NewsScraperError extends Error {
-  constructor(message, type, url) {
-    super(message);
-    this.name = 'NewsScraperError';
-    this.type = type;
-    this.url = url;
-  }
-}
-
-class ErrorHandler {
-  constructor() {
-    this.errors = [];
-  }
-
-  async withRetry(fn, options = {}) {
-    const { retries = 3, delay = 1000 } = options;
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        return await fn();
-      } catch (error) {
-        this.logError(error);
-
-        if (i === retries - 1) throw error;
-
-        await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
-      }
-    }
-  }
-
-  logError(error) {
-    this.errors.push({
-      timestamp: new Date().toISOString(),
-      error: error.message,
-      type: error.type,
-      url: error.url,
-    });
-  }
-}
-```
-
-## Summary
-
-<Steps>
-  <Step title="Extract Content">Implement article scraping and feed monitoring</Step>
-
-  <Step title="Analyze Content">Add sentiment analysis and trend tracking</Step>
-
-  <Step title="Handle Duplicates">Implement content deduplication</Step>
-
-  <Step title="Manage Errors">Add proper error handling and retries</Step>
-</Steps>
-
-<Note>Need help implementing news extraction? Contact our [support team](/support/contact) for assistance.</Note>{' '}

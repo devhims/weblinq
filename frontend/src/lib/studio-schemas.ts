@@ -176,7 +176,7 @@ export const JsonExtractionRequestSchema = z
 
 export const SearchRequestSchema = z.object({
   query: z.string().min(1),
-  limit: z.number().int().min(1).max(20).optional().default(10),
+  limit: z.number().int().min(1).max(10).optional().default(10),
 });
 
 export const PdfRequestSchema = z.object({

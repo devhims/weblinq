@@ -125,7 +125,7 @@ export const linksInputSchema = z.object({
 
 const searchInputSchema = z.object({
   query: z.string().min(1).max(500),
-  limit: z.number().min(1).max(20).optional().default(10),
+  limit: z.number().min(1).max(10).optional().default(5),
 });
 
 // Output schemas

@@ -426,7 +426,7 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
 
           <div className="flex flex-col space-y-2">
             <Label htmlFor="search-limit" className="text-sm sm:text-base font-medium">
-              Results (1-20)
+              Results (1-10)
             </Label>
             <div className="flex space-x-2">
               <Input
@@ -436,8 +436,8 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
                 onChange={(e) => onLimitChange(e.target.value)}
                 placeholder="10"
                 min="1"
-                max="20"
-                title="Enter a number between 1 and 20"
+                max="10"
+                title="Enter a number between 1 and 10"
                 className="text-sm sm:text-base h-9"
               />
               <Button

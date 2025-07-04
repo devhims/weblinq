@@ -103,7 +103,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   visibleLinksOnly: false,
 
   // Search Settings
-  defaultSearchLimit: 15,
+  defaultSearchLimit: 10,
   preferredSearchEngine: 'duckduckgo',
 
   // Performance & Limits

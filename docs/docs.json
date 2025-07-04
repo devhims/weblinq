@@ -30,14 +30,14 @@
           {
             "group": "Guides",
             "pages": [
-              "examples",
+              "guides/examples",
               {
                 "group": "Use Cases",
                 "pages": ["guides/e-commerce", "guides/news-extraction", "guides/social-media"]
               },
               {
                 "group": "Best Practices",
-                "pages": ["guides/security", "guides/rate-limiting", "guides/error-handling", "guides/performance"]
+                "pages": ["guides/security", "guides/rate-limiting", "guides/error-handling"]
               }
             ]
           }
