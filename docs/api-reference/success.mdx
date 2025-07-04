@@ -3,8 +3,6 @@ title: 'Success Responses'
 description: 'Understanding successful WebLinq API responses'
 ---
 
-# Success Responses
-
 All successful WebLinq API responses follow a consistent format for predictable handling across all endpoints.
 
 ## Standard Format
@@ -33,11 +31,13 @@ Every successful response (HTTP status `2xx`) uses this structure:
 
 ### Screenshot Response
 
+<Info>The `image` field is present only when `base64` is `true` in the request.</Info>
+
 ```json
 {
   "success": true,
   "data": {
-    "image": "iVBORw0KGgoAAAANSUhEUgAAA...",
+    "image": "iVBORw0KGgoAAAANSUhEUgAAA...", // Base-64, present only when requested
     "metadata": {
       "width": 1920,
       "height": 1080,

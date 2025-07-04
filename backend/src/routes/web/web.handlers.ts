@@ -42,72 +42,72 @@ function getWebDurableObject(c: { env: CloudflareBindings }, userId: string): Du
 }
 
 /**
- * Screenshot endpoint - Capture webpage screenshots
+ * Screenshot endpoint – captures a webpage screenshot
+ *
+ * Binary (`Uint8Array`) is the default.  A base-64 JSON envelope is produced
+ * only when the client:
+ *   • passes `"base64": true` in the body   – or –
+ *   • sends   Accept: application/json
  */
 export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
   try {
     const user = c.get('user')!; // requireAuth ensures user exists
     const body = c.req.valid('json');
 
-    console.log('🎯 Screenshot request started:', { userId: user.id, url: body.url });
+    const acceptHdr = c.req.header('Accept') ?? '';
+    const wantsBase64 = body.base64 === true || acceptHdr.includes('application/json');
+    const wantsBinary = !wantsBase64; // binary is the default
 
-    // Check if client prefers binary response via Accept header or explicit parameter
-    const acceptHeader = c.req.header('Accept');
-    const prefersBinary = acceptHeader?.includes('image/') || body.base64 === false;
+    console.log('🎯 Screenshot', {
+      userId: user.id,
+      url: body.url,
+      wantsBase64,
+      acceptHdr,
+    });
 
-    console.log('📋 Request details:', { prefersBinary, acceptHeader, bodyBase64: body.base64 });
+    /* ------------------------------------------------------------------ */
+    /* 1. get binary from the Durable Object (always)                      */
+    /* ------------------------------------------------------------------ */
+    const webDO = getWebDurableObject(c, user.id);
+    await webDO.initializeUser(user.id);
 
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
-
-    console.log('🚀 Calling Durable Object screenshotV1 method...');
-
-    // Always request binary data from screenshotV1 for R2 storage
-    const screenshotParams = {
-      ...body,
-      base64: false, // Always get binary for R2 storage
-    };
-    const result = await webDurableObject.screenshotV1(screenshotParams);
+    const result = await webDO.screenshotV1({ ...body, base64: false });
 
     if (!result.success) {
       console.error('📤 Screenshot failed:', result.error);
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
 
-    console.log('📊 Screenshot result:', {
-      success: result.success,
-      imageType: typeof result.data.image,
-      imageSize: result.data.image instanceof Uint8Array ? result.data.image.length : result.data.image.length,
-      format: result.data.metadata.format,
-    });
-
-    // Try to store in R2 and create permanent URL (if SQLite is available)
+    /* ------------------------------------------------------------------ */
+    /* 2. Persist to R2 (optional)                                         */
+    /* ------------------------------------------------------------------ */
     let permanentUrl: string | undefined;
     let fileId: string | undefined;
 
     if (result.data.image instanceof Uint8Array) {
       try {
-        console.log('🗄️ Attempting to store screenshot in R2...');
-        const storageResult = await webDurableObject.storeFileAndCreatePermanentUrl(
+        const stored = await webDO.storeFileAndCreatePermanentUrl(
           result.data.image,
           body.url,
           'screenshot',
           result.data.metadata,
           result.data.metadata.format,
         );
-        permanentUrl = storageResult.permanentUrl;
-        fileId = storageResult.fileId;
-        console.log('✅ Screenshot stored in R2:', { fileId, permanentUrl });
-      } catch (storageError) {
-        console.error('❌ Failed to store screenshot in R2:', storageError);
-        // Continue without permanent URL - don't fail the entire operation
+        permanentUrl = stored.permanentUrl;
+        fileId = stored.fileId;
+      } catch (err) {
+        console.error('❌ R2 store failed:', err); // non-fatal
       }
     }
 
-    // Handle binary response for optimal performance
-    if (prefersBinary && result.data.image instanceof Uint8Array) {
-      // Return binary data directly
-      return new Response(result.data.image as any, {
+    /* ------------------------------------------------------------------ */
+    /* 3. Send the response in the format the caller wants                 */
+    /* ------------------------------------------------------------------ */
+
+    // 3a.  Binary (default path)
+    if (wantsBinary && result.data.image instanceof Uint8Array) {
+      const binaryBody = result.data.image.buffer as ArrayBuffer; // <- Cast via ArrayBuffer
+      return new Response(binaryBody, {
         status: HttpStatusCodes.OK,
         headers: {
           'Content-Type': `image/${result.data.metadata.format}`,
@@ -115,15 +115,14 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
           'Content-Disposition': `inline; filename="screenshot.${result.data.metadata.format}"`,
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Metadata': JSON.stringify(result.data.metadata),
-          'X-Permanent-Url': permanentUrl || '',
-          'X-File-Id': fileId || '',
+          'X-Permanent-Url': permanentUrl ?? '',
+          'X-File-Id': fileId ?? '',
         },
       });
     }
 
-    // For JSON response, ensure we have base64 data
-    if (result.data.image instanceof Uint8Array) {
-      // Convert to base64 for JSON response
+    // 3b.  Base-64 envelope (only when asked for)
+    if (wantsBase64 && result.data.image instanceof Uint8Array) {
       const base64Image = Buffer.from(result.data.image).toString('base64');
       return c.json(
         {
@@ -139,27 +138,17 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
       );
     }
 
-    // JSON response (already base64) - shouldn't happen with our current logic
-    console.log('📤 Returning JSON response');
-    return c.json(
-      {
-        ...result,
-        data: {
-          ...result.data,
-          permanentUrl,
-          fileId,
-        },
-      },
-      HttpStatusCodes.OK,
-    );
+    /* 3c. Fallback – should never hit this with current logic            */
+    console.warn('⚠️ unexpected data type for screenshot response');
+    return c.json({ ...result, data: { ...result.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Screenshot error:', error);
-    const errorResponse = createStandardErrorResponse(
+    const errResp = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
-    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
-      'X-Request-ID': errorResponse.error.requestId!,
+    return c.json(errResp, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errResp.error.requestId!,
     });
   }
 };
@@ -333,64 +322,64 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
  */
 export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
   try {
-    const user = c.get('user')!; // requireAuth ensures user exists
+    const user = c.get('user')!;
     const body = c.req.valid('json');
 
-    // Check if client prefers binary response via Accept header or explicit parameter
-    const acceptHeader = c.req.header('Accept');
-    const prefersBinary = acceptHeader?.includes('application/pdf') || body.base64 === false;
+    const acceptHdr = c.req.header('Accept') ?? '';
+    const wantsBase64 = body.base64 === true || acceptHdr.includes('application/json');
+    const wantsBinary = !wantsBase64;
 
-    console.log('🚀 Calling Durable Object pdfV1 method...');
+    console.log('🚀 PDF request', {
+      userId: user.id,
+      url: body.url,
+      wantsBase64,
+      acceptHdr,
+    });
 
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
+    /* ------------------------------------------------------------------ */
+    /* 1. Fetch binary from Durable Object                                */
+    /* ------------------------------------------------------------------ */
+    const webDO = getWebDurableObject(c, user.id);
+    await webDO.initializeUser(user.id);
 
-    // Always request binary data from pdfV1 for R2 storage
-    const pdfParams = {
-      ...body,
-      base64: false, // Always get binary for R2 storage
-    };
-    const result = await webDurableObject.pdfV1(pdfParams);
+    const result = await webDO.pdfV1({ ...body, base64: false });
 
     if (!result.success) {
       console.error('📤 PDF generation failed:', result.error);
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
 
-    console.log('📊 PDF result:', {
-      success: result.success,
-      pdfType: typeof result.data.pdf,
-      pdfSize: result.data.pdf instanceof Uint8Array ? result.data.pdf.length : result.data.pdf.length,
-      metadata: result.data.metadata,
-    });
-
-    // Try to store in R2 and create permanent URL (if SQLite is available)
+    /* ------------------------------------------------------------------ */
+    /* 2. Optional R2 persistence                                         */
+    /* ------------------------------------------------------------------ */
     let permanentUrl: string | undefined;
     let fileId: string | undefined;
 
     if (result.data.pdf instanceof Uint8Array) {
       try {
-        console.log('🗄️ Attempting to store PDF in R2...');
-        const storageResult = await webDurableObject.storeFileAndCreatePermanentUrl(
+        const stored = await webDO.storeFileAndCreatePermanentUrl(
           result.data.pdf,
           body.url,
           'pdf',
           result.data.metadata,
           'pdf',
         );
-        permanentUrl = storageResult.permanentUrl;
-        fileId = storageResult.fileId;
-        console.log('✅ PDF stored in R2:', { fileId, permanentUrl });
-      } catch (storageError) {
-        console.error('❌ Failed to store PDF in R2:', storageError);
-        // Continue without permanent URL - don't fail the entire operation
+        permanentUrl = stored.permanentUrl;
+        fileId = stored.fileId;
+      } catch (e) {
+        console.error('❌ R2 store failed:', e); // non-fatal
       }
     }
 
-    // Handle binary response for optimal performance
-    if (prefersBinary && result.data.pdf instanceof Uint8Array) {
-      // Return binary data directly
-      return new Response(result.data.pdf as any, {
+    /* ------------------------------------------------------------------ */
+    /* 3. Respond in the requested format                                 */
+    /* ------------------------------------------------------------------ */
+
+    // 3a. Binary  (default)
+    if (wantsBinary && result.data.pdf instanceof Uint8Array) {
+      const binaryBody = result.data.pdf as unknown as BodyInit; // safe cast
+
+      return new Response(binaryBody, {
         status: HttpStatusCodes.OK,
         headers: {
           'Content-Type': 'application/pdf',
@@ -398,16 +387,16 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
           'Content-Disposition': 'attachment; filename="page.pdf"',
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Metadata': JSON.stringify(result.data.metadata),
-          'X-Permanent-Url': permanentUrl || '',
-          'X-File-Id': fileId || '',
+          'X-Permanent-Url': permanentUrl ?? '',
+          'X-File-Id': fileId ?? '',
         },
       });
     }
 
-    // For JSON response, ensure we have base64 data
-    if (result.data.pdf instanceof Uint8Array) {
-      // Convert to base64 for JSON response
+    // 3b. Base-64  (only when asked for)
+    if (wantsBase64 && result.data.pdf instanceof Uint8Array) {
       const base64Pdf = Buffer.from(result.data.pdf).toString('base64');
+
       return c.json(
         {
           ...result,
@@ -422,27 +411,16 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
       );
     }
 
-    // JSON response (already base64) - shouldn't happen with our current logic
-    console.log('📤 Returning JSON response');
-    return c.json(
-      {
-        ...result,
-        data: {
-          ...result.data,
-          permanentUrl,
-          fileId,
-        },
-      },
-      HttpStatusCodes.OK,
-    );
+    /* 3c. Fallback – should never hit */
+    return c.json({ ...result, data: { ...result.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('PDF error:', error);
-    const errorResponse = createStandardErrorResponse(
+    const errResp = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
-    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
-      'X-Request-ID': errorResponse.error.requestId!,
+    return c.json(errResp, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errResp.error.requestId!,
     });
   }
 };

@@ -10,6 +10,9 @@ const tags = ['Web'];
 // Common security requirement for all web routes
 const security = [{ bearerAuth: [] }];
 
+// A tiny helper for binary bodies
+const binarySchema = z.string().openapi({ type: 'string', format: 'binary' }).describe('Raw bytes; default response.');
+
 /**
  * request/response contracts (schemas) for web routes
  * any change to the Zod route schemas instantly propagates to handlers
@@ -37,8 +40,7 @@ export const screenshotInputSchema = z.object({
           scale: z.number().min(0.1).max(10).optional(),
         })
         .optional(),
-      // Note: While this option is accepted for Puppeteer compatibility,
-      // the API always returns base64-encoded images regardless of this setting
+
       encoding: z.enum(['binary', 'base64']).optional().default('binary'),
       fromSurface: z.boolean().optional(),
       fullPage: z.boolean().optional().default(true),
@@ -131,7 +133,7 @@ const searchInputSchema = z.object({
 // Output schemas
 const screenshotOutputSchema = createStandardSuccessSchema(
   z.object({
-    image: z.string().describe('Base64 encoded image'),
+    image: z.string().describe('Base-64 image. Present only when `"base64": true`.').optional(),
     metadata: z.object({
       width: z.number(),
       height: z.number(),
@@ -140,7 +142,7 @@ const screenshotOutputSchema = createStandardSuccessSchema(
       url: z.string(),
       timestamp: z.string(),
     }),
-    permanentUrl: z.string().optional().describe('Permanent R2 storage URL for the image'),
+    permanentUrl: z.string().url().optional().describe('Permanent R2 storage URL for the image'),
     fileId: z.string().optional().describe('Unique file ID for tracking'),
   }),
 );
@@ -257,7 +259,7 @@ export const pdfInputSchema = z.object({
 // PDF output schema
 const pdfOutputSchema = createStandardSuccessSchema(
   z.object({
-    pdf: z.string().describe('Base64 encoded PDF'),
+    pdf: z.string().describe('Base-64 PDF. Present only when `"base64": true`.').optional(),
     metadata: z.object({
       size: z.number(),
       url: z.string(),
@@ -274,13 +276,23 @@ export const screenshot = createRoute({
   method: 'post',
   tags,
   security,
-  summary: 'Take a screenshot of a web page',
+  summary: 'Capture screenshot of a web page',
   description: 'Capture a screenshot of the specified URL with optional configuration',
   request: {
     body: jsonContentRequired(screenshotInputSchema, 'Screenshot parameters'),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(screenshotOutputSchema, 'Screenshot captured successfully'),
+    [HttpStatusCodes.OK]: {
+      description: 'Screenshot captured successfully',
+      content: {
+        'application/json': {
+          schema: screenshotOutputSchema,
+        },
+        'image/png': {
+          schema: binarySchema,
+        },
+      },
+    },
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(screenshotInputSchema), 'Validation error'),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
@@ -409,7 +421,19 @@ export const pdf = createRoute({
     body: jsonContentRequired(pdfInputSchema, 'PDF generation parameters'),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(pdfOutputSchema, 'PDF generated successfully'),
+    [HttpStatusCodes.OK]: {
+      description: 'PDF generated successfully',
+      content: {
+        // base-64 envelope (opt-in)
+        'application/json': {
+          schema: pdfOutputSchema,
+        },
+        // binary default
+        'application/pdf': {
+          schema: binarySchema,
+        },
+      },
+    },
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(pdfInputSchema), 'Validation error'),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),

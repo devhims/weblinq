@@ -174,19 +174,8 @@ export const ERROR_CODES = {
  * @param dataSchema - The Zod schema for the response data
  * @returns A standardized success response schema with proper TypeScript validation
  */
-export function createStandardSuccessSchema<T extends z.ZodTypeAny>(
-  dataSchema: T,
-): z.ZodObject<{
-  success: z.ZodLiteral<true>;
-  data: T;
-  creditsCost: z.ZodOptional<z.ZodNumber>;
-  requestId: z.ZodString;
-  timestamp: z.ZodString;
-}> {
-  // Validate that we have a proper data schema
-  if (!dataSchema) {
-    throw new Error('dataSchema is required for createStandardSuccessSchema');
-  }
+export function createStandardSuccessSchema<T extends z.ZodTypeAny>(dataSchema: T) {
+  if (!dataSchema) throw new Error('dataSchema is required');
 
   return z.object({
     success: z.literal(true),

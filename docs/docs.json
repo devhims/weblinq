@@ -66,11 +66,11 @@
         "groups": [
           {
             "group": "Support",
-            "pages": ["support/faq", "support/troubleshooting", "support/contact"]
+            "pages": ["support/faq", "support/contact"]
           },
           {
             "group": "Legal",
-            "pages": ["legal/terms", "legal/privacy", "legal/acceptable-use"]
+            "pages": ["legal/terms", "legal/privacy-policy"]
           }
         ]
       }
