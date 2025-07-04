@@ -118,7 +118,7 @@ export default async function HomePage() {
                   as="h1"
                   className="mt-8 font-medium text-balance text-4xl md:text-6xl lg:mt-16 xl:text-7xl"
                 >
-                  Linking AI agentsƒ to the web
+                  Linking AI agents to the web
                 </TextEffect>
 
                 <TextEffect

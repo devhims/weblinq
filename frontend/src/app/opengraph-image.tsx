@@ -37,11 +37,11 @@ export default async function Image() {
           }}
         >
           <img
-            src="https://weblinq.dev/logo.png"
+            src="https://weblinq.dev/logo2.png"
             alt="WebLinq"
             style={{
-              width: '300px',
-              height: '126px',
+              width: '320px',
+              height: '180px',
               marginBottom: '1rem',
             }}
           />

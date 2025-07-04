@@ -4,7 +4,7 @@ import Image from 'next/image';
 export const Logo = ({ className, uniColor }: { className?: string; uniColor?: boolean }) => {
   return (
     <Image
-      src="/logo.png"
+      src="/logo2.png"
       alt="Logo"
       width={128}
       height={128}
