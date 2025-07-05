@@ -164,8 +164,10 @@ async function handleSub(payload: any) {
     subscriptionId: payload.data.id,
     status, // normalised spelling
     plan: status === 'active' ? 'pro' : 'free',
+    startedAt: payload.data.startedAt ? new Date(payload.data.startedAt) : new Date(),
     currentPeriodStart: payload.data.currentPeriodStart ? new Date(payload.data.currentPeriodStart) : undefined,
     currentPeriodEnd: payload.data.currentPeriodEnd ? new Date(payload.data.currentPeriodEnd) : undefined,
+    cancelledAt: payload.data.cancelledAt ? new Date(payload.data.cancelledAt) : undefined,
   });
 
   console.log(`✅ Synced subscription ${payload.data.id} for ${userId}`);

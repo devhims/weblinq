@@ -6,6 +6,7 @@ import { createCustomerPortalSession } from '@/lib/payments/actions';
 import { authClient, useSession } from '@/lib/auth-client';
 import { Suspense } from 'react';
 import React from 'react';
+import { getUserCreditInfo } from '@/lib/payments/actions';
 
 function SubscriptionSkeleton() {
   return (
@@ -35,9 +36,9 @@ export function ManageSubscription() {
         const { data: state } = await authClient.customer.state();
         setCustomerState(state);
 
-        // 2️⃣ Credit cache from your DB (fast) – optional
-        const { balance } = await fetch('/api/user/credits').then((r) => r.json());
-        setCredits(balance);
+        // 2️⃣ Credit balance from server action (fast)
+        const creditInfo = await getUserCreditInfo();
+        setCredits(creditInfo?.credits?.balance || 0);
       } catch (err) {
         console.error('Billing fetch error', err);
       } finally {
