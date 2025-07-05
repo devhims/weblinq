@@ -2,13 +2,14 @@ import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/db';
-import {
-  sendEmail,
-  getVerificationEmailTemplate,
-  getPasswordResetEmailTemplate,
-  sendVerificationEmail,
-  sendPasswordResetEmail,
-} from './email';
+import { sendVerificationEmail, sendPasswordResetEmail } from './email';
+import { Polar } from '@polar-sh/sdk';
+import { createOrUpdatePolarSubscription } from '@/db/queries';
+import { polar, checkout, portal, usage, webhooks } from '@polar-sh/better-auth';
+
+/* ------------------------------------------------------------------ */
+/*  Env helpers                                                        */
+/* ------------------------------------------------------------------ */
 
 // Use VERCEL_ENV when it exists, otherwise fall back to NODE_ENV
 const runtimeEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
@@ -24,8 +25,16 @@ const FRONTEND_URL = isPreview
   : isProd
   ? `https://${productionHost}`
   : 'http://localhost:3000';
+
 const BACKEND_URL = isProd ? 'https://api.weblinq.dev' : 'http://localhost:8787';
+
 const SECRET = process.env.BETTER_AUTH_SECRET!;
+
+const polarClient = new Polar({
+  accessToken: process.env.POLAR_ACCESS_TOKEN!,
+  // Use 'sandbox' for testing, 'production' for live
+  server: process.env.POLAR_ENVIRONMENT === 'production' ? 'production' : 'sandbox',
+});
 
 /* ------------------------------------------------------------------ */
 /* 2.  Better Auth                                                     */
@@ -66,14 +75,14 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    sendResetPassword: async ({ user, url, token }, request) => {
+    sendResetPassword: async ({ user, url }) => {
       await sendPasswordResetEmail(url, user.email);
     },
   },
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, url, token }, request) => {
+    sendVerificationEmail: async ({ user, url }) => {
       console.log('Sending verification email with URL:', url);
       await sendVerificationEmail(url, user.email);
     },
@@ -91,8 +100,76 @@ export const auth = betterAuth({
   },
 
   /* Next-specific helper that refreshes React cache after auth events */
-  plugins: [nextCookies()],
+  plugins: [
+    polar({
+      client: polarClient,
+      createCustomerOnSignUp: true,
+      getCustomerCreateParams: async ({ user }) => ({
+        metadata: {
+          userId: user.id,
+          email: user.email,
+          createdAt: new Date().toISOString(),
+        },
+      }),
+      use: [
+        checkout({
+          products: [
+            {
+              productId: process.env.POLAR_PRO_PRODUCT_ID!, // Update this with your actual product ID from Polar
+              slug: 'pro', // Custom slug for easy reference in Checkout URL, e.g. /checkout/pro
+            },
+          ],
+          successUrl: '/success?checkout_id={CHECKOUT_ID}',
+          authenticatedUsersOnly: true,
+        }),
+        portal(),
+        usage(),
+        webhooks({
+          secret: process.env.POLAR_WEBHOOK_SECRET!,
+
+          /*  create / update / cancel use the same helper  */
+          onSubscriptionCreated: handleSub,
+          onSubscriptionUpdated: handleSub,
+          onSubscriptionCanceled: handleSub,
+
+          /* optional catch-all logger */
+          onPayload: async (payload) => {
+            // Optional: Log all webhook events for debugging (remove in production)
+            console.log('📨 Polar webhook received:', payload.type);
+          },
+        }),
+      ],
+    }),
+    nextCookies(),
+  ],
 });
+
+/* ------------------------------------------------------------------ */
+/*  Webhook handler shared by create / update / cancel                 */
+/* ------------------------------------------------------------------ */
+
+async function handleSub(payload: any) {
+  const rawStatus: string = payload.data.status; // 'active' | 'canceled' | …
+  const status = rawStatus === 'canceled' ? 'cancelled' : (rawStatus as any);
+
+  const userId = (payload.data.customer?.metadata?.userId as string) ?? (payload.data.customer?.externalId as string);
+
+  if (!userId) {
+    console.error('❌ User ID missing in webhook payload');
+    return;
+  }
+
+  await createOrUpdatePolarSubscription({
+    userId,
+    subscriptionId: payload.data.id,
+    status, // normalised spelling
+    plan: status === 'active' ? 'pro' : 'free',
+    currentPeriodStart: payload.data.currentPeriodStart ? new Date(payload.data.currentPeriodStart) : undefined,
+    currentPeriodEnd: payload.data.currentPeriodEnd ? new Date(payload.data.currentPeriodEnd) : undefined,
+  });
+
+  console.log(`✅ Synced subscription ${payload.data.id} for ${userId}`);
+}
 
 /* typed helpers you'll import elsewhere */
 export const { handler, api } = auth;

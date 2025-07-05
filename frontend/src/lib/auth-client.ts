@@ -1,3 +1,4 @@
+import { polarClient } from '@polar-sh/better-auth';
 import { createAuthClient } from 'better-auth/react';
 
 /* -------------------------------------------------------------------------
@@ -25,6 +26,7 @@ function resolveBaseURL(): string | undefined {
 export const authClient = createAuthClient({
   baseURL: resolveBaseURL(),
   fetchOptions: { credentials: 'include' },
+  plugins: [polarClient()],
 });
 
 /* 2.  Re-export the hooks & helpers Better Auth injects. */

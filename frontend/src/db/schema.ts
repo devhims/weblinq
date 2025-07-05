@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text, index } from 'drizzle-orm/sqlite-core';
 
 export const user = sqliteTable('user', {
   id: text('id').primaryKey(),
@@ -56,12 +56,8 @@ export const verification = sqliteTable('verification', {
   identifier: text('identifier').notNull(),
   value: text('value').notNull(),
   expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(
-    () => /* @__PURE__ */ new Date()
-  ),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(
-    () => /* @__PURE__ */ new Date()
-  ),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => /* @__PURE__ */ new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => /* @__PURE__ */ new Date()),
 });
 
 export const apikey = sqliteTable('apikey', {
@@ -77,9 +73,7 @@ export const apikey = sqliteTable('apikey', {
   refillAmount: integer('refill_amount'),
   lastRefillAt: integer('last_refill_at', { mode: 'timestamp' }),
   enabled: integer('enabled', { mode: 'boolean' }).default(true),
-  rateLimitEnabled: integer('rate_limit_enabled', { mode: 'boolean' }).default(
-    true
-  ),
+  rateLimitEnabled: integer('rate_limit_enabled', { mode: 'boolean' }).default(true),
   rateLimitTimeWindow: integer('rate_limit_time_window').default(86400000),
   rateLimitMax: integer('rate_limit_max').default(10),
   requestCount: integer('request_count'),
@@ -92,69 +86,97 @@ export const apikey = sqliteTable('apikey', {
   metadata: text('metadata'),
 });
 
-// Polar-specific subscription tracking
-export const polarSubscription = sqliteTable('polar_subscription', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
+/* ------------------------------------------------------------------ */
+/*  billing: subscriptions & payments                                  */
+/* ------------------------------------------------------------------ */
+
+export const subscriptions = sqliteTable(
+  'subscriptions',
+  {
+    /** Polar subscription id (primary key) */
+    id: text('id').primaryKey(),
+
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+
+    status: text('status', {
+      enum: ['active', 'cancelled', 'past_due', 'trialing', 'unpaid'],
+    }).notNull(),
+
+    /** Always "pro" for the paid plan */
+    plan: text('plan').notNull().default('pro'),
+
+    startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
+    cancelledAt: integer('cancelled_at', { mode: 'timestamp' }),
+    currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
+
+    /** Last time we synced data from Polar */
+    syncedAt: integer('synced_at', { mode: 'timestamp' })
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (t) => ({
+    idxStatus: index('sub_status').on(t.status),
+  }),
+);
+
+export const payments = sqliteTable('payments', {
+  id: text('id').primaryKey(), // Polar order / payment id
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  polarCustomerId: text('polar_customer_id').notNull(),
-  subscriptionId: text('subscription_id').notNull().unique(),
-  status: text('status').notNull(), // active, canceled, past_due, etc.
-  planName: text('plan_name').notNull(), // free, pro, enterprise
-  productId: text('product_id'),
-  currentPeriodStart: integer('current_period_start', { mode: 'timestamp' }),
-  currentPeriodEnd: integer('current_period_end', { mode: 'timestamp' }),
-  cancelAtPeriodEnd: integer('cancel_at_period_end', {
-    mode: 'boolean',
-  }).default(false),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
+
+  amountCents: integer('amount_cents').notNull(),
+  currency: text('currency').notNull().default('usd'),
+  billingCountry: text('billing_country'), // ISO-3166-1 alpha-2
+  paidAt: integer('paid_at', { mode: 'timestamp' }).notNull(),
+  type: text('type', { enum: ['charge', 'refund'] }).notNull(),
+});
+
+/* ------------------------------------------------------------------ */
+/*  credits                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Fast look-up table: one row per user. */
+export const creditBalances = sqliteTable('credit_balances', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+
+  /** 'free' | 'pro' (mirrors subscription state) */
+  plan: text('plan').notNull().default('free'),
+
+  /** Current spendable credits */
+  balance: integer('balance').notNull().default(1000),
+
+  /** Last time a monthly refill ran (null for free users) */
+  lastRefill: integer('last_refill', { mode: 'timestamp' }),
   updatedAt: integer('updated_at', { mode: 'timestamp' })
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
 });
 
-// User credits tracking (separate from auth)
-export const userCredits = sqliteTable('user_credits', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' })
-    .unique(), // One record per user
-  credits: integer('credits').notNull().default(1000), // Total credits
-  creditsUsed: integer('credits_used').notNull().default(0), // Used credits
-  planName: text('plan_name').notNull().default('free'), // Current plan
-  lastReset: integer('last_reset', { mode: 'timestamp' }).$defaultFn(
-    () => /* @__PURE__ */ new Date()
-  ),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' })
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
-
-// Credit usage history
-export const creditUsage = sqliteTable('credit_usage', {
-  id: text('id')
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
+/**
+ * Immutable ledger – every credit gain or spend is a row.
+ * Compute authoritative balance with SUM(delta).
+ */
+export const creditTransactions = sqliteTable('credit_transactions', {
+  id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  operation: text('operation').notNull(), // 'scrape', 'search', 'extract', etc.
-  creditsUsed: integer('credits_used').notNull(),
-  metadata: text('metadata'), // JSON string with operation details
+
+  /** +5000 monthly refill, -n per API call, etc. */
+  delta: integer('delta').notNull(),
+
+  /**
+   * reason: 'initial_free', 'monthly_refill', 'api_call', 'admin_adjust', …
+   */
+  reason: text('reason').notNull(),
+
+  metadata: text('metadata'), // JSON details (endpoint, request id, …)
   createdAt: integer('created_at', { mode: 'timestamp' })
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
 });
