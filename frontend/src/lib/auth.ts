@@ -119,7 +119,7 @@ export const auth = betterAuth({
               slug: 'pro', // Custom slug for easy reference in Checkout URL, e.g. /checkout/pro
             },
           ],
-          successUrl: '/success?checkout_id={CHECKOUT_ID}',
+          successUrl: '/dashboard/success?checkout_id={CHECKOUT_ID}',
           authenticatedUsersOnly: true,
         }),
         portal(),

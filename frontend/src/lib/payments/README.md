@@ -1,77 +1,108 @@
-# Stripe Payment Integration - Individual Customers
+# Polar Payment Integration - Individual Customers
 
-This implementation provides Stripe payment functionality for individual customers (no team structure).
+This implementation provides Polar payment functionality for individual customers using Better Auth integration.
 
-## Key Changes from Team-based Setup
+## Key Features
 
-1. **User-based subscriptions**: Each user has their own Stripe customer ID and subscription
-2. **Simplified schema**: Added Stripe fields directly to the user table
-3. **Database migration**: Use `npx drizzle-kit generate` and `npx drizzle-kit push` to apply schema changes
+1. **Credit-based billing system**: Users get credits that are consumed per API call
+2. **Polar checkout integration**: Seamless checkout experience via Polar
+3. **Webhook handling**: Automatic subscription and credit management
+4. **Customer portal**: Users can manage their subscriptions through Polar's portal
 
 ## Database Schema
 
-The `user` table now includes:
+The system uses several tables to manage billing:
 
-- `stripeCustomerId`: Unique Stripe customer ID
-- `stripeSubscriptionId`: Unique Stripe subscription ID
-- `stripeProductId`: Stripe product ID for the user's plan
-- `planName`: Human-readable plan name
-- `subscriptionStatus`: Current subscription status (active, trialing, canceled, etc.)
+- `subscriptions`: Stores Polar subscription data
+- `creditBalances`: Fast lookup table for user credit balances
+- `creditTransactions`: Immutable ledger of all credit transactions
+- `payments`: Payment records from Polar
 
 ## Usage Examples
 
-### Creating a Checkout Session
+### Initiating Checkout
 
 ```typescript
-import { createCheckoutSession } from '@/lib/payments/stripe';
-import { getUser } from '@/lib/db2/queries';
+import { authClient } from '@/lib/auth-client';
 
-// Get current user (you'll need to implement proper auth)
-const user = await getUser();
-
-// Create checkout session
-await createCheckoutSession({
-  user,
-  priceId: 'price_1234567890', // Your Stripe price ID
+// Direct checkout using Better Auth + Polar
+await authClient.checkout({
+  slug: 'pro', // Matches the slug configured in auth.ts
 });
 ```
 
-### Creating Customer Portal Session
+### Accessing Customer Portal
 
 ```typescript
-import { createCustomerPortalSession } from '@/lib/payments/stripe';
+import { authClient } from '@/lib/auth-client';
 
-const portalSession = await createCustomerPortalSession(user);
-// Redirect to portalSession.url
+// Redirect to Polar customer portal
+await authClient.customer.portal();
 ```
 
-### Handling Webhooks
+### Checking User Credits
 
 ```typescript
-import { handleSubscriptionChange } from '@/lib/payments/stripe';
+import { getUserCreditInfo } from '@/lib/payments/actions';
 
-// In your webhook handler
-await handleSubscriptionChange(stripeSubscription);
+const creditInfo = await getUserCreditInfo();
+console.log('Available credits:', creditInfo?.credits?.balance);
+```
+
+### Deducting Credits
+
+```typescript
+import { checkAndDeductCredits } from '@/lib/payments/actions';
+
+await checkAndDeductCredits('api_call', 1, {
+  endpoint: '/api/scrape',
+  url: 'https://example.com',
+});
 ```
 
 ## Required Environment Variables
 
 ```env
-STRIPE_SECRET_KEY=sk_test_...
-BASE_URL=http://localhost:3000
-TURSO_CONNECTION_URL=...
-TURSO_AUTH_TOKEN=...
+POLAR_ACCESS_TOKEN=polar_at_...
+POLAR_WEBHOOK_SECRET=whsec_...
+POLAR_PRO_PRODUCT_ID=01234567-89ab-cdef-0123-456789abcdef
+POLAR_ENVIRONMENT=sandbox # or 'production'
+BETTER_AUTH_SECRET=your_secret_here
 ```
 
-## TODO: Authentication Integration
+## Credit System
 
-The `getUser()` function in `src/lib/db2/queries.ts` needs to be implemented based on your authentication system. This should return the current authenticated user or null.
+- **Free plan**: 1,000 lifetime credits
+- **Pro plan**: 5,000 credits per month (auto-refilled)
+- **Credit costs**: Most operations cost 1 credit each
+
+## Webhook Handling
+
+The system automatically handles Polar webhooks for:
+
+- `subscription.created` → Add credits and update user plan
+- `subscription.updated` → Update subscription status
+- `subscription.canceled` → Downgrade user plan
 
 ## Migration
 
-To apply the schema changes to your database:
+The database schema is managed by Drizzle ORM. To apply changes:
 
 ```bash
+cd frontend
 npx drizzle-kit generate
 npx drizzle-kit push
+```
+
+## File Structure
+
+```
+frontend/src/lib/payments/
+├── actions.ts        # Server actions for payment operations
+└── README.md        # This file
+
+frontend/src/app/(dashboard)/dashboard/
+├── pricing/         # Pricing page and components
+├── billing/         # Billing management page
+└── success/         # Post-checkout success page
 ```

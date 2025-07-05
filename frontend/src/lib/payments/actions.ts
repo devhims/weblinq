@@ -16,19 +16,19 @@ async function getCurrentUser() {
 /* -------------------------------------------------- */
 /* 1. CHECKOUT (upgrade)                              */
 /* -------------------------------------------------- */
-export async function checkoutAction(formData: FormData) {
-  const plan = formData.get('plan');
-  if (plan !== 'pro') throw new Error('Only the “pro” plan is supported.');
+// export async function checkoutAction(formData: FormData) {
+//   const plan = formData.get('plan');
+//   if (plan !== 'pro') throw new Error('Only the “pro” plan is supported.');
 
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect('/auth/signin?callbackUrl=/pricing');
-    return;
-  }
+//   const user = await getCurrentUser();
+//   if (!user) {
+//     redirect('/auth/signin?callbackUrl=/pricing');
+//     return;
+//   }
 
-  /* built-in checkout route created by the plugin */
-  redirect('/api/auth/checkout/pro');
-}
+//   /* built-in checkout route created by the plugin */
+//   redirect('/api/auth/checkout/pro');
+// }
 
 /* -------------------------------------------------- */
 /* 2. CUSTOMER  PORTAL                                */
