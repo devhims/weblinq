@@ -47,12 +47,12 @@ async function checkCreditsAndAuth(operation: keyof typeof CREDIT_COSTS, metadat
 
   const creditsRequired = CREDIT_COSTS[operation];
 
-  // Check and deduct credits
-  const creditResult = await checkAndDeductCredits(operation, creditsRequired, metadata);
+  // returns { success, remaining }
+  const { remaining } = await checkAndDeductCredits(operation, creditsRequired, metadata);
 
   return {
     userId: session.user.id,
-    remainingCredits: creditResult.remainingCredits,
+    remainingCredits: remaining,
     creditsUsed: creditsRequired,
   };
 }
