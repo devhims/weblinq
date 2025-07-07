@@ -6,6 +6,8 @@ import { APIError } from 'better-auth/api';
 import { db } from '@/db';
 import { user } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { validatePassword } from '@/lib/utils/password-validation';
+import { headers } from 'next/headers';
 
 interface State {
   errorMessage?: string | null;
@@ -116,7 +118,7 @@ export async function signUp(prevState: State, formData: FormData) {
 
 export async function checkEmailExists(
   prevState: EmailCheckState,
-  formData: FormData
+  formData: FormData,
 ): Promise<EmailCheckState> {
   const email = formData.get('email') as string;
 
@@ -209,6 +211,19 @@ export async function unifiedSignUp(prevState: State, formData: FormData) {
 
   const { email, password, firstName, lastName } = rawFormData;
 
+  // Validate password before calling better-auth
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.isValid) {
+    return {
+      errorMessage: passwordValidation.errors.join(' '),
+    };
+  }
+
+  // Basic validation for required fields
+  if (!firstName?.toString().trim() || !lastName?.toString().trim()) {
+    return { errorMessage: 'First name and last name are required.' };
+  }
+
   try {
     await auth.api.signUpEmail({
       body: {
@@ -231,12 +246,14 @@ export async function unifiedSignUp(prevState: State, formData: FormData) {
                   body: { email },
                 });
                 redirect(
-                  `/verify-email?email=${encodeURIComponent(email)}&resent=true`
+                  `/verify-email?email=${encodeURIComponent(
+                    email,
+                  )}&resent=true`,
                 );
               } catch (emailError) {
                 console.error(
                   'Failed to resend verification email:',
-                  emailError
+                  emailError,
                 );
                 return {
                   errorMessage:
@@ -270,7 +287,7 @@ export async function unifiedSignUp(prevState: State, formData: FormData) {
 
 export async function sendEmailVerification(
   prevState: EmailVerificationState,
-  formData: FormData
+  formData: FormData,
 ): Promise<EmailVerificationState> {
   const email = formData.get('email') as string;
 
@@ -295,35 +312,8 @@ export async function sendEmailVerification(
   }
 }
 
-export async function verifyEmail(prevState: State, formData: FormData) {
-  const token = formData.get('token') as string;
-
-  if (!token) {
-    console.log('No token provided for verification');
-    return { errorMessage: 'Verification token is required.' };
-  }
-
-  console.log('Attempting to verify email with token:', token);
-
-  try {
-    const result = await auth.api.verifyEmail({
-      query: { token },
-    });
-    console.log('Email verification successful:', result);
-    redirect('/dashboard');
-  } catch (error) {
-    console.error('Email verification failed:', error);
-    if (error instanceof APIError) {
-      switch (error.status) {
-        case 'BAD_REQUEST':
-          return { errorMessage: 'Invalid or expired verification token.' };
-        default:
-          return { errorMessage: 'Email verification failed.' };
-      }
-    }
-    return { errorMessage: 'Email verification failed.' };
-  }
-}
+// Note: Email verification is now handled by /api/verify route
+// This keeps the codebase cleaner and provides consistent new user detection
 
 interface ForgotPasswordState {
   errorMessage?: string | null;
@@ -332,7 +322,7 @@ interface ForgotPasswordState {
 
 export async function forgotPassword(
   prevState: ForgotPasswordState,
-  formData: FormData
+  formData: FormData,
 ): Promise<ForgotPasswordState> {
   const email = formData.get('email') as string;
 
@@ -402,8 +392,12 @@ export async function resetPassword(prevState: State, formData: FormData) {
     return { errorMessage: 'New password is required.' };
   }
 
-  if (newPassword.length < 8) {
-    return { errorMessage: 'Password must be at least 8 characters long.' };
+  // Validate password using our comprehensive validation
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.isValid) {
+    return {
+      errorMessage: passwordValidation.errors.join(' '),
+    };
   }
 
   try {
@@ -426,7 +420,7 @@ export async function resetPassword(prevState: State, formData: FormData) {
     return { errorMessage: 'Password reset failed.' };
   }
   redirect(
-    '/sign-in?reset=success&message=Password+reset+successful.+Please+sign+in+with+your+new+password.'
+    '/sign-in?reset=success&message=Password+reset+successful.+Please+sign+in+with+your+new+password.',
   );
 }
 
@@ -434,4 +428,186 @@ export async function searchAccount(email: string) {
   const userInfo = await db.select().from(user).where(eq(user.email, email));
 
   return userInfo.length > 0 ? userInfo[0] : null;
+}
+
+// Additional auth actions moved from (login)/actions.ts
+
+export async function signOut(prevState: State, formData: FormData) {
+  try {
+    await auth.api.signOut({
+      headers: await headers(),
+    });
+  } catch (error) {
+    console.error('Sign out failed:', error);
+    return { errorMessage: 'Failed to sign out. Please try again.' };
+  }
+  redirect('/sign-in');
+}
+
+interface UpdatePasswordState {
+  currentPassword?: string;
+  newPassword?: string;
+  confirmPassword?: string;
+  errorMessage?: string;
+  successMessage?: string;
+}
+
+export async function updatePassword(
+  prevState: UpdatePasswordState,
+  formData: FormData,
+): Promise<UpdatePasswordState> {
+  const rawFormData = {
+    currentPassword: formData.get('currentPassword') as string,
+    newPassword: formData.get('newPassword') as string,
+    confirmPassword: formData.get('confirmPassword') as string,
+  };
+
+  const { currentPassword, newPassword, confirmPassword } = rawFormData;
+
+  // Basic validation
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    return {
+      ...rawFormData,
+      errorMessage: 'All fields are required.',
+    };
+  }
+
+  if (currentPassword === newPassword) {
+    return {
+      ...rawFormData,
+      errorMessage: 'New password must be different from the current password.',
+    };
+  }
+
+  if (confirmPassword !== newPassword) {
+    return {
+      ...rawFormData,
+      errorMessage: 'New password and confirmation password do not match.',
+    };
+  }
+
+  // Validate new password using our comprehensive validation
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.isValid) {
+    return {
+      ...rawFormData,
+      errorMessage: passwordValidation.errors.join(' '),
+    };
+  }
+
+  try {
+    // Get current user session
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session?.user) {
+      return {
+        ...rawFormData,
+        errorMessage: 'You must be signed in to change your password.',
+      };
+    }
+
+    // Verify current password first
+    const verifyResult = await auth.api.signInEmail({
+      body: {
+        email: session.user.email,
+        password: currentPassword,
+      },
+      headers: await headers(),
+    });
+
+    if (!verifyResult.user) {
+      return {
+        ...rawFormData,
+        errorMessage: 'Current password is incorrect.',
+      };
+    }
+
+    // Update the password using the change password endpoint
+    await auth.api.changePassword({
+      body: {
+        currentPassword,
+        newPassword,
+      },
+      headers: await headers(),
+    });
+
+    return {
+      successMessage: 'Password updated successfully.',
+    };
+  } catch (error) {
+    console.error('Password update failed:', error);
+    return {
+      ...rawFormData,
+      errorMessage: 'Failed to update password. Please try again.',
+    };
+  }
+}
+
+interface DeleteAccountState {
+  password?: string;
+  errorMessage?: string;
+}
+
+export async function deleteAccount(
+  prevState: DeleteAccountState,
+  formData: FormData,
+): Promise<DeleteAccountState> {
+  const password = formData.get('password') as string;
+
+  if (!password) {
+    return {
+      password,
+      errorMessage: 'Password is required to delete your account.',
+    };
+  }
+
+  try {
+    // Get current user session
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session?.user) {
+      return {
+        password,
+        errorMessage: 'You must be signed in to delete your account.',
+      };
+    }
+
+    // Verify password using better-auth
+    const verifyResult = await auth.api.signInEmail({
+      body: {
+        email: session.user.email,
+        password,
+      },
+      headers: await headers(),
+    });
+
+    if (!verifyResult.user) {
+      return {
+        password,
+        errorMessage: 'Incorrect password. Account deletion failed.',
+      };
+    }
+
+    // Delete the user account
+    await auth.api.deleteUser({
+      body: {},
+      headers: await headers(),
+    });
+
+    await auth.api.signOut({
+      headers: await headers(),
+    });
+  } catch (error) {
+    console.error('Account deletion failed:', error);
+    return {
+      password,
+      errorMessage: 'Failed to delete account. Please try again.',
+    };
+  }
+
+  redirect('/sign-in');
 }

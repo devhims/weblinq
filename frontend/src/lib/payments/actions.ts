@@ -16,19 +16,19 @@ async function getCurrentUser() {
 /* -------------------------------------------------- */
 /* 1. CHECKOUT (upgrade)                              */
 /* -------------------------------------------------- */
-export async function checkoutAction(formData: FormData) {
-  const plan = formData.get('plan');
-  if (plan !== 'pro') throw new Error('Only the “pro” plan is supported.');
+// export async function checkoutAction(formData: FormData) {
+//   const plan = formData.get('plan');
+//   if (plan !== 'pro') throw new Error('Only the “pro” plan is supported.');
 
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect('/auth/signin?callbackUrl=/pricing');
-    return;
-  }
+//   const user = await getCurrentUser();
+//   if (!user) {
+//     redirect('/auth/signin?callbackUrl=/pricing');
+//     return;
+//   }
 
-  /* built-in checkout route created by the plugin */
-  redirect('/api/auth/checkout/pro');
-}
+//   /* built-in checkout route created by the plugin */
+//   redirect('/api/auth/checkout/pro');
+// }
 
 /* -------------------------------------------------- */
 /* 2. CUSTOMER  PORTAL                                */
@@ -77,6 +77,31 @@ export async function checkAndDeductCredits(operation: string, creditsRequired: 
 export async function getUserCreditInfo() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const [credits, history] = await Promise.all([getUserCredits(user.id), getCreditUsageHistory(user.id, 10)]);
-  return { credits, history };
+
+  try {
+    const { balance, plan, lastRefill } = await getUserCredits(user.id);
+    return { credits: { balance, plan, lastRefill } };
+  } catch (error) {
+    // Handle case where user doesn't have credits yet (existing users before new system)
+    console.warn(`User ${user.id} doesn't have credits yet. This may be an existing user from before the new system.`);
+
+    // For existing users, we can bootstrap them here as a fallback
+    // This is temporary until all existing users have been migrated
+    try {
+      const { assignInitialCredits } = await import('@/db/queries');
+      await assignInitialCredits(user.id);
+
+      // Retry getting credits after assignment
+      const [credits, history] = await Promise.all([getUserCredits(user.id), getCreditUsageHistory(user.id, 10)]);
+      return { credits, history };
+    } catch (bootstrapError) {
+      console.error(`Failed to bootstrap credits for user ${user.id}:`, bootstrapError);
+
+      // Return default values if all else fails
+      return {
+        credits: { balance: 0, plan: 'free' as const, lastRefill: null },
+        history: [],
+      };
+    }
+  }
 }

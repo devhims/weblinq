@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Lock, Trash2, Loader2 } from 'lucide-react';
-import { useActionState } from 'react';
-import { updatePassword, deleteAccount } from '@/app/(login)/actions';
+import { useActionState, useState } from 'react';
+import { updatePassword, deleteAccount } from '@/server/auth-actions';
+import { PasswordRequirements } from '@/components/auth/password-requirements';
 
 type PasswordState = {
   currentPassword?: string;
@@ -32,6 +33,9 @@ export default function SecurityPage() {
     DeleteState,
     FormData
   >(deleteAccount, {});
+
+  // State for new password to show requirements
+  const [newPassword, setNewPassword] = useState('');
 
   return (
     <section className="flex-1 p-4 lg:p-8">
@@ -71,8 +75,12 @@ export default function SecurityPage() {
                 required
                 minLength={8}
                 maxLength={100}
-                defaultValue={passwordState.newPassword}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
               />
+              {newPassword && (
+                <PasswordRequirements password={newPassword} className="mt-2" />
+              )}
             </div>
             <div>
               <Label htmlFor="confirm-password" className="mb-2">
