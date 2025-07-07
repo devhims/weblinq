@@ -5,6 +5,7 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Link,
   Preview,
   Section,
@@ -32,137 +33,172 @@ export const VerificationEmail = ({
     <Preview>Verify your email address for {appName}</Preview>
     <Body style={main}>
       <Container style={container}>
+        {/* Clean header with logo */}
         <Section style={header}>
-          <Heading style={headerTitle}>{appName}</Heading>
-          <Text style={headerSubtitle}>Email Verification Required</Text>
+          <div style={logoContainer}>
+            <Img
+              src="https://weblinq.dev/logo2_dark.png"
+              alt={appName}
+              style={logo}
+            />
+          </div>
+          <Heading style={headerTitle}>Verify your email</Heading>
+          <Text style={headerSubtitle}>
+            Complete your {appName} account setup
+          </Text>
         </Section>
 
+        {/* Main content */}
         <Section style={content}>
-          <Heading style={title}>Welcome to {appName}!</Heading>
-
-          <Text style={paragraph}>
-            Thank you for signing up! To complete your registration and secure
-            your account, please verify your email address by clicking the
-            button below.
+          <Text style={welcomeText}>
+            Welcome to {appName}! We&apos;re excited to have you on board.
           </Text>
 
-          <Section style={verificationBox}>
-            <Text style={verificationLabel}>Email Address to Verify:</Text>
-            <Text style={emailText}>{userEmail}</Text>
+          <Text style={paragraph}>
+            To complete your account setup and start using {appName}, please
+            verify your email address by clicking the button below.
+          </Text>
+
+          {/* Email display */}
+          <Section style={emailBox}>
+            <Text style={emailLabel}>Verifying:</Text>
+            <Text style={emailAddress}>{userEmail}</Text>
           </Section>
 
+          {/* CTA Button */}
           <Section style={buttonContainer}>
-            <Button style={button} href={verificationUrl}>
+            <Button style={verifyButton} href={verificationUrl}>
               Verify Email Address
             </Button>
           </Section>
 
-          <Text style={linkText}>
-            If the button doesn't work, you can copy and paste this link into
-            your browser:
+          {/* Alternative link */}
+          <Text style={altText}>
+            If the button doesn&apos;t work, copy and paste this link:
           </Text>
-          <Link href={verificationUrl} style={link}>
-            {verificationUrl}
-          </Link>
+          <Text style={linkText}>
+            <Link href={verificationUrl} style={fallbackLink}>
+              {verificationUrl}
+            </Link>
+          </Text>
 
-          <Section style={securityNote}>
+          {/* Security note */}
+          <Section style={securityBox}>
             <Text style={securityText}>
-              <strong>Security Note:</strong> This verification link will expire
-              in 1 hour for your security. If you didn't create an account with{' '}
-              {appName}, please ignore this email.
+              This verification link expires in 1 hour for security. If you
+              didn&apos;t create this account, you can safely ignore this email.
             </Text>
           </Section>
         </Section>
 
+        {/* Clean footer */}
         <Section style={footer}>
           <Text style={footerText}>This email was sent to {userEmail}</Text>
           <Text style={footerText}>
-            © {new Date().getFullYear()} {appName}. All rights reserved.
+            <Link href={baseUrl} style={footerLink}>
+              {appName}
+            </Link>{' '}
+            © {new Date().getFullYear()}
           </Text>
-          <Link href={baseUrl} style={footerLink}>
-            Visit our website
-          </Link>
         </Section>
       </Container>
     </Body>
   </Html>
 );
 
-// Using email-safe colors and styling for better rendering
+// Clean, minimal styling matching app theme
 const main = {
-  backgroundColor: '#f5f5f5',
+  backgroundColor: '#fafafa', // Light gray background
   fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
-  lineHeight: '1.4',
+    'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  lineHeight: '1.6',
+  color: '#374151', // Neutral gray text
 };
 
 const container = {
   backgroundColor: '#ffffff',
-  maxWidth: '600px',
-  margin: '0 auto',
+  maxWidth: '560px',
+  margin: '40px auto',
+  borderRadius: '8px',
   border: '1px solid #e5e7eb',
+  overflow: 'hidden',
 };
 
 const header = {
-  background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-  padding: '40px 20px',
+  backgroundColor: '#ffffff',
+  padding: '48px 32px 32px 32px',
   textAlign: 'center' as const,
+  borderBottom: '1px solid #f3f4f6',
+};
+
+const logoContainer = {
+  backgroundColor: '#ffffff',
+  padding: '12px',
+  borderRadius: '8px',
+  display: 'inline-block',
+  marginBottom: '16px',
+  border: '1px solid #f3f4f6',
+};
+
+const logo = {
+  width: '160px',
+  height: '90px',
+  display: 'block',
 };
 
 const headerTitle = {
-  color: '#ffffff',
-  fontSize: '28px',
-  fontWeight: 'bold',
-  margin: '0',
-  lineHeight: '1.2',
+  color: '#111827',
+  fontSize: '24px',
+  fontWeight: '600',
+  margin: '0 0 8px 0',
+  lineHeight: '1.3',
 };
 
 const headerSubtitle = {
-  color: '#fed7aa',
+  color: '#6b7280',
   fontSize: '16px',
-  margin: '8px 0 0 0',
-  fontWeight: 'normal',
+  margin: '0',
+  fontWeight: '400',
 };
 
 const content = {
-  padding: '40px 30px',
+  padding: '32px',
 };
 
-const title = {
-  color: '#1f2937',
-  fontSize: '24px',
-  fontWeight: 'bold',
-  margin: '0 0 20px 0',
-  lineHeight: '1.2',
+const welcomeText = {
+  color: '#111827',
+  fontSize: '16px',
+  fontWeight: '500',
+  margin: '0 0 16px 0',
 };
 
 const paragraph = {
-  color: '#4b5563',
-  fontSize: '16px',
+  color: '#374151',
+  fontSize: '15px',
   lineHeight: '1.6',
-  margin: '0 0 20px 0',
+  margin: '0 0 24px 0',
 };
 
-const verificationBox = {
-  backgroundColor: '#fff7ed',
-  border: '2px solid #f97316',
-  borderRadius: '12px',
-  padding: '24px',
+const emailBox = {
+  backgroundColor: '#f9fafb',
+  border: '1px solid #e5e7eb',
+  borderRadius: '6px',
+  padding: '16px',
   textAlign: 'center' as const,
   margin: '24px 0',
 };
 
-const verificationLabel = {
-  color: '#1f2937',
-  fontSize: '16px',
-  fontWeight: 'bold',
-  margin: '0 0 12px 0',
+const emailLabel = {
+  color: '#6b7280',
+  fontSize: '14px',
+  fontWeight: '500',
+  margin: '0 0 4px 0',
 };
 
-const emailText = {
-  fontSize: '18px',
-  fontWeight: 'bold',
-  color: '#f97316',
+const emailAddress = {
+  color: '#ea580c', // Orange accent from theme
+  fontSize: '16px',
+  fontWeight: '600',
   margin: '0',
   wordBreak: 'break-all' as const,
 };
@@ -172,65 +208,71 @@ const buttonContainer = {
   margin: '32px 0',
 };
 
-const button = {
-  background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-  borderRadius: '8px',
+const verifyButton = {
+  backgroundColor: '#ea580c', // Primary orange
+  borderRadius: '6px',
   color: '#ffffff',
-  fontSize: '16px',
-  fontWeight: 'bold',
+  fontSize: '15px',
+  fontWeight: '600',
   textDecoration: 'none',
   textAlign: 'center' as const,
   display: 'inline-block',
-  padding: '14px 28px',
-  margin: '0',
+  padding: '12px 24px',
   border: 'none',
+  cursor: 'pointer',
 };
 
-const linkText = {
+const altText = {
   color: '#6b7280',
-  fontSize: '14px',
-  lineHeight: '1.5',
+  fontSize: '13px',
+  textAlign: 'center' as const,
   margin: '24px 0 8px 0',
 };
 
-const link = {
-  color: '#f97316',
-  fontSize: '14px',
-  wordBreak: 'break-all' as const,
+const linkText = {
+  textAlign: 'center' as const,
+  margin: '0 0 24px 0',
 };
 
-const securityNote = {
-  backgroundColor: '#fef3c7',
-  borderLeft: '4px solid #f59e0b',
+const fallbackLink = {
+  color: '#ea580c',
+  fontSize: '13px',
+  wordBreak: 'break-all' as const,
+  textDecoration: 'underline',
+};
+
+const securityBox = {
+  backgroundColor: '#fef3cd',
+  border: '1px solid #fde68a',
+  borderRadius: '6px',
   padding: '16px',
-  margin: '24px 0',
-  borderRadius: '4px',
+  margin: '24px 0 0 0',
 };
 
 const securityText = {
-  color: '#4b5563',
-  fontSize: '14px',
-  margin: '0',
+  color: '#92400e',
+  fontSize: '13px',
   lineHeight: '1.5',
+  margin: '0',
 };
 
 const footer = {
   backgroundColor: '#f9fafb',
-  padding: '24px 20px',
+  padding: '24px 32px',
   textAlign: 'center' as const,
-  borderTop: '1px solid #e5e7eb',
+  borderTop: '1px solid #f3f4f6',
 };
 
 const footerText = {
   color: '#6b7280',
-  fontSize: '14px',
-  margin: '4px 0',
+  fontSize: '12px',
+  margin: '0 0 4px 0',
 };
 
 const footerLink = {
-  color: '#f97316',
+  color: '#ea580c',
   textDecoration: 'none',
-  fontSize: '14px',
+  fontWeight: '500',
 };
 
 export default VerificationEmail;

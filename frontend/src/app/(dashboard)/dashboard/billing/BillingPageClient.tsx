@@ -32,15 +32,34 @@ export function ManageSubscription() {
       if (!session?.user?.id) return setLoading(false);
 
       try {
-        // 1️⃣ Polar customer state: subs, meters, benefits
-        const { data: state } = await authClient.customer.state();
-        setCustomerState(state);
+        console.log('🔄 Loading subscription info for user:', session?.user?.id);
 
-        // 2️⃣ Credit balance from server action (fast)
+        // 2️⃣ Get credit info first (this should always work)
         const creditInfo = await getUserCreditInfo();
         setCredits(creditInfo?.credits?.balance || 0);
+        console.log('✅ Credit info loaded:', creditInfo?.credits?.balance);
+
+        // 1️⃣ Then try to get Polar customer state
+        try {
+          const { data: state } = await authClient.customer.state();
+          setCustomerState(state);
+          console.log('✅ Polar customer state loaded:', state);
+        } catch (polarError: any) {
+          console.error('❌ Polar customer state failed:', {
+            message: polarError.message,
+            code: polarError.code,
+            status: polarError.status,
+            fullError: polarError,
+          });
+
+          // If this is a new user who doesn't have a Polar customer yet,
+          // we'll continue with just the credit info
+          if (polarError.message?.includes('SUBSCRIPTIONS_LIST_FAILED')) {
+            console.warn('⚠️ User may not have a Polar customer yet. This is normal for new signups.');
+          }
+        }
       } catch (err) {
-        console.error('Billing fetch error', err);
+        console.error('❌ Billing fetch error', err);
       } finally {
         setLoading(false);
       }
@@ -93,7 +112,7 @@ export function ManageSubscription() {
           <div className="flex gap-2 mt-4 sm:mt-0">
             {plan === 'free' && (
               <Button asChild>
-                <a href="/pricing">Upgrade to Pro</a>
+                <a href="/dashboard/pricing">Upgrade to Pro</a>
               </Button>
             )}
             {plan === 'pro' && (

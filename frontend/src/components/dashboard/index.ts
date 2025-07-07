@@ -12,4 +12,4 @@ export { ActivityLoading } from './ActivityLoading';
 export { DashboardLayoutClient } from './DashboardLayoutClient';
 export { SidebarFooter } from './SidebarFooter';
 export { SignOutButton } from './SignOutButton';
-export { VerificationSuccessToast } from './VerificationSuccessToast';
+export { VerificationSuccessToast, CreditAssignmentToast } from './VerificationSuccessToast';

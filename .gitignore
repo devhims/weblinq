@@ -64,6 +64,7 @@ frontend/project_docs
 WEB_REQUEST_FLOW.md
 COMMUNICATION_ARCHITECTURE.md
 communication-architecture.md
+BETTER_AUTH_SIMPLIFICATION_ANALYSIS.md
 
 architecture.md
 request-flow.md

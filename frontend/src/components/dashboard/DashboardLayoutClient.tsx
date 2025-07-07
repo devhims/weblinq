@@ -4,15 +4,26 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Key, CreditCard, Activity, Menu, X, Settings2, Monitor } from 'lucide-react';
+import {
+  Key,
+  CreditCard,
+  Activity,
+  Menu,
+  X,
+  Settings2,
+  Monitor,
+} from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { SidebarFooter } from './SidebarFooter';
+import { CreditAssignmentToast } from './VerificationSuccessToast';
 
 interface DashboardLayoutClientProps {
   children: React.ReactNode;
 }
 
-export function DashboardLayoutClient({ children }: DashboardLayoutClientProps) {
+export function DashboardLayoutClient({
+  children,
+}: DashboardLayoutClientProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -26,10 +37,18 @@ export function DashboardLayoutClient({ children }: DashboardLayoutClientProps) 
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-68px)] w-full">
+      {/* Credit Assignment Toast - shows notifications for new users */}
+      <CreditAssignmentToast />
+
       {/* Mobile header */}
       <div className="lg:hidden flex items-center justify-between bg-background border-b border-border p-4">
         <div className="flex items-center">
-          <Button className="mr-3 -ml-2" variant="ghost" size="sm" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+          <Button
+            className="mr-3 -ml-2"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          >
             <Menu className="h-6 w-6" />
             <span className="sr-only">Toggle sidebar</span>
           </Button>
@@ -38,7 +57,10 @@ export function DashboardLayoutClient({ children }: DashboardLayoutClientProps) 
 
       {/* Mobile overlay */}
       {isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
       )}
 
       <div className="flex flex-1 h-full min-h-[calc(100vh-68px)] lg:min-h-0">
@@ -85,7 +107,12 @@ export function DashboardLayoutClient({ children }: DashboardLayoutClientProps) 
         >
           <nav className="flex-1 overflow-y-auto p-3 flex flex-col">
             {/* Mobile header with close button */}
-            <Button variant="ghost" size="sm" onClick={() => setIsSidebarOpen(false)} className="h-8 w-8 p-0 self-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsSidebarOpen(false)}
+              className="h-8 w-8 p-0 self-end"
+            >
               <X className="h-4 w-4" />
               <span className="sr-only">Close sidebar</span>
             </Button>
@@ -118,7 +145,9 @@ export function DashboardLayoutClient({ children }: DashboardLayoutClientProps) 
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 p-0 lg:p-6 lg:ml-52 overflow-auto">{children}</main>
+        <main className="flex-1 p-0 lg:p-6 lg:ml-52 overflow-auto">
+          {children}
+        </main>
       </div>
     </div>
   );

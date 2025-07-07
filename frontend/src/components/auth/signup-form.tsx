@@ -1,180 +1,172 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { toast } from 'sonner';
-import { signUp } from '@/server/auth-actions';
-import { Icons } from '@/components/icons';
+import React from 'react';
+import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import SignInSocial from './signin-social';
+import { Label } from '@/components/ui/label';
+import { EmailBadge } from './email-badge';
+import { PasswordRequirements } from './password-requirements';
+import { validatePassword } from '@/lib/utils/password-validation';
 
-export default function SignupForm() {
-  const initialState = { errorMessage: '' };
-  const [state, formAction, pending] = useActionState(signUp, initialState);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordsMatch, setPasswordsMatch] = useState(true);
+interface SignUpFormData {
+  firstName: string;
+  lastName: string;
+  password: string;
+  confirm: string;
+}
 
-  useEffect(() => {
-    if (state.errorMessage.length) {
-      toast.error(state.errorMessage);
-    }
-  }, [state.errorMessage]);
+interface SignUpFormProps {
+  email: string;
+  onSubmit: (data: SignUpFormData) => Promise<void>;
+  isLoading: boolean;
+  onChangeEmail: () => void;
+}
 
-  useEffect(() => {
-    if (confirmPassword) {
-      setPasswordsMatch(password === confirmPassword);
-    }
-  }, [password, confirmPassword]);
+export function SignUpForm({
+  email,
+  onSubmit,
+  isLoading,
+  onChangeEmail,
+}: SignUpFormProps) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm<SignUpFormData>({
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      password: '',
+      confirm: '',
+    },
+    mode: 'onChange',
+  });
 
-  const handleSubmit = (formData: FormData) => {
-    if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-    formAction(formData);
-  };
+  // Watch form values for validation
+  const password = watch('password');
+  const confirm = watch('confirm');
+
+  // Derived state
+  const passwordsMatch = !confirm || password === confirm;
+  const passwordValidation = validatePassword(password);
+  const isPasswordValid = passwordValidation.isValid;
 
   return (
-    <div className='w-full'>
-      {/* Header */}
-      <div className='mb-8'>
-        <Link href='/' aria-label='go home' className='inline-block mb-6'>
-          <Icons.logo className='h-8 w-8' />
-        </Link>
-        <h1 className='text-3xl font-bold text-foreground mb-2'>Sign Up.</h1>
-        <p className='text-muted-foreground'>
-          Welcome! Create an account to get started
-        </p>
-      </div>
+    <div className="space-y-6">
+      <EmailBadge email={email} onChangeEmail={onChangeEmail} />
 
-      <form action={handleSubmit} className='space-y-6'>
-        {/* Social login */}
-        <div className='grid grid-cols-2 gap-3'>
-          <SignInSocial provider='google'>
-            <Icons.google />
-            <span className='ml-2'>Google</span>
-          </SignInSocial>
-          <SignInSocial provider='github'>
-            <Icons.gitHub />
-            <span className='ml-2'>GitHub</span>
-          </SignInSocial>
-        </div>
-
-        <div className='relative'>
-          <div className='absolute inset-0 flex items-center'>
-            <span className='w-full border-t' />
-          </div>
-          <div className='relative flex justify-center text-xs uppercase'>
-            <span className='bg-background px-2 text-muted-foreground'>
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        {/* Form fields */}
-        <div className='space-y-4'>
-          <div className='grid grid-cols-2 gap-3'>
-            <div className='space-y-2'>
-              <Label htmlFor='firstname' className='text-sm font-medium'>
-                First name
-              </Label>
-              <Input
-                type='text'
-                required
-                name='firstname'
-                id='firstname'
-                placeholder='Enter your first name'
-                className='h-11'
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='lastname' className='text-sm font-medium'>
-                Last name
-              </Label>
-              <Input
-                type='text'
-                required
-                name='lastname'
-                id='lastname'
-                placeholder='Enter your last name'
-                className='h-11'
-              />
-            </div>
-          </div>
-
-          <div className='space-y-2'>
-            <Label htmlFor='email' className='text-sm font-medium'>
-              Email
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="firstName" className="text-sm font-medium">
+              First name
             </Label>
             <Input
-              type='email'
-              required
-              name='email'
-              id='email'
-              placeholder='Enter your email'
-              className='h-11'
+              {...register('firstName', {
+                required: 'First name is required',
+              })}
+              id="firstName"
+              type="text"
+              placeholder="Enter your first name"
+              className="h-11"
+              disabled={isLoading}
+              autoComplete="given-name"
             />
+            {errors.firstName && (
+              <p className="text-sm text-destructive">
+                {errors.firstName.message}
+              </p>
+            )}
           </div>
-
-          <div className='space-y-2'>
-            <Label htmlFor='pwd' className='text-sm font-medium'>
-              Password
+          <div className="space-y-2">
+            <Label htmlFor="lastName" className="text-sm font-medium">
+              Last name
             </Label>
             <Input
-              type='password'
-              required
-              name='pwd'
-              id='pwd'
-              placeholder='Create a password'
-              className='h-11'
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              {...register('lastName', {
+                required: 'Last name is required',
+              })}
+              id="lastName"
+              type="text"
+              placeholder="Enter your last name"
+              className="h-11"
+              disabled={isLoading}
+              autoComplete="family-name"
             />
-          </div>
-
-          <div className='space-y-2'>
-            <Label htmlFor='confirmPassword' className='text-sm font-medium'>
-              Confirm password
-            </Label>
-            <Input
-              type='password'
-              required
-              id='confirmPassword'
-              placeholder='Confirm your password'
-              className={`h-11 ${
-                confirmPassword && !passwordsMatch
-                  ? 'border-destructive focus-visible:ring-destructive'
-                  : ''
-              }`}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-            {confirmPassword && !passwordsMatch && (
-              <p className='text-sm text-destructive'>Passwords do not match</p>
+            {errors.lastName && (
+              <p className="text-sm text-destructive">
+                {errors.lastName.message}
+              </p>
             )}
           </div>
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="signup-password" className="text-sm font-medium">
+            Password
+          </Label>
+          <Input
+            {...register('password', {
+              required: 'Password is required',
+              validate: (value) => {
+                const validation = validatePassword(value);
+                return validation.isValid || validation.errors.join(' ');
+              },
+            })}
+            id="signup-password"
+            type="password"
+            placeholder="Create a password"
+            className="h-11"
+            disabled={isLoading}
+            autoComplete="new-password"
+          />
+          {password && (
+            <PasswordRequirements password={password} className="mt-2" />
+          )}
+          {errors.password && (
+            <p className="text-sm text-destructive">
+              {errors.password.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword" className="text-sm font-medium">
+            Confirm password
+          </Label>
+          <Input
+            {...register('confirm', {
+              required: 'Please confirm your password',
+              validate: (value) => {
+                return value === password || 'Passwords do not match';
+              },
+            })}
+            type="password"
+            id="confirmPassword"
+            placeholder="Confirm your password"
+            className={`h-11 ${
+              confirm && !passwordsMatch
+                ? 'border-destructive focus-visible:ring-destructive'
+                : ''
+            }`}
+            autoComplete="new-password"
+            disabled={isLoading}
+          />
+          {errors.confirm && (
+            <p className="text-sm text-destructive">{errors.confirm.message}</p>
+          )}
+        </div>
+
         <Button
-          className='w-full h-11'
-          disabled={pending || (!!confirmPassword && !passwordsMatch)}
+          className="w-full h-11"
+          disabled={isLoading || !isPasswordValid || !passwordsMatch}
+          type="submit"
         >
-          {pending ? 'Creating account...' : 'Create account'}
+          {isLoading ? 'Creating account...' : 'Create Account'}
         </Button>
       </form>
-
-      {/* Sign in link */}
-      <div className='mt-6 text-center'>
-        <p className='text-sm text-muted-foreground'>
-          Already have an account?{' '}
-          <Button asChild variant='link' className='px-0 h-auto font-medium'>
-            <Link href='/sign-in'>Sign in</Link>
-          </Button>
-        </p>
-      </div>
     </div>
   );
 }

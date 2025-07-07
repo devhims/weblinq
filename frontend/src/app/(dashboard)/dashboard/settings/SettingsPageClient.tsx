@@ -7,7 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -186,12 +192,18 @@ export default function SettingsPageClient() {
     setSettings(loadedSettings);
 
     // Check if there are any saved settings
-    if (typeof window !== 'undefined' && localStorage.getItem(SETTINGS_STORAGE_KEY)) {
+    if (
+      typeof window !== 'undefined' &&
+      localStorage.getItem(SETTINGS_STORAGE_KEY)
+    ) {
       setLastSaved(new Date()); // Indicate that settings exist
     }
   }, []);
 
-  const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
+  const updateSetting = <K extends keyof SettingsState>(
+    key: K,
+    value: SettingsState[K],
+  ) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -224,11 +236,13 @@ export default function SettingsPageClient() {
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <Settings2 className="h-6 w-6 text-muted-foreground" />
-          <h1 className="text-lg lg:text-2xl font-medium text-foreground">Settings</h1>
+          <h1 className="text-lg lg:text-2xl font-medium text-foreground">
+            Settings
+          </h1>
         </div>
         <p className="text-muted-foreground">
-          Configure default parameters for your web scraping operations. These preferences will automatically apply in
-          the Studio interface.
+          Configure default parameters for your web scraping operations. These
+          preferences will automatically apply in the Studio interface.
         </p>
         {lastSaved && (
           <Badge variant="outline" className="mt-3">
@@ -265,25 +279,44 @@ export default function SettingsPageClient() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-5 w-full">
-          <TabsTrigger value="requests" className="flex items-center justify-center gap-2">
+          <TabsTrigger
+            value="requests"
+            className="flex items-center justify-center gap-2"
+          >
             <Clock className="h-4 w-4" />
             <span>Requests</span>
           </TabsTrigger>
-          <TabsTrigger value="visual" className="flex items-center justify-center gap-2">
+          <TabsTrigger
+            value="visual"
+            className="flex items-center justify-center gap-2"
+          >
             <Camera className="h-4 w-4" />
             <span>Visual</span>
           </TabsTrigger>
-          <TabsTrigger value="content" className="flex items-center justify-center gap-2">
+          <TabsTrigger
+            value="content"
+            className="flex items-center justify-center gap-2"
+          >
             <FileText className="h-4 w-4" />
             <span>Content</span>
           </TabsTrigger>
-          <TabsTrigger value="performance" className="flex items-center justify-center gap-2">
+          <TabsTrigger
+            value="performance"
+            className="flex items-center justify-center gap-2"
+          >
             <Zap className="h-4 w-4" />
             <span>Performance</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center justify-center gap-2">
+          <TabsTrigger
+            value="notifications"
+            className="flex items-center justify-center gap-2"
+          >
             <Bell className="h-4 w-4" />
             <span>Alerts</span>
           </TabsTrigger>
@@ -301,11 +334,15 @@ export default function SettingsPageClient() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Default Wait Time</Label>
+                  <Label className="text-sm font-medium">
+                    Default Wait Time
+                  </Label>
                   <div className="space-y-3">
                     <Slider
                       value={[settings.defaultWaitTime]}
-                      onValueChange={(value) => updateSetting('defaultWaitTime', value[0])}
+                      onValueChange={(value) =>
+                        updateSetting('defaultWaitTime', value[0])
+                      }
                       max={10000}
                       min={0}
                       step={500}
@@ -319,7 +356,9 @@ export default function SettingsPageClient() {
                       <span>10s</span>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">Time to wait after page load before capturing content</p>
+                  <p className="text-xs text-muted-foreground">
+                    Time to wait after page load before capturing content
+                  </p>
                 </div>
 
                 <div className="space-y-3">
@@ -327,7 +366,9 @@ export default function SettingsPageClient() {
                   <div className="space-y-3">
                     <Slider
                       value={[settings.defaultTimeout]}
-                      onValueChange={(value) => updateSetting('defaultTimeout', value[0])}
+                      onValueChange={(value) =>
+                        updateSetting('defaultTimeout', value[0])
+                      }
                       max={120000}
                       min={5000}
                       step={5000}
@@ -341,7 +382,9 @@ export default function SettingsPageClient() {
                       <span>120s</span>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">Maximum time to wait for a single request to complete</p>
+                  <p className="text-xs text-muted-foreground">
+                    Maximum time to wait for a single request to complete
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -404,7 +447,9 @@ export default function SettingsPageClient() {
                     </Label>
                     <Slider
                       value={[settings.defaultQuality]}
-                      onValueChange={(value) => updateSetting('defaultQuality', value[0])}
+                      onValueChange={(value) =>
+                        updateSetting('defaultQuality', value[0])
+                      }
                       max={100}
                       min={10}
                       step={10}
@@ -425,7 +470,9 @@ export default function SettingsPageClient() {
                       </div>
                       <Switch
                         checked={settings.defaultMobileMode}
-                        onCheckedChange={(checked) => updateSetting('defaultMobileMode', checked)}
+                        onCheckedChange={(checked) =>
+                          updateSetting('defaultMobileMode', checked)
+                        }
                       />
                       <div className="flex items-center gap-2">
                         <span className="text-sm">Mobile</span>
@@ -437,47 +484,73 @@ export default function SettingsPageClient() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Viewport Width (px)</Label>
+                    <Label className="text-sm font-medium">
+                      Viewport Width (px)
+                    </Label>
                     <Input
                       type="number"
                       value={settings.defaultViewportWidth}
-                      onChange={(e) => updateSetting('defaultViewportWidth', parseInt(e.target.value))}
+                      onChange={(e) =>
+                        updateSetting(
+                          'defaultViewportWidth',
+                          parseInt(e.target.value),
+                        )
+                      }
                       min={320}
                       max={3840}
                       disabled={settings.defaultMobileMode}
                       className="h-9 text-base"
                     />
                     <p className="text-xs text-muted-foreground">
-                      {settings.defaultMobileMode ? 'Controlled by mobile preset' : '320px - 3840px'}
+                      {settings.defaultMobileMode
+                        ? 'Controlled by mobile preset'
+                        : '320px - 3840px'}
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Viewport Height (px)</Label>
+                    <Label className="text-sm font-medium">
+                      Viewport Height (px)
+                    </Label>
                     <Input
                       type="number"
                       value={settings.defaultViewportHeight}
-                      onChange={(e) => updateSetting('defaultViewportHeight', parseInt(e.target.value))}
+                      onChange={(e) =>
+                        updateSetting(
+                          'defaultViewportHeight',
+                          parseInt(e.target.value),
+                        )
+                      }
                       min={240}
                       max={2160}
                       disabled={settings.defaultMobileMode}
                       className="h-9 text-base"
                     />
                     <p className="text-xs text-muted-foreground">
-                      {settings.defaultMobileMode ? 'Controlled by mobile preset' : '240px - 2160px'}
+                      {settings.defaultMobileMode
+                        ? 'Controlled by mobile preset'
+                        : '240px - 2160px'}
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Capture Options</Label>
+                    <Label className="text-sm font-medium">
+                      Capture Options
+                    </Label>
                     <div className="flex items-center space-x-2 p-3 border rounded-lg">
                       <Switch
                         checked={settings.defaultFullPage}
-                        onCheckedChange={(checked) => updateSetting('defaultFullPage', checked)}
+                        onCheckedChange={(checked) =>
+                          updateSetting('defaultFullPage', checked)
+                        }
                       />
-                      <Label className="text-sm cursor-pointer">Full Page Capture</Label>
+                      <Label className="text-sm cursor-pointer">
+                        Full Page Capture
+                      </Label>
                     </div>
-                    <p className="text-xs text-muted-foreground">Capture entire page height vs viewport only</p>
+                    <p className="text-xs text-muted-foreground">
+                      Capture entire page height vs viewport only
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -494,32 +567,46 @@ export default function SettingsPageClient() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Default Page Format</Label>
+                    <Label className="text-sm font-medium">
+                      Default Page Format
+                    </Label>
                     <Select
                       value={settings.defaultPdfFormat}
-                      onValueChange={(value: 'A4' | 'Letter' | 'Legal') => updateSetting('defaultPdfFormat', value)}
+                      onValueChange={(value: 'A4' | 'Letter' | 'Legal') =>
+                        updateSetting('defaultPdfFormat', value)
+                      }
                     >
                       <SelectTrigger className="h-9">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="A4">A4 (210×297mm)</SelectItem>
-                        <SelectItem value="Letter">Letter (8.5×11in)</SelectItem>
+                        <SelectItem value="Letter">
+                          Letter (8.5×11in)
+                        </SelectItem>
                         <SelectItem value="Legal">Legal (8.5×14in)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Metadata Options</Label>
+                    <Label className="text-sm font-medium">
+                      Metadata Options
+                    </Label>
                     <div className="flex items-center space-x-2 p-3 border rounded-lg">
                       <Switch
                         checked={settings.includePdfMetadata}
-                        onCheckedChange={(checked) => updateSetting('includePdfMetadata', checked)}
+                        onCheckedChange={(checked) =>
+                          updateSetting('includePdfMetadata', checked)
+                        }
                       />
-                      <Label className="text-sm cursor-pointer">Include PDF Metadata</Label>
+                      <Label className="text-sm cursor-pointer">
+                        Include PDF Metadata
+                      </Label>
                     </div>
-                    <p className="text-xs text-muted-foreground">Embed title, author, and creation date</p>
+                    <p className="text-xs text-muted-foreground">
+                      Embed title, author, and creation date
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -546,60 +633,88 @@ export default function SettingsPageClient() {
                     <div className="flex items-center space-x-2 p-3 border rounded-lg">
                       <Switch
                         checked={settings.defaultMarkdownMode}
-                        onCheckedChange={(checked) => updateSetting('defaultMarkdownMode', checked)}
+                        onCheckedChange={(checked) =>
+                          updateSetting('defaultMarkdownMode', checked)
+                        }
                       />
-                      <Label className="text-sm cursor-pointer">Prefer Markdown</Label>
+                      <Label className="text-sm cursor-pointer">
+                        Prefer Markdown
+                      </Label>
                     </div>
 
                     <div className="flex items-center space-x-2 p-3 border rounded-lg">
                       <Switch
                         checked={settings.onlyMainContent}
-                        onCheckedChange={(checked) => updateSetting('onlyMainContent', checked)}
+                        onCheckedChange={(checked) =>
+                          updateSetting('onlyMainContent', checked)
+                        }
                       />
-                      <Label className="text-sm cursor-pointer">Only Main Content</Label>
+                      <Label className="text-sm cursor-pointer">
+                        Only Main Content
+                      </Label>
                     </div>
 
                     <div className="flex items-center space-x-2 p-3 border rounded-lg">
                       <Switch
                         checked={settings.includeMetadata}
-                        onCheckedChange={(checked) => updateSetting('includeMetadata', checked)}
+                        onCheckedChange={(checked) =>
+                          updateSetting('includeMetadata', checked)
+                        }
                       />
-                      <Label className="text-sm cursor-pointer">Include Metadata</Label>
+                      <Label className="text-sm cursor-pointer">
+                        Include Metadata
+                      </Label>
                     </div>
 
                     <div className="flex items-center space-x-2 p-3 border rounded-lg">
                       <Switch
                         checked={settings.preserveFormatting}
-                        onCheckedChange={(checked) => updateSetting('preserveFormatting', checked)}
+                        onCheckedChange={(checked) =>
+                          updateSetting('preserveFormatting', checked)
+                        }
                       />
-                      <Label className="text-sm cursor-pointer">Preserve Formatting</Label>
+                      <Label className="text-sm cursor-pointer">
+                        Preserve Formatting
+                      </Label>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Link Extraction</h4>
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                    Link Extraction
+                  </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2 p-3 border rounded-lg">
                       <Switch
                         checked={settings.includeExternalLinks}
-                        onCheckedChange={(checked) => updateSetting('includeExternalLinks', checked)}
+                        onCheckedChange={(checked) =>
+                          updateSetting('includeExternalLinks', checked)
+                        }
                       />
-                      <Label className="text-sm cursor-pointer">Include External Links</Label>
+                      <Label className="text-sm cursor-pointer">
+                        Include External Links
+                      </Label>
                     </div>
 
                     <div className="flex items-center space-x-2 p-3 border rounded-lg">
                       <Switch
                         checked={settings.visibleLinksOnly}
-                        onCheckedChange={(checked) => updateSetting('visibleLinksOnly', checked)}
+                        onCheckedChange={(checked) =>
+                          updateSetting('visibleLinksOnly', checked)
+                        }
                       />
-                      <Label className="text-sm cursor-pointer">Visible Links Only</Label>
+                      <Label className="text-sm cursor-pointer">
+                        Visible Links Only
+                      </Label>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Web Search</h4>
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                    Web Search
+                  </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">
                       <Label className="text-sm font-medium">
@@ -610,7 +725,9 @@ export default function SettingsPageClient() {
                       </Label>
                       <Slider
                         value={[settings.defaultSearchLimit]}
-                        onValueChange={(value) => updateSetting('defaultSearchLimit', value[0])}
+                        onValueChange={(value) =>
+                          updateSetting('defaultSearchLimit', value[0])
+                        }
                         max={50}
                         min={5}
                         step={5}
@@ -623,12 +740,14 @@ export default function SettingsPageClient() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Preferred Search Engine</Label>
+                      <Label className="text-sm font-medium">
+                        Preferred Search Engine
+                      </Label>
                       <Select
                         value={settings.preferredSearchEngine}
-                        onValueChange={(value: 'duckduckgo' | 'startpage' | 'bing') =>
-                          updateSetting('preferredSearchEngine', value)
-                        }
+                        onValueChange={(
+                          value: 'duckduckgo' | 'startpage' | 'bing',
+                        ) => updateSetting('preferredSearchEngine', value)}
                       >
                         <SelectTrigger className="h-9">
                           <SelectValue />
@@ -683,7 +802,9 @@ export default function SettingsPageClient() {
                     </Label>
                     <Slider
                       value={[settings.concurrentRequests]}
-                      onValueChange={(value) => updateSetting('concurrentRequests', value[0])}
+                      onValueChange={(value) =>
+                        updateSetting('concurrentRequests', value[0])
+                      }
                       max={10}
                       min={1}
                       step={1}
@@ -693,7 +814,9 @@ export default function SettingsPageClient() {
                       <span>1 (Conservative)</span>
                       <span>10 (Aggressive)</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">Number of simultaneous scraping operations</p>
+                    <p className="text-xs text-muted-foreground">
+                      Number of simultaneous scraping operations
+                    </p>
                   </div>
 
                   <div className="space-y-3">
@@ -705,7 +828,9 @@ export default function SettingsPageClient() {
                     </Label>
                     <Slider
                       value={[settings.cacheTimeout]}
-                      onValueChange={(value) => updateSetting('cacheTimeout', value[0])}
+                      onValueChange={(value) =>
+                        updateSetting('cacheTimeout', value[0])
+                      }
                       max={3600}
                       min={60}
                       step={60}
@@ -715,19 +840,26 @@ export default function SettingsPageClient() {
                       <span>1min (Fresh)</span>
                       <span>60min (Persistent)</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">How long to cache scraping results</p>
+                    <p className="text-xs text-muted-foreground">
+                      How long to cache scraping results
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2 p-4 border rounded-lg bg-muted/30">
                   <Switch
                     checked={settings.enableCaching}
-                    onCheckedChange={(checked) => updateSetting('enableCaching', checked)}
+                    onCheckedChange={(checked) =>
+                      updateSetting('enableCaching', checked)
+                    }
                   />
                   <div className="flex-1">
-                    <Label className="text-sm font-medium cursor-pointer">Enable Response Caching</Label>
+                    <Label className="text-sm font-medium cursor-pointer">
+                      Enable Response Caching
+                    </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Cache responses to improve performance and reduce API costs
+                      Cache responses to improve performance and reduce API
+                      costs
                     </p>
                   </div>
                 </div>
@@ -745,11 +877,17 @@ export default function SettingsPageClient() {
                 <div className="flex items-center space-x-2 p-4 border rounded-lg">
                   <Switch
                     checked={settings.enableRequestLogging}
-                    onCheckedChange={(checked) => updateSetting('enableRequestLogging', checked)}
+                    onCheckedChange={(checked) =>
+                      updateSetting('enableRequestLogging', checked)
+                    }
                   />
                   <div className="flex-1">
-                    <Label className="text-sm font-medium cursor-pointer">Enable Request Logging</Label>
-                    <p className="text-xs text-muted-foreground mt-1">Log API requests for debugging and analytics</p>
+                    <Label className="text-sm font-medium cursor-pointer">
+                      Enable Request Logging
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Log API requests for debugging and analytics
+                    </p>
                   </div>
                 </div>
 
@@ -762,7 +900,9 @@ export default function SettingsPageClient() {
                   </Label>
                   <Slider
                     value={[settings.logRetentionDays]}
-                    onValueChange={(value) => updateSetting('logRetentionDays', value[0])}
+                    onValueChange={(value) =>
+                      updateSetting('logRetentionDays', value[0])
+                    }
                     max={90}
                     min={7}
                     step={7}
@@ -778,12 +918,17 @@ export default function SettingsPageClient() {
                   <AlertTriangle className="h-4 w-4 text-orange-600" />
                   <Switch
                     checked={settings.allowCORS}
-                    onCheckedChange={(checked) => updateSetting('allowCORS', checked)}
+                    onCheckedChange={(checked) =>
+                      updateSetting('allowCORS', checked)
+                    }
                   />
                   <div className="flex-1">
-                    <Label className="text-sm font-medium cursor-pointer">Allow Cross-Origin Requests</Label>
+                    <Label className="text-sm font-medium cursor-pointer">
+                      Allow Cross-Origin Requests
+                    </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Enable CORS for client-side API calls (security consideration)
+                      Enable CORS for client-side API calls (security
+                      consideration)
                     </p>
                   </div>
                 </div>
@@ -806,11 +951,17 @@ export default function SettingsPageClient() {
                 <div className="flex items-center space-x-2 p-4 border rounded-lg bg-muted/30">
                   <Switch
                     checked={settings.creditAlerts}
-                    onCheckedChange={(checked) => updateSetting('creditAlerts', checked)}
+                    onCheckedChange={(checked) =>
+                      updateSetting('creditAlerts', checked)
+                    }
                   />
                   <div className="flex-1">
-                    <Label className="text-sm font-medium cursor-pointer">Credit Usage Alerts</Label>
-                    <p className="text-xs text-muted-foreground mt-1">Get notified when your credit balance runs low</p>
+                    <Label className="text-sm font-medium cursor-pointer">
+                      Credit Usage Alerts
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Get notified when your credit balance runs low
+                    </p>
                   </div>
                 </div>
 
@@ -824,7 +975,9 @@ export default function SettingsPageClient() {
                     </Label>
                     <Slider
                       value={[settings.creditThreshold]}
-                      onValueChange={(value) => updateSetting('creditThreshold', value[0])}
+                      onValueChange={(value) =>
+                        updateSetting('creditThreshold', value[0])
+                      }
                       max={1000}
                       min={10}
                       step={10}
@@ -834,7 +987,9 @@ export default function SettingsPageClient() {
                       <span>10 (Critical)</span>
                       <span>1000 (Conservative)</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">Alert when credits drop below this threshold</p>
+                    <p className="text-xs text-muted-foreground">
+                      Alert when credits drop below this threshold
+                    </p>
                   </div>
                 )}
 
@@ -842,22 +997,34 @@ export default function SettingsPageClient() {
                   <div className="flex items-center space-x-2 p-4 border rounded-lg">
                     <Switch
                       checked={settings.rateLimitAlerts}
-                      onCheckedChange={(checked) => updateSetting('rateLimitAlerts', checked)}
+                      onCheckedChange={(checked) =>
+                        updateSetting('rateLimitAlerts', checked)
+                      }
                     />
                     <div className="flex-1">
-                      <Label className="text-sm font-medium cursor-pointer">Rate Limit Notifications</Label>
-                      <p className="text-xs text-muted-foreground mt-1">Alert when hitting API rate limits</p>
+                      <Label className="text-sm font-medium cursor-pointer">
+                        Rate Limit Notifications
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Alert when hitting API rate limits
+                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-2 p-4 border rounded-lg">
                     <Switch
                       checked={settings.failedRequestAlerts}
-                      onCheckedChange={(checked) => updateSetting('failedRequestAlerts', checked)}
+                      onCheckedChange={(checked) =>
+                        updateSetting('failedRequestAlerts', checked)
+                      }
                     />
                     <div className="flex-1">
-                      <Label className="text-sm font-medium cursor-pointer">Failed Request Alerts</Label>
-                      <p className="text-xs text-muted-foreground mt-1">Notify on scraping failures</p>
+                      <Label className="text-sm font-medium cursor-pointer">
+                        Failed Request Alerts
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Notify on scraping failures
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -876,12 +1043,20 @@ export default function SettingsPageClient() {
         )}
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <Button variant="outline" onClick={handleReset} className="text-sm h-10 order-2 sm:order-1">
+          <Button
+            variant="outline"
+            onClick={handleReset}
+            className="text-sm h-10 order-2 sm:order-1"
+          >
             <RotateCcw className="mr-2 h-4 w-4" />
             Reset to Defaults
           </Button>
 
-          <Button onClick={handleSave} disabled={isLoading} className="h-10 order-1 sm:order-2">
+          <Button
+            onClick={handleSave}
+            disabled={isLoading}
+            className="h-10 order-1 sm:order-2"
+          >
             {isLoading ? 'Saving...' : 'Save Preferences'}
           </Button>
         </div>
