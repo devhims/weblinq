@@ -5,6 +5,7 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Link,
   Preview,
   Section,
@@ -32,149 +33,183 @@ export const PasswordResetEmail = ({
     <Preview>Reset your password for {appName}</Preview>
     <Body style={main}>
       <Container style={container}>
+        {/* Clean header with logo */}
         <Section style={header}>
-          <Heading style={headerTitle}>{appName}</Heading>
-          <Text style={headerSubtitle}>Password Reset Request</Text>
+          <div style={logoContainer}>
+            <Img
+              src="https://weblinq.dev/logo2_dark.png"
+              alt={appName}
+              style={logo}
+            />
+          </div>
+          <Heading style={headerTitle}>Reset your password</Heading>
+          <Text style={headerSubtitle}>Secure your {appName} account</Text>
         </Section>
 
+        {/* Main content */}
         <Section style={content}>
-          <Heading style={title}>Reset Your Password</Heading>
-
-          <Text style={paragraph}>
-            We received a request to reset the password for your {appName}{' '}
-            account. Click the button below to create a new password.
+          <Text style={greetingText}>
+            We received a request to reset your password.
           </Text>
 
-          <Section style={resetBox}>
-            <Text style={resetLabel}>Account Email:</Text>
-            <Text style={emailText}>{userEmail}</Text>
+          <Text style={paragraph}>
+            If you requested this password reset, click the button below to
+            create a new password. If you didn&apos;t request this, you can
+            safely ignore this email.
+          </Text>
+
+          {/* Account info */}
+          <Section style={accountBox}>
+            <Text style={accountLabel}>Account:</Text>
+            <Text style={accountEmail}>{userEmail}</Text>
           </Section>
 
+          {/* CTA Button */}
           <Section style={buttonContainer}>
-            <Button style={button} href={resetUrl}>
+            <Button style={resetButton} href={resetUrl}>
               Reset Password
             </Button>
           </Section>
 
-          <Text style={linkText}>
-            If the button doesn't work, you can copy and paste this link into
-            your browser:
+          {/* Alternative link */}
+          <Text style={altText}>
+            If the button doesn&apos;t work, copy and paste this link:
           </Text>
-          <Link href={resetUrl} style={link}>
-            {resetUrl}
-          </Link>
+          <Text style={linkText}>
+            <Link href={resetUrl} style={fallbackLink}>
+              {resetUrl}
+            </Link>
+          </Text>
 
-          <Section style={securityNote}>
-            <Text style={securityText}>
-              <strong>Security Notice:</strong> This password reset link will
-              expire in 1 hour. If you didn't request a password reset, please
-              ignore this email and your password will remain unchanged.
-            </Text>
-          </Section>
-
-          <Section style={instructionsBox}>
-            <Text style={instructionsTitle}>What happens next?</Text>
-            <Text style={instructionsText}>
+          {/* Instructions */}
+          <Section style={stepsBox}>
+            <Text style={stepsTitle}>What happens next:</Text>
+            <Text style={stepsText}>
               1. Click the reset button above
               <br />
               2. Create a new secure password
               <br />
               3. Sign in with your new password
-              <br />
-              4. Your account will be secure again!
+            </Text>
+          </Section>
+
+          {/* Security note */}
+          <Section style={securityBox}>
+            <Text style={securityText}>
+              This password reset link expires in 1 hour for security. If you
+              didn&apos;t request this reset, your password remains unchanged.
             </Text>
           </Section>
         </Section>
 
+        {/* Clean footer */}
         <Section style={footer}>
           <Text style={footerText}>This email was sent to {userEmail}</Text>
           <Text style={footerText}>
-            © {new Date().getFullYear()} {appName}. All rights reserved.
+            <Link href={baseUrl} style={footerLink}>
+              {appName}
+            </Link>{' '}
+            © {new Date().getFullYear()}
           </Text>
-          <Link href={baseUrl} style={footerLink}>
-            Visit our website
-          </Link>
         </Section>
       </Container>
     </Body>
   </Html>
 );
 
-// Using email-safe colors and styling
+// Clean, minimal styling matching app theme
 const main = {
-  backgroundColor: '#f5f5f5',
+  backgroundColor: '#fafafa', // Light gray background
   fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
-  lineHeight: '1.4',
+    'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  lineHeight: '1.6',
+  color: '#374151', // Neutral gray text
 };
 
 const container = {
   backgroundColor: '#ffffff',
-  maxWidth: '600px',
-  margin: '0 auto',
+  maxWidth: '560px',
+  margin: '40px auto',
+  borderRadius: '8px',
   border: '1px solid #e5e7eb',
+  overflow: 'hidden',
 };
 
 const header = {
-  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-  padding: '40px 20px',
+  backgroundColor: '#ffffff',
+  padding: '48px 32px 32px 32px',
   textAlign: 'center' as const,
+  borderBottom: '1px solid #f3f4f6',
+};
+
+const logoContainer = {
+  backgroundColor: '#ffffff',
+  padding: '12px',
+  borderRadius: '8px',
+  display: 'inline-block',
+  marginBottom: '16px',
+  border: '1px solid #f3f4f6',
+};
+
+const logo = {
+  width: '160px',
+  height: '90px',
+  display: 'block',
 };
 
 const headerTitle = {
-  color: '#ffffff',
-  fontSize: '28px',
-  fontWeight: 'bold',
-  margin: '0',
-  lineHeight: '1.2',
+  color: '#111827',
+  fontSize: '24px',
+  fontWeight: '600',
+  margin: '0 0 8px 0',
+  lineHeight: '1.3',
 };
 
 const headerSubtitle = {
-  color: '#fed7aa',
+  color: '#6b7280',
   fontSize: '16px',
-  margin: '8px 0 0 0',
-  fontWeight: 'normal',
+  margin: '0',
+  fontWeight: '400',
 };
 
 const content = {
-  padding: '40px 30px',
+  padding: '32px',
 };
 
-const title = {
-  color: '#1f2937',
-  fontSize: '24px',
-  fontWeight: 'bold',
-  margin: '0 0 20px 0',
-  lineHeight: '1.2',
+const greetingText = {
+  color: '#111827',
+  fontSize: '16px',
+  fontWeight: '500',
+  margin: '0 0 16px 0',
 };
 
 const paragraph = {
-  color: '#4b5563',
-  fontSize: '16px',
+  color: '#374151',
+  fontSize: '15px',
   lineHeight: '1.6',
-  margin: '0 0 20px 0',
+  margin: '0 0 24px 0',
 };
 
-const resetBox = {
-  backgroundColor: '#fef3c7',
-  border: '2px solid #f59e0b',
-  borderRadius: '12px',
-  padding: '24px',
+const accountBox = {
+  backgroundColor: '#f9fafb',
+  border: '1px solid #e5e7eb',
+  borderRadius: '6px',
+  padding: '16px',
   textAlign: 'center' as const,
   margin: '24px 0',
 };
 
-const resetLabel = {
-  color: '#1f2937',
-  fontSize: '16px',
-  fontWeight: 'bold',
-  margin: '0 0 12px 0',
+const accountLabel = {
+  color: '#6b7280',
+  fontSize: '14px',
+  fontWeight: '500',
+  margin: '0 0 4px 0',
 };
 
-const emailText = {
-  fontSize: '18px',
-  fontWeight: 'bold',
-  color: '#f59e0b',
+const accountEmail = {
+  color: '#ea580c', // Orange accent from theme
+  fontSize: '16px',
+  fontWeight: '600',
   margin: '0',
   wordBreak: 'break-all' as const,
 };
@@ -184,87 +219,93 @@ const buttonContainer = {
   margin: '32px 0',
 };
 
-const button = {
-  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-  borderRadius: '8px',
+const resetButton = {
+  backgroundColor: '#ea580c', // Primary orange
+  borderRadius: '6px',
   color: '#ffffff',
-  fontSize: '16px',
-  fontWeight: 'bold',
+  fontSize: '15px',
+  fontWeight: '600',
   textDecoration: 'none',
   textAlign: 'center' as const,
   display: 'inline-block',
-  padding: '14px 28px',
-  margin: '0',
+  padding: '12px 24px',
   border: 'none',
+  cursor: 'pointer',
 };
 
-const linkText = {
+const altText = {
   color: '#6b7280',
-  fontSize: '14px',
-  lineHeight: '1.5',
+  fontSize: '13px',
+  textAlign: 'center' as const,
   margin: '24px 0 8px 0',
 };
 
-const link = {
-  color: '#f59e0b',
-  fontSize: '14px',
-  wordBreak: 'break-all' as const,
+const linkText = {
+  textAlign: 'center' as const,
+  margin: '0 0 24px 0',
 };
 
-const securityNote = {
-  backgroundColor: '#fee2e2',
-  borderLeft: '4px solid #ef4444',
+const fallbackLink = {
+  color: '#ea580c',
+  fontSize: '13px',
+  wordBreak: 'break-all' as const,
+  textDecoration: 'underline',
+};
+
+const stepsBox = {
+  backgroundColor: '#f0f9ff',
+  border: '1px solid #bae6fd',
+  borderRadius: '6px',
   padding: '16px',
   margin: '24px 0',
-  borderRadius: '4px',
+};
+
+const stepsTitle = {
+  color: '#075985',
+  fontSize: '14px',
+  fontWeight: '600',
+  margin: '0 0 8px 0',
+};
+
+const stepsText = {
+  color: '#0369a1',
+  fontSize: '13px',
+  lineHeight: '1.5',
+  margin: '0',
+};
+
+const securityBox = {
+  backgroundColor: '#fef3cd',
+  border: '1px solid #fde68a',
+  borderRadius: '6px',
+  padding: '16px',
+  margin: '24px 0 0 0',
 };
 
 const securityText = {
-  color: '#4b5563',
-  fontSize: '14px',
-  margin: '0',
+  color: '#92400e',
+  fontSize: '13px',
   lineHeight: '1.5',
-};
-
-const instructionsBox = {
-  backgroundColor: '#f0f9ff',
-  border: '1px solid #e0e7ff',
-  borderRadius: '8px',
-  padding: '20px',
-  margin: '24px 0',
-};
-
-const instructionsTitle = {
-  color: '#1f2937',
-  fontSize: '16px',
-  fontWeight: 'bold',
-  margin: '0 0 12px 0',
-};
-
-const instructionsText = {
-  color: '#4b5563',
-  fontSize: '14px',
-  lineHeight: '1.6',
   margin: '0',
 };
 
 const footer = {
   backgroundColor: '#f9fafb',
-  padding: '24px 20px',
+  padding: '24px 32px',
   textAlign: 'center' as const,
-  borderTop: '1px solid #e5e7eb',
+  borderTop: '1px solid #f3f4f6',
 };
 
 const footerText = {
   color: '#6b7280',
-  fontSize: '14px',
-  margin: '4px 0',
+  fontSize: '12px',
+  margin: '0 0 4px 0',
 };
 
 const footerLink = {
-  color: '#f59e0b',
+  color: '#ea580c',
   textDecoration: 'none',
-  fontSize: '14px',
+  fontWeight: '500',
 };
 
 export default PasswordResetEmail;
