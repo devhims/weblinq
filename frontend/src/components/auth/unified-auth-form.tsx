@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useActionState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
-import { checkEmailExists } from '@/server/auth-actions';
+import { userApi } from '@/lib/studio-api';
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,17 +95,6 @@ export default function UnifiedAuthForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Server action for email checking
-  const emailCheckInitialState = {
-    errorMessage: null,
-    emailExists: false,
-    email: '',
-  };
-  const [emailCheckState, emailCheckAction, emailCheckPending] = useActionState(
-    checkEmailExists,
-    emailCheckInitialState,
-  );
-
   // React Hook Form setup
   const form = useForm<EmailFormData>({
     defaultValues: {
@@ -150,27 +139,30 @@ export default function UnifiedAuthForm() {
     }
   }, []);
 
-  // Handle email check response
-  useEffect(() => {
-    if (emailCheckState.errorMessage) {
-      showToast('error', emailCheckState.errorMessage);
-    } else if (emailCheckState.email) {
-      setValue('email', emailCheckState.email);
-      if (emailCheckState.emailExists) {
+  /* ------------ email check handler ------------ */
+  const onEmailSubmit = async (data: EmailFormData) => {
+    setIsLoading(true);
+
+    try {
+      const result = await userApi.verifyEmail({ email: data.email });
+      if (!result.success) {
+        showToast('error', 'Failed to check email');
+        return;
+      }
+
+      setValue('email', data.email);
+      if (result.data.exists) {
         setStep('signin');
         showToast('success', 'Please enter your password to sign in');
       } else {
         setStep('signup');
         showToast('success', 'This email is new! Please create your account');
       }
+    } catch (err) {
+      showToast('error', 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [emailCheckState, setValue]);
-
-  /* ------------ email check handler ------------ */
-  const onEmailSubmit = (data: EmailFormData) => {
-    const formData = new FormData();
-    formData.set('email', data.email);
-    emailCheckAction(formData);
   };
 
   /* ------------ sign in handler ------------ */
@@ -188,20 +180,30 @@ export default function UnifiedAuthForm() {
           // Email verification required
           showToast(
             'error',
-            error.message || 'Please verify your email address',
+            error.message ||
+              'Please verify your email address by clicking the link in your email',
             {
-              duration: 8000,
+              duration: 10000,
               style: {
                 background: '#fef3c7',
                 border: '1px solid #f59e0b',
                 color: '#92400e',
               },
               action: {
-                label: 'Go to Verification',
-                onClick: () => {
-                  router.push(
-                    `/verify-email?email=${encodeURIComponent(email)}`,
-                  );
+                label: 'Resend Email',
+                onClick: async () => {
+                  try {
+                    await authClient.sendVerificationEmail({
+                      email,
+                      callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/dashboard`,
+                    });
+                    showToast(
+                      'success',
+                      'Verification email sent! Please check your inbox.',
+                    );
+                  } catch (err) {
+                    showToast('error', 'Failed to send verification email');
+                  }
                 },
               },
             },
@@ -251,9 +253,18 @@ export default function UnifiedAuthForm() {
       } else if (result) {
         showToast(
           'success',
-          'Account created successfully! Please check your email for verification.',
+          'Account created successfully! Please check your email for verification and click the link to sign in.',
+          {
+            duration: 8000,
+            style: {
+              background: '#dcfce7',
+              border: '1px solid #bbf7d0',
+              color: '#166534',
+            },
+          },
         );
-        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+        // Reset form to allow user to sign in after verification
+        resetToEmailStep();
       }
     } catch (err) {
       showToast('error', 'Something went wrong. Please try again.');
@@ -293,7 +304,7 @@ export default function UnifiedAuthForm() {
                 type="email"
                 placeholder="Enter your email"
                 className="h-11"
-                disabled={emailCheckPending || isLoading}
+                disabled={isLoading}
                 autoComplete="email"
               />
               {errors.email && (
@@ -302,14 +313,8 @@ export default function UnifiedAuthForm() {
                 </p>
               )}
             </div>
-            <Button
-              className="w-full h-11"
-              disabled={emailCheckPending || isLoading}
-              type="submit"
-            >
-              {emailCheckPending || isLoading
-                ? 'Checking...'
-                : 'Continue with Email'}
+            <Button className="w-full h-11" disabled={isLoading} type="submit">
+              {isLoading ? 'Checking...' : 'Continue with Email'}
             </Button>
           </form>
         </>

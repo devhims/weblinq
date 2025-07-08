@@ -1,10 +1,10 @@
 'use client';
 
-import { useActionState, useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { forgotPassword } from '@/server/auth-actions';
+import { authClient } from '@/lib/auth-client';
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -17,12 +17,7 @@ function ForgotPasswordContent() {
   const [countdown, setCountdown] = useState(0);
   const [emailSent, setEmailSent] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState('');
-
-  const initialState = { errorMessage: null, successMessage: null };
-  const [state, formAction, pending] = useActionState(
-    forgotPassword,
-    initialState
-  );
+  const [isLoading, setIsLoading] = useState(false);
 
   // Handle countdown for resend button
   useEffect(() => {
@@ -32,46 +27,65 @@ function ForgotPasswordContent() {
     }
   }, [countdown]);
 
-  // Handle form response
-  useEffect(() => {
-    if (state.errorMessage) {
-      toast.error(state.errorMessage, {
+  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get('email') as string;
+
+    if (!email) return;
+
+    setIsLoading(true);
+    setSubmittedEmail(email);
+
+    try {
+      const { error } = await authClient.forgetPassword({
+        email,
+        redirectTo: '/reset-password',
+      });
+
+      if (error) {
+        toast.error(error.message || 'Failed to send reset email', {
+          style: {
+            background: '#fee2e2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+          },
+        });
+      } else {
+        toast.success('Password reset email sent! Please check your inbox.', {
+          style: {
+            background: '#dcfce7',
+            border: '1px solid #bbf7d0',
+            color: '#166534',
+          },
+        });
+        setEmailSent(true);
+        setCountdown(60); // Start 60-second countdown
+      }
+    } catch (err) {
+      toast.error('Something went wrong. Please try again.', {
         style: {
           background: '#fee2e2',
           border: '1px solid #fecaca',
           color: '#991b1b',
         },
       });
-    } else if (state.successMessage) {
-      toast.success(state.successMessage, {
-        style: {
-          background: '#dcfce7',
-          border: '1px solid #bbf7d0',
-          color: '#166534',
-        },
-      });
-      setEmailSent(true);
-      setCountdown(60); // Start 60-second countdown
+    } finally {
+      setIsLoading(false);
     }
-  }, [state]);
-
-  const handleFormSubmit = (formData: FormData) => {
-    const email = formData.get('email') as string;
-    setSubmittedEmail(email);
-    formAction(formData);
   };
 
   return (
-    <div className='w-full max-w-md mx-auto'>
+    <div className="w-full max-w-md mx-auto">
       {/* Header */}
-      <div className='mb-8 text-center'>
-        <Link href='/' aria-label='go home' className='inline-block mb-6'>
-          <Icons.logo className='h-8 w-auto' />
+      <div className="mb-8 text-center">
+        <Link href="/" aria-label="go home" className="inline-block mb-6">
+          <Icons.logo className="h-8 w-auto" />
         </Link>
-        <h1 className='text-3xl font-bold text-foreground mb-2'>
+        <h1 className="text-3xl font-bold text-foreground mb-2">
           {emailSent ? 'Check Your Email' : 'Forgot Password?'}
         </h1>
-        <p className='text-muted-foreground'>
+        <p className="text-muted-foreground">
           {emailSent
             ? `We've sent a password reset link to ${
                 submittedEmail || 'your email address'
@@ -82,13 +96,13 @@ function ForgotPasswordContent() {
 
       {emailSent ? (
         // Success state - email sent
-        <div className='space-y-6'>
-          <div className='bg-green-50 border border-green-200 rounded-lg p-4'>
-            <div className='flex items-center space-x-2 mb-2'>
-              <Icons.mail className='h-5 w-5 text-green-600' />
-              <h3 className='font-semibold text-green-900'>Email Sent!</h3>
+        <div className="space-y-6">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <Icons.mail className="h-5 w-5 text-green-600" />
+              <h3 className="font-semibold text-green-900">Email Sent!</h3>
             </div>
-            <p className='text-sm text-green-800'>
+            <p className="text-sm text-green-800">
               Check your email inbox for a password reset link. Click the link
               to create a new password, then sign in with your new password.
             </p>
@@ -101,53 +115,56 @@ function ForgotPasswordContent() {
             </p>
           </div> */}
 
-          <div className='bg-yellow-50 border border-yellow-200 rounded-lg p-4'>
-            <p className='text-sm text-yellow-800'>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-sm text-yellow-800">
               <strong>Don&apos;t see the email?</strong> Check your spam folder
               or wait a moment before requesting another reset.
             </p>
           </div>
 
-          <form action={handleFormSubmit} className='space-y-4'>
-            <input type='hidden' name='email' value={submittedEmail} />
-            <Button className='w-full h-11' disabled={pending || countdown > 0}>
-              {pending
+          <form onSubmit={handleFormSubmit} className="space-y-4">
+            <input type="hidden" name="email" value={submittedEmail} />
+            <Button
+              className="w-full h-11"
+              disabled={isLoading || countdown > 0}
+            >
+              {isLoading
                 ? 'Sending...'
                 : countdown > 0
-                ? `Resend in ${countdown}s`
-                : 'Send Another Reset Link'}
+                  ? `Resend in ${countdown}s`
+                  : 'Send Another Reset Link'}
             </Button>
           </form>
         </div>
       ) : (
         // Initial state - request password reset
-        <form action={handleFormSubmit} className='space-y-6'>
-          <div className='space-y-2'>
-            <Label htmlFor='email' className='text-sm font-medium'>
+        <form onSubmit={handleFormSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-sm font-medium">
               Email Address
             </Label>
             <Input
-              type='email'
+              type="email"
               required
-              name='email'
-              id='email'
-              placeholder='Enter your email address'
-              className='h-11'
-              disabled={pending}
+              name="email"
+              id="email"
+              placeholder="Enter your email address"
+              className="h-11"
+              disabled={isLoading}
               defaultValue={emailParam}
             />
           </div>
 
-          <Button className='w-full h-11' disabled={pending}>
-            {pending ? 'Sending Reset Link...' : 'Send Reset Link'}
+          <Button className="w-full h-11" disabled={isLoading}>
+            {isLoading ? 'Sending Reset Link...' : 'Send Reset Link'}
           </Button>
         </form>
       )}
 
       {/* Instructions */}
-      <div className='mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4'>
-        <h3 className='font-semibold text-blue-900 mb-2'>How it works:</h3>
-        <ol className='text-sm text-blue-800 space-y-1 list-decimal list-inside'>
+      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="font-semibold text-blue-900 mb-2">How it works:</h3>
+        <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
           <li>Enter your email address above</li>
           <li>Check your email for a reset link</li>
           <li>Click the link to create a new password</li>
@@ -156,16 +173,16 @@ function ForgotPasswordContent() {
       </div>
 
       {/* Footer links */}
-      <div className='mt-6 text-center space-y-2'>
+      <div className="mt-6 text-center space-y-2">
         {/* <p className='text-sm text-muted-foreground'>
           Remember your password?{' '}
           <Link href='/sign-in' className='text-primary hover:underline'>
             Sign in
           </Link>
         </p> */}
-        <p className='text-sm text-muted-foreground'>
+        <p className="text-sm text-muted-foreground">
           Don&apos;t have an account?{' '}
-          <Link href='/sign-in' className='text-primary hover:underline'>
+          <Link href="/sign-in" className="text-primary hover:underline">
             Sign up
           </Link>
         </p>
@@ -178,10 +195,10 @@ export default function ForgotPasswordPage() {
   return (
     <Suspense
       fallback={
-        <div className='w-full max-w-md mx-auto'>
-          <div className='mb-8 text-center'>
-            <Icons.logo className='h-8 w-auto mx-auto mb-6' />
-            <h1 className='text-3xl font-bold text-foreground mb-2'>
+        <div className="w-full max-w-md mx-auto">
+          <div className="mb-8 text-center">
+            <Icons.logo className="h-8 w-auto mx-auto mb-6" />
+            <h1 className="text-3xl font-bold text-foreground mb-2">
               Loading...
             </h1>
           </div>

@@ -1,10 +1,9 @@
 'use client';
 
 import { Check, MessageSquare, CreditCard } from 'lucide-react';
-import { authClient, useSession } from '@/lib/auth-client';
-import { DebugPolar } from './debug-polar';
+import { useSession, authClient } from '@/lib/auth-client';
 import { useEffect, useState } from 'react';
-import { getUserCreditInfo } from '@/lib/payments/actions';
+import { userApi } from '@/lib/studio-api';
 
 // Pricing plans with credit-based system for web scraping
 const PLANS = [
@@ -63,43 +62,47 @@ const PLANS = [
 
 export default function PricingPage() {
   const { data: session } = useSession();
-  const [customerState, setCustomerState] = useState<any>(null);
-  const [creditInfo, setCreditInfo] = useState<any>(null);
+  const [creditInfo, setCreditInfo] = useState<{
+    balance: number;
+    plan: 'free' | 'pro';
+    lastRefill: string | null;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (session?.user?.id) {
-      loadSubscriptionInfo();
+      loadCreditInfo();
     } else {
       setLoading(false);
     }
   }, [session?.user?.id]);
 
-  const loadSubscriptionInfo = async () => {
+  const loadCreditInfo = async () => {
     try {
-      // Get Polar customer state and credit info in parallel
-      const [polarState, userCreditInfo] = await Promise.all([authClient.customer.state(), getUserCreditInfo()]);
-
-      setCustomerState(polarState.data);
-      setCreditInfo(userCreditInfo);
+      const creditData = await userApi.getCredits();
+      if (creditData?.success) {
+        setCreditInfo(creditData.data);
+      }
     } catch (error) {
-      console.error('Error loading subscription info:', error);
+      console.error('Error loading credit info:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Determine current plan from Polar customer state
-  const activeSub = customerState?.subscriptions?.[0];
-  const currentPlan = activeSub?.status === 'active' ? 'pro' : 'free';
-  const hasActiveSubscription = activeSub?.status === 'active';
+  // Determine current plan from credit info
+  const currentPlan = creditInfo?.plan || 'free';
+  const hasActiveSubscription = currentPlan === 'pro';
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Plan</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">
+          Choose Your Plan
+        </h1>
         <p className="text-lg text-gray-600 mb-4">
-          Start free, upgrade when you need more. No credit card required to get started.
+          Start free, upgrade when you need more. No credit card required to get
+          started.
         </p>
 
         {/* Current Plan Status */}
@@ -107,15 +110,18 @@ export default function PricingPage() {
           <div className="max-w-2xl mx-auto mb-6">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-green-700 text-sm">
-                You're currently on the <strong className="capitalize">{currentPlan}</strong> plan
+                You're currently on the{' '}
+                <strong className="capitalize">{currentPlan}</strong> plan
                 {hasActiveSubscription && (
                   <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     Active Subscription
                   </span>
                 )}
               </p>
-              {creditInfo?.credits && (
-                <p className="text-green-600 text-sm mt-1">{creditInfo.credits.balance} credits available</p>
+              {creditInfo && (
+                <p className="text-green-600 text-sm mt-1">
+                  {creditInfo.balance} credits available
+                </p>
               )}
             </div>
           </div>
@@ -124,7 +130,9 @@ export default function PricingPage() {
         {/* Payment Information */}
         <div className="max-w-2xl mx-auto mb-8">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-blue-700 text-sm">Payments processed securely with Polar</p>
+            <p className="text-blue-700 text-sm">
+              Secure payments powered by Polar
+            </p>
           </div>
         </div>
       </div>
@@ -139,9 +147,6 @@ export default function PricingPage() {
           />
         ))}
       </div>
-
-      {/* Debug component for development */}
-      <DebugPolar />
     </main>
   );
 }
@@ -169,6 +174,28 @@ function PricingCard({
   const isCurrentPlan = currentPlan === planId;
   const isCurrentlySubscribed = hasActiveSubscription && planId === 'pro';
 
+  const handleCheckout = async () => {
+    try {
+      // Use Better Auth's built-in checkout method - much cleaner!
+      await authClient.checkout({
+        slug: 'pro', // This matches the slug configured in backend auth.ts
+      });
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('Failed to start checkout. Please try again.');
+    }
+  };
+
+  const handlePortal = async () => {
+    try {
+      // Use Better Auth's built-in customer portal method
+      await authClient.customer.portal();
+    } catch (error) {
+      console.error('Portal error:', error);
+      alert('Failed to access customer portal. Please try again.');
+    }
+  };
+
   return (
     <div
       className={`border-2 rounded-lg p-8 relative ${isPopular ? 'border-orange-500 shadow-lg' : 'border-gray-200'} ${
@@ -177,13 +204,17 @@ function PricingCard({
     >
       {isPopular && (
         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <span className="bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-medium">Most Popular</span>
+          <span className="bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-medium">
+            Most Popular
+          </span>
         </div>
       )}
 
       {isCurrentPlan && (
         <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-2">
-          <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-medium">Current Plan</span>
+          <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+            Current Plan
+          </span>
         </div>
       )}
 
@@ -234,13 +265,7 @@ function PricingCard({
                   ✓ Active Subscription
                 </div>
                 <button
-                  onClick={async () => {
-                    try {
-                      await authClient.customer.portal();
-                    } catch (error) {
-                      console.error('Portal error:', error);
-                    }
-                  }}
+                  onClick={handlePortal}
                   className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
                 >
                   Manage Subscription
@@ -248,20 +273,9 @@ function PricingCard({
               </div>
             ) : (
               <>
-                {/* Use client-side checkout for better UX */}
                 <button
-                  onClick={async () => {
-                    try {
-                      // Use client-side checkout which will redirect to Polar
-                      await authClient.checkout({
-                        slug: 'pro', // This matches the slug in auth.ts
-                      });
-                    } catch (error) {
-                      console.error('Checkout error:', error);
-                      // Handle error - could show toast notification
-                    }
-                  }}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center rounded-full"
+                  onClick={handleCheckout}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
                 >
                   {currentPlan === 'free' ? 'Upgrade to Pro' : 'Get Started'}
                   <Check className="ml-2 h-4 w-4" />
@@ -272,7 +286,9 @@ function PricingCard({
                     <CreditCard className="h-3 w-3 mr-1" />
                     <span>Powered by Polar</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">Credit Card, Bank Transfer, Digital Wallets</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Credit Card, Bank Transfer, Digital Wallets
+                  </p>
                 </div>
               </>
             )}
@@ -290,7 +306,10 @@ function ContactButton() {
     <button
       onClick={() => {
         // You can replace this with your preferred contact method
-        window.open('mailto:sales@yourcompany.com?subject=Enterprise Plan Inquiry', '_blank');
+        window.open(
+          'mailto:sales@yourcompany.com?subject=Enterprise Plan Inquiry',
+          '_blank',
+        );
       }}
       className="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
     >

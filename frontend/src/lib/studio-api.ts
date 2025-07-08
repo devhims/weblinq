@@ -333,11 +333,14 @@ async function apiBinaryRequest(
     }
   }
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}${endpoint}`, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}${endpoint}`,
+    {
+      ...options,
+      headers,
+      credentials: 'include',
+    },
+  );
 
   if (!response.ok) {
     const apiError = await parseErrorResponse(response);
@@ -347,12 +350,16 @@ async function apiBinaryRequest(
   // Check if we got binary or JSON response
   const contentType = response.headers.get('content-type');
 
-  if (contentType && (contentType.includes('application/pdf') || contentType.includes('image/'))) {
+  if (
+    contentType &&
+    (contentType.includes('application/pdf') || contentType.includes('image/'))
+  ) {
     // Binary response (PDF or Image)
     const data = new Uint8Array(await response.arrayBuffer());
     const metadata = JSON.parse(response.headers.get('X-Metadata') || '{}');
     const creditsCost = parseInt(response.headers.get('X-Credits-Cost') || '0');
-    const permanentUrl = response.headers.get('X-Permanent-Url')?.trim() || undefined;
+    const permanentUrl =
+      response.headers.get('X-Permanent-Url')?.trim() || undefined;
     const fileId = response.headers.get('X-File-Id')?.trim() || undefined;
 
     const responseData = contentType.includes('application/pdf')
@@ -385,7 +392,10 @@ async function apiBinaryRequest(
       };
     } else if (result.success && typeof result.data.image === 'string') {
       // Convert base64 image to binary
-      const base64Data = result.data.image.replace(/^data:image\/[a-z]+;base64,/, '');
+      const base64Data = result.data.image.replace(
+        /^data:image\/[a-z]+;base64,/,
+        '',
+      );
       const byteCharacters = atob(base64Data);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -406,7 +416,10 @@ async function apiBinaryRequest(
 }
 
 // Base API request function with error handling
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
   // Check if we're in preview mode and need API key auth
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -429,11 +442,14 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     }
   }
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}${endpoint}`, {
-    ...options,
-    headers,
-    credentials: 'include', // Include session cookies (for production)
-  });
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}${endpoint}`,
+    {
+      ...options,
+      headers,
+      credentials: 'include', // Include session cookies (for production)
+    },
+  );
 
   if (!response.ok) {
     const apiError = await parseErrorResponse(response);
@@ -450,7 +466,10 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 }
 
 // Client-side authenticated request helper (for mutations from client components)
-async function clientApiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function clientApiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
   const url = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}${endpoint}`;
 
   // Prepare headers with potential API key auth for preview environments
@@ -516,7 +535,9 @@ export const studioApi = {
     }),
 
   // Extract structured JSON
-  jsonExtraction: (data: JsonExtractionRequest): Promise<JsonExtractionResponse> =>
+  jsonExtraction: (
+    data: JsonExtractionRequest,
+  ): Promise<JsonExtractionResponse> =>
     apiRequest('/v1/web/extract-json', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -565,7 +586,10 @@ export const studioApi = {
     ),
 
   // List stored files
-  listFiles: (params: ListFilesParams = {}, extraHeaders: Record<string, string> = {}): Promise<ListFilesResponse> => {
+  listFiles: (
+    params: ListFilesParams = {},
+    extraHeaders: Record<string, string> = {},
+  ): Promise<ListFilesResponse> => {
     const qs = new URLSearchParams();
     if (params.type) qs.append('type', params.type);
     if (params.limit) qs.append('limit', params.limit.toString());
@@ -585,17 +609,24 @@ export const studioApi = {
 };
 
 // Server-side files API function (for server components)
-export async function listFilesServer(params?: ListFilesParams): Promise<ListFilesResponse> {
+export async function listFilesServer(
+  params?: ListFilesParams,
+): Promise<ListFilesResponse> {
   // Dynamic import to avoid issues in client-side bundling
   const { cookies } = await import('next/headers');
 
-  const url = new URL('/v1/files/list', process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787');
+  const url = new URL(
+    '/v1/files/list',
+    process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787',
+  );
 
   // Add query parameters
   if (params) {
     if (params.type) url.searchParams.set('type', params.type);
-    if (params.limit !== undefined) url.searchParams.set('limit', params.limit.toString());
-    if (params.offset !== undefined) url.searchParams.set('offset', params.offset.toString());
+    if (params.limit !== undefined)
+      url.searchParams.set('limit', params.limit.toString());
+    if (params.offset !== undefined)
+      url.searchParams.set('offset', params.offset.toString());
     if (params.sort_by) url.searchParams.set('sort_by', params.sort_by);
     if (params.order) url.searchParams.set('order', params.order);
   }
@@ -615,12 +646,16 @@ export async function listFilesServer(params?: ListFilesParams): Promise<ListFil
     headers,
   });
 
-  console.log(`🌐 [Server Files API] Status: ${response.status} ${response.statusText}`);
+  console.log(
+    `🌐 [Server Files API] Status: ${response.status} ${response.statusText}`,
+  );
 
   if (!response.ok) {
     const error = await response.text();
     console.error(`🌐 [Server Files API Error] ${response.status}: ${error}`);
-    throw new Error(`Failed to fetch files: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch files: ${response.status} ${response.statusText}`,
+    );
   }
 
   const result = await response.json();
@@ -644,5 +679,58 @@ export const filesApi = {
     clientApiRequest('/v1/files/delete', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+};
+
+// User API types and functions
+export type UserCreditsRequest = object;
+
+export interface UserCreditsResponse {
+  success: boolean;
+  data: {
+    balance: number;
+    plan: 'free' | 'pro';
+    lastRefill: string | null;
+  };
+}
+
+export interface VerifyEmailRequest {
+  email: string;
+}
+
+export interface VerifyEmailResponse {
+  success: boolean;
+  data: {
+    exists: boolean;
+    email: string;
+  };
+}
+
+export type BootstrapCreditsRequest = object;
+
+export interface BootstrapCreditsResponse {
+  success: boolean;
+  data: object;
+}
+
+// User API functions
+export const userApi = {
+  // Get user credit information
+  getCredits: (): Promise<UserCreditsResponse> =>
+    apiRequest('/v1/user/credits', {
+      method: 'GET',
+    }),
+
+  // Verify if email exists
+  verifyEmail: (data: VerifyEmailRequest): Promise<VerifyEmailResponse> =>
+    apiRequest('/v1/user/verify-email', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Bootstrap credits for existing users
+  bootstrapCredits: (): Promise<BootstrapCreditsResponse> =>
+    apiRequest('/v1/user/bootstrap-credits', {
+      method: 'POST',
     }),
 };

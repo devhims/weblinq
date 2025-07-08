@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
+import { config } from '@/config/env';
 
 export default function SignInSocial({
   provider,
@@ -41,11 +42,11 @@ export default function SignInSocial({
       // Use authClient for client-side operations
       await authClient.signIn.social({
         provider,
-        callbackURL: callbackURL || '/dashboard',
+        callbackURL: callbackURL || `${config.frontendUrl}/dashboard`,
         newUserCallbackURL: callbackURL
           ? `${callbackURL}?new_user=true`
-          : '/dashboard?new_user=true',
-        errorCallbackURL: '/sign-in?error=oauth_error',
+          : `${config.frontendUrl}/dashboard?new_user=true`,
+        errorCallbackURL: `${config.frontendUrl}/sign-in?error=oauth_error`,
       });
     } catch (err) {
       console.error(`${provider} sign-in error:`, err);

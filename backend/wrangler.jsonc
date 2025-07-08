@@ -13,7 +13,10 @@
     "BETTER_AUTH_URL": "https://api.weblinq.dev",
     "CDN_DOMAIN": "cdn.weblinq.dev",
     "CDN_PREVIEW_DOMAIN": "cdn-preview.weblinq.dev",
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "INITIAL_FREE_CREDITS": "1000",
+    "INITIAL_PRO_CREDITS": "5000",
+    "MONTHLY_PRO_REFILL": "5000"
   },
   "d1_databases": [
     {

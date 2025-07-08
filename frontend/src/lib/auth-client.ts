@@ -1,32 +1,14 @@
-import { polarClient } from '@polar-sh/better-auth';
 import { createAuthClient } from 'better-auth/react';
+import { polarClient } from '@polar-sh/better-auth';
+import { config } from '@/config/env';
 
-/* -------------------------------------------------------------------------
-   Determine the correct baseURL for Better-Auth REST calls.
-
-   Rules
-   • In production: https://www.weblinq.dev
-   • In Vercel preview / local dev in the browser:  window.location.origin
-   • In unit tests / SSR fallback:  process.env.NEXT_PUBLIC_FRONTEND_URL
---------------------------------------------------------------------------- */
-
-function resolveBaseURL(): string | undefined {
-  // Build-time / SSR: no window global
-  if (typeof window === 'undefined') {
-    return process.env.NEXT_PUBLIC_FRONTEND_URL;
-  }
-
-  // Browser: use current origin so previews work automatically
-  return window.location.origin;
-}
-
-/* 1. Create the Better-Auth client.  Leaving baseURL `undefined` makes it
-      fall back to relative URLs when running in the browser, which is what
-      we want in Vercel previews.                                         */
+/* 1. Create the Better-Auth client with Polar integration.
+      Point directly to the backend where Better Auth + Polar is configured.
+      No frontend proxy needed - Better Auth handles cross-domain cookies.   */
 export const authClient = createAuthClient({
-  baseURL: resolveBaseURL(),
+  baseURL: config.backendUrl, // Point directly to backend
   fetchOptions: { credentials: 'include' },
-  plugins: [polarClient()],
+  plugins: [polarClient()], // Adds checkout(), portal(), usage() methods
 });
 
 /* 2.  Re-export the hooks & helpers Better Auth injects. */

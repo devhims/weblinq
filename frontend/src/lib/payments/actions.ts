@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
-import { getUserCredits, deductCredits, getCreditUsageHistory } from '@/db/queries';
+import { userApi } from '@/lib/studio-api';
 
 /* -------------------------------------------------- */
 /* helper to fetch current user                       */
@@ -54,54 +54,69 @@ export async function getSubscriptionStatus() {
   const user = await getCurrentUser();
   if (!user) return { hasActiveSubscription: false, plan: 'free', balance: 0 };
 
-  // rely on your DB mirror
-  const { balance } = await getUserCredits(user.id);
-  // 🔎 optional: add a DB query for subscriptions here
-  return { hasActiveSubscription: false, plan: 'free', balance };
+  try {
+    // Get credits via API
+    const creditInfo = await getUserCreditInfo();
+    const balance = creditInfo?.credits?.balance || 0;
+    const plan = creditInfo?.credits?.plan || 'free';
+    const hasActiveSubscription = plan === 'pro';
+
+    return { hasActiveSubscription, plan, balance };
+  } catch (error) {
+    console.error('Failed to get subscription status:', error);
+    return { hasActiveSubscription: false, plan: 'free', balance: 0 };
+  }
 }
 
 /* -------------------------------------------------- */
 /* 4. Credits helpers (unchanged except schema fields)*/
 /* -------------------------------------------------- */
-export async function checkAndDeductCredits(operation: string, creditsRequired: number, metadata?: any) {
+export async function checkAndDeductCredits(
+  operation: string,
+  creditsRequired: number,
+  metadata?: any,
+) {
   const user = await getCurrentUser();
   if (!user) throw new Error('User not authenticated');
 
-  const { balance } = await getUserCredits(user.id);
-  if (balance < creditsRequired) throw new Error(`Need ${creditsRequired}, have ${balance}`);
+  // Check current balance via API
+  const creditInfo = await getUserCreditInfo();
+  const balance = creditInfo?.credits?.balance || 0;
 
-  await deductCredits(user.id, creditsRequired, operation, metadata);
+  if (balance < creditsRequired)
+    throw new Error(`Need ${creditsRequired}, have ${balance}`);
+
+  // Call backend API to deduct credits
+  const response = await fetch('/api/user/deduct-credits', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ amount: creditsRequired, operation, metadata }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to deduct credits: ${response.status}`);
+  }
+
   return { success: true, remaining: balance - creditsRequired };
 }
 
 export async function getUserCreditInfo() {
-  const user = await getCurrentUser();
-  if (!user) return null;
-
   try {
-    const { balance, plan, lastRefill } = await getUserCredits(user.id);
-    return { credits: { balance, plan, lastRefill } };
-  } catch (error) {
-    // Handle case where user doesn't have credits yet (existing users before new system)
-    console.warn(`User ${user.id} doesn't have credits yet. This may be an existing user from before the new system.`);
-
-    // For existing users, we can bootstrap them here as a fallback
-    // This is temporary until all existing users have been migrated
-    try {
-      const { assignInitialCredits } = await import('@/db/queries');
-      await assignInitialCredits(user.id);
-
-      // Retry getting credits after assignment
-      const [credits, history] = await Promise.all([getUserCredits(user.id), getCreditUsageHistory(user.id, 10)]);
-      return { credits, history };
-    } catch (bootstrapError) {
-      console.error(`Failed to bootstrap credits for user ${user.id}:`, bootstrapError);
-
-      // Return default values if all else fails
+    const result = await userApi.getCredits();
+    if (result.success) {
+      return { credits: result.data };
+    } else {
       return {
-        credits: { balance: 0, plan: 'free' as const, lastRefill: null },
-        history: [],
+        success: false,
+        error: 'Failed to fetch credits',
       };
     }
+  } catch (error) {
+    console.error('Error fetching user credits:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch credits',
+    };
   }
 }

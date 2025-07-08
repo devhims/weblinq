@@ -1,12 +1,25 @@
 'use client';
 
+import React, { useEffect, useState } from 'react';
+import { userApi } from '@/lib/studio-api';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { createCustomerPortalSession } from '@/lib/payments/actions';
-import { authClient, useSession } from '@/lib/auth-client';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useSession, authClient } from '@/lib/auth-client';
 import { Suspense } from 'react';
-import React from 'react';
-import { getUserCreditInfo } from '@/lib/payments/actions';
+
+interface CreditInfo {
+  balance: number;
+  plan: 'free' | 'pro';
+  lastRefill: string | null;
+}
 
 function SubscriptionSkeleton() {
   return (
@@ -20,46 +33,29 @@ function SubscriptionSkeleton() {
 
 export function ManageSubscription() {
   const { data: session } = useSession();
-  const [loading, setLoading] = React.useState(true);
-  const [customerState, setCustomerState] = React.useState<any>(null); // Polar state
-  const [credits, setCredits] = React.useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [creditInfo, setCreditInfo] = useState<{
+    balance: number;
+    plan: 'free' | 'pro';
+    lastRefill: string | null;
+  } | null>(null);
 
   /* ------------------------------------------------------------------ */
-  /*  Fetch Polar + credit balance                                       */
+  /*  Fetch credit balance                                               */
   /* ------------------------------------------------------------------ */
   React.useEffect(() => {
     (async () => {
       if (!session?.user?.id) return setLoading(false);
 
       try {
-        console.log('🔄 Loading subscription info for user:', session?.user?.id);
-
-        // 2️⃣ Get credit info first (this should always work)
-        const creditInfo = await getUserCreditInfo();
-        setCredits(creditInfo?.credits?.balance || 0);
-        console.log('✅ Credit info loaded:', creditInfo?.credits?.balance);
-
-        // 1️⃣ Then try to get Polar customer state
-        try {
-          const { data: state } = await authClient.customer.state();
-          setCustomerState(state);
-          console.log('✅ Polar customer state loaded:', state);
-        } catch (polarError: any) {
-          console.error('❌ Polar customer state failed:', {
-            message: polarError.message,
-            code: polarError.code,
-            status: polarError.status,
-            fullError: polarError,
-          });
-
-          // If this is a new user who doesn't have a Polar customer yet,
-          // we'll continue with just the credit info
-          if (polarError.message?.includes('SUBSCRIPTIONS_LIST_FAILED')) {
-            console.warn('⚠️ User may not have a Polar customer yet. This is normal for new signups.');
-          }
+        console.log('🔄 Loading credit info for user:', session?.user?.id);
+        const creditData = await userApi.getCredits();
+        if (creditData?.success) {
+          setCreditInfo(creditData.data);
         }
+        console.log('✅ Credit info loaded:', creditData);
       } catch (err) {
-        console.error('❌ Billing fetch error', err);
+        console.error('❌ Credit fetch error', err);
       } finally {
         setLoading(false);
       }
@@ -71,16 +67,25 @@ export function ManageSubscription() {
   /* ------------------------------------------------------------------ */
   /*  Derive plan + usage                                                */
   /* ------------------------------------------------------------------ */
-  const activeSub = customerState?.subscriptions?.[0]; // you allow 1 sub/user
-  const plan: 'free' | 'pro' = activeSub?.status === 'active' ? 'pro' : 'free';
+  const plan = creditInfo?.plan || 'free';
+  const balance = creditInfo?.balance || 0;
 
   const planDisplay = plan === 'pro' ? 'Pro' : 'Free';
   const planStatus = plan === 'pro' ? 'Active subscription' : 'Free plan';
 
-  const balance = credits; // current spendable
   const quota = plan === 'pro' ? 5000 : 1000;
   const used = Math.max(0, quota - balance);
   const usedPct = Math.round((used / quota) * 100);
+
+  const handleManageSubscription = async () => {
+    try {
+      // Use Better Auth's built-in customer portal method - much cleaner!
+      await authClient.customer.portal();
+    } catch (error) {
+      console.error('Portal error:', error);
+      alert('Failed to access customer portal. Please try again.');
+    }
+  };
 
   /* ------------------------------------------------------------------ */
   /*  UI                                                                 */
@@ -105,7 +110,9 @@ export function ManageSubscription() {
             </p>
             <p className="text-sm text-muted-foreground">{planStatus}</p>
             {plan === 'free' && (
-              <p className="text-sm text-blue-600 mt-1">Upgrade to Pro for 5× more credits (5 000 / month)</p>
+              <p className="text-sm text-blue-600 mt-1">
+                Upgrade to Pro for 5× more credits (5 000 / month)
+              </p>
             )}
           </div>
 
@@ -116,7 +123,7 @@ export function ManageSubscription() {
               </Button>
             )}
             {plan === 'pro' && (
-              <Button variant="outline" onClick={() => createCustomerPortalSession().catch(console.error)}>
+              <Button variant="outline" onClick={handleManageSubscription}>
                 Manage Subscription
               </Button>
             )}
@@ -125,7 +132,11 @@ export function ManageSubscription() {
 
         {/* Credits quick stats */}
         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-          <Stat label="Available Credits" value={balance} accent="text-green-600" />
+          <Stat
+            label="Available Credits"
+            value={balance}
+            accent="text-green-600"
+          />
           <Stat label="Credits Used" value={used} />
         </div>
 
@@ -134,7 +145,8 @@ export function ManageSubscription() {
 
         {/* Helper tips */}
         <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
-          💡 <strong>How credits work:</strong> each scrape/search uses 1 credit.
+          💡 <strong>How credits work:</strong> each scrape/search uses 1
+          credit.
           {plan === 'free'
             ? ' Free plan gives you 1 000 lifetime credits. Upgrade to Pro for 5 000 credits every month.'
             : ' Your credits reset to 5 000 every month.'}
@@ -164,7 +176,9 @@ function UserInfo() {
         <div className="space-y-4">
           <div>
             <p className="font-medium">Name</p>
-            <p className="text-sm text-muted-foreground">{user?.name || 'Not set'}</p>
+            <p className="text-sm text-muted-foreground">
+              {user?.name || 'Not set'}
+            </p>
           </div>
           <div>
             <p className="font-medium">Email</p>
@@ -173,7 +187,9 @@ function UserInfo() {
           <div>
             <p className="font-medium">Account Created</p>
             <p className="text-sm text-muted-foreground">
-              {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+              {user?.createdAt
+                ? new Date(user.createdAt).toLocaleDateString()
+                : 'Unknown'}
             </p>
           </div>
         </div>
@@ -202,11 +218,21 @@ function UserInfoSkeleton() {
 
 /* --- helpers ------------------------------------------------------- */
 
-function Stat({ label, value, accent }: { label: string; value: number; accent?: string }) {
+function Stat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent?: string;
+}) {
   return (
     <div>
       <p className="text-sm font-medium text-gray-700">{label}</p>
-      <p className={`text-lg font-semibold ${accent ?? 'text-gray-600'}`}>{value.toLocaleString()}</p>
+      <p className={`text-lg font-semibold ${accent ?? 'text-gray-600'}`}>
+        {value.toLocaleString()}
+      </p>
     </div>
   );
 }
@@ -219,7 +245,10 @@ function UsageBar({ usedPct, quota }: { usedPct: number; quota: number }) {
         <span>{usedPct}% used</span>
       </div>
       <div className="w-full bg-gray-200 rounded-full h-2">
-        <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${usedPct}%` }} />
+        <div
+          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+          style={{ width: `${usedPct}%` }}
+        />
       </div>
     </div>
   );

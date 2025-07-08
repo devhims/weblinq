@@ -284,7 +284,6 @@ export async function getCreditUsageHistory(userId: string, limit = 50) {
     metadata: r.metadata ? JSON.parse(r.metadata) : null,
   }));
 }
-
 /* ------------------------------------------------------------------ */
 /* 3. Subscriptions (Polar)                                            */
 /* ------------------------------------------------------------------ */

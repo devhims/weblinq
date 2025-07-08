@@ -1,573 +1,239 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
 import { APIError } from 'better-auth/api';
-import { db } from '@/db';
-import { user } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { config } from '@/config/env';
 import { validatePassword } from '@/lib/utils/password-validation';
 import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
+import { userApi } from '@/lib/studio-api';
+import { cookies } from 'next/headers';
 
 interface State {
   errorMessage?: string | null;
-  requiresVerification?: boolean;
-  email?: string;
-}
-
-interface EmailCheckState {
-  errorMessage?: string | null;
-  emailExists?: boolean;
-  email?: string;
-}
-
-interface EmailVerificationState {
-  errorMessage?: string | null;
   successMessage?: string | null;
   requiresVerification?: boolean;
   email?: string;
 }
 
-export async function signIn(prevState: State, formData: FormData) {
-  const rawFormData = {
-    email: formData.get('email') as string,
-    password: formData.get('pwd') as string,
-  };
+// Helper function to make authenticated requests to backend auth API
+async function backendAuthRequest(endpoint: string, options: RequestInit = {}) {
+  const headersList = await headers();
 
-  const { email, password } = rawFormData;
-
-  try {
-    await auth.api.signInEmail({
-      body: {
-        email,
-        password,
-      },
-    });
-    console.log('Signed in');
-  } catch (error) {
-    if (error instanceof APIError) {
-      switch (error.status) {
-        case 'UNAUTHORIZED':
-          return { errorMessage: 'User Not Found.' };
-        case 'BAD_REQUEST':
-          return { errorMessage: 'Invalid email.' };
-        case 'FORBIDDEN':
-          // User exists but email is not verified
-          try {
-            await auth.api.sendVerificationEmail({
-              body: { email },
-            });
-            return {
-              requiresVerification: true,
-              email,
-              errorMessage:
-                "Your email address is not verified. We've sent a new verification email to your inbox.",
-            };
-          } catch (emailError) {
-            console.error('Failed to send verification email:', emailError);
-            return {
-              requiresVerification: true,
-              email,
-              errorMessage:
-                'Your email address is not verified. Please check your inbox for a verification email.',
-            };
-          }
-        default:
-          return { errorMessage: 'Something went wrong.' };
-      }
-    }
-    console.error('sign in with email has not worked', error);
-    throw error;
-  }
-  redirect('/dashboard');
+  return fetch(`${config.backendUrl}/api/auth/${endpoint}`, {
+    ...options,
+    headers: {
+      ...options.headers,
+      // Forward cookies for session authentication
+      cookie: headersList.get('cookie') || '',
+      'content-type': 'application/json',
+      ...headersList,
+    },
+    credentials: 'include',
+  });
 }
 
-export async function signUp(prevState: State, formData: FormData) {
-  const rawFormData = {
-    email: formData.get('email') as string,
-    password: formData.get('pwd') as string,
-    firstName: formData.get('firstname'),
-    lastName: formData.get('lastname'),
-  };
-
-  const { email, password, firstName, lastName } = rawFormData;
-
-  try {
-    await auth.api.signUpEmail({
-      body: {
-        name: `${firstName} ${lastName}`,
-        email,
-        password,
-      },
-    });
-  } catch (error) {
-    if (error instanceof APIError) {
-      switch (error.status) {
-        case 'UNPROCESSABLE_ENTITY':
-          return { errorMessage: 'User already exists.' };
-        case 'BAD_REQUEST':
-          return { errorMessage: 'Invalid email.' };
-        default:
-          return { errorMessage: 'Something went wrong.' };
-      }
-    }
-    console.error('sign up with email and password has not worked', error);
-  }
-  redirect('/dashboard');
-}
-
-export async function checkEmailExists(
-  prevState: EmailCheckState,
-  formData: FormData,
-): Promise<EmailCheckState> {
+export async function signUp(_: any, formData: FormData): Promise<State> {
   const email = formData.get('email') as string;
-
-  if (!email) {
-    return { errorMessage: 'Email is required.' };
-  }
-
-  // Basic email validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return { errorMessage: 'Please enter a valid email address.' };
-  }
+  const password = formData.get('password') as string;
+  const name = formData.get('name') as string;
 
   try {
-    const userInfo = await db.select().from(user).where(eq(user.email, email));
-    const emailExists = userInfo.length > 0;
-
-    return {
-      emailExists,
-      email,
-      errorMessage: null,
-    };
-  } catch (error) {
-    console.error('Error checking email existence:', error);
-    return { errorMessage: 'Something went wrong. Please try again.' };
-  }
-}
-
-export async function unifiedSignIn(prevState: State, formData: FormData) {
-  const rawFormData = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  };
-
-  const { email, password } = rawFormData;
-
-  try {
-    await auth.api.signInEmail({
-      body: {
-        email,
-        password,
-      },
+    const response = await backendAuthRequest('sign-up/email', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name }),
     });
-    console.log('Signed in');
-  } catch (error) {
-    if (error instanceof APIError) {
-      switch (error.status) {
-        case 'UNAUTHORIZED':
-          return { errorMessage: 'Invalid password. Please try again.' };
-        case 'BAD_REQUEST':
-          return { errorMessage: 'Invalid email or password.' };
-        case 'FORBIDDEN':
-          // User exists but email is not verified
-          try {
-            await auth.api.sendVerificationEmail({
-              body: { email },
-            });
-            return {
-              requiresVerification: true,
-              email,
-              errorMessage:
-                "Your email address is not verified. We've sent a new verification email to your inbox.",
-            };
-          } catch (emailError) {
-            console.error('Failed to send verification email:', emailError);
-            return {
-              requiresVerification: true,
-              email,
-              errorMessage:
-                'Your email address is not verified. Please check your inbox for a verification email.',
-            };
-          }
-        default:
-          return { errorMessage: 'Something went wrong.' };
-      }
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return { errorMessage: result.message || 'Sign up failed' };
     }
-    console.error('unified sign in has not worked', error);
-    throw error;
-  }
-  redirect('/dashboard');
-}
 
-export async function unifiedSignUp(prevState: State, formData: FormData) {
-  const rawFormData = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-    firstName: formData.get('firstName'),
-    lastName: formData.get('lastName'),
-  };
+    if (result.user && !result.user.emailVerified) {
+      return {
+        requiresVerification: true,
+        email: result.user.email,
+      };
+    }
 
-  const { email, password, firstName, lastName } = rawFormData;
-
-  // Validate password before calling better-auth
-  const passwordValidation = validatePassword(password);
-  if (!passwordValidation.isValid) {
+    // If user is created and verified, redirect to dashboard
+    redirect('/dashboard');
+  } catch (error: any) {
+    console.error('Sign up error:', error);
     return {
-      errorMessage: passwordValidation.errors.join(' '),
+      errorMessage: error.message || 'An error occurred during sign up',
     };
   }
-
-  // Basic validation for required fields
-  if (!firstName?.toString().trim() || !lastName?.toString().trim()) {
-    return { errorMessage: 'First name and last name are required.' };
-  }
-
-  try {
-    await auth.api.signUpEmail({
-      body: {
-        name: `${firstName} ${lastName}`,
-        email,
-        password,
-      },
-    });
-  } catch (error) {
-    if (error instanceof APIError) {
-      switch (error.status) {
-        case 'UNPROCESSABLE_ENTITY':
-          // Check if user exists but is unverified
-          try {
-            const existingUser = await searchAccount(email);
-            if (existingUser && !existingUser.emailVerified) {
-              // User exists but email is not verified - resend verification
-              try {
-                await auth.api.sendVerificationEmail({
-                  body: { email },
-                });
-                redirect(
-                  `/verify-email?email=${encodeURIComponent(
-                    email,
-                  )}&resent=true`,
-                );
-              } catch (emailError) {
-                console.error(
-                  'Failed to resend verification email:',
-                  emailError,
-                );
-                return {
-                  errorMessage:
-                    'Account exists but email not verified. Failed to resend verification email. Please try again.',
-                };
-              }
-            } else {
-              return {
-                errorMessage:
-                  'An account with this email already exists and is verified. Try signing in instead.',
-              };
-            }
-          } catch (searchError) {
-            console.error('Failed to check existing user:', searchError);
-            return { errorMessage: 'User already exists.' };
-          }
-          break;
-        case 'BAD_REQUEST':
-          return { errorMessage: 'Invalid email or password format.' };
-        default:
-          return { errorMessage: 'Something went wrong.' };
-      }
-    }
-    console.error('unified sign up has not worked', error);
-    return { errorMessage: 'Something went wrong during sign up.' };
-  }
-
-  // Since email verification is required, we redirect to verification page instead of dashboard
-  redirect(`/verify-email?email=${encodeURIComponent(email)}`);
 }
 
-export async function sendEmailVerification(
-  prevState: EmailVerificationState,
-  formData: FormData,
-): Promise<EmailVerificationState> {
+export async function signIn(_: any, formData: FormData): Promise<State> {
   const email = formData.get('email') as string;
-
-  if (!email) {
-    return { errorMessage: 'Email is required.' };
-  }
+  const password = formData.get('password') as string;
 
   try {
-    await auth.api.sendVerificationEmail({
-      body: { email },
+    const response = await backendAuthRequest('sign-in/email', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
     });
 
+    const result = await response.json();
+
+    if (!response.ok) {
+      if (result.code === 'EMAIL_NOT_VERIFIED') {
+        return {
+          requiresVerification: true,
+          email: email,
+        };
+      }
+      return { errorMessage: result.message || 'Sign in failed' };
+    }
+
+    redirect('/dashboard');
+  } catch (error: any) {
+    console.error('Sign in error:', error);
     return {
-      successMessage: 'Verification email sent! Please check your inbox.',
-      email,
-    };
-  } catch (error) {
-    console.error('Failed to send verification email:', error);
-    return {
-      errorMessage: 'Failed to send verification email. Please try again.',
+      errorMessage: error.message || 'An error occurred during sign in',
     };
   }
-}
-
-// Note: Email verification is now handled by /api/verify route
-// This keeps the codebase cleaner and provides consistent new user detection
-
-interface ForgotPasswordState {
-  errorMessage?: string | null;
-  successMessage?: string | null;
 }
 
 export async function forgotPassword(
-  prevState: ForgotPasswordState,
+  _: any,
   formData: FormData,
-): Promise<ForgotPasswordState> {
+): Promise<State> {
   const email = formData.get('email') as string;
 
-  if (!email) {
-    return { errorMessage: 'Email is required.' };
-  }
-
   try {
-    // First check if user exists and is unverified
-    const existingUser = await searchAccount(email);
-
-    if (existingUser && !existingUser.emailVerified) {
-      // User exists but email is not verified - send verification email instead
-      try {
-        await auth.api.sendVerificationEmail({
-          body: { email },
-        });
-        return {
-          errorMessage:
-            "Your email address is not verified yet. We've sent a verification email to your inbox. Please verify your email first, then you can reset your password.",
-        };
-      } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
-        return {
-          errorMessage:
-            'Your email address is not verified yet. Please check your inbox for a verification email and verify your account first.',
-        };
-      }
-    }
-
-    await auth.api.forgetPassword({
-      body: {
-        email,
-        redirectTo: '/reset-password',
-      },
+    const response = await backendAuthRequest('forget-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, redirectTo: '/reset-password' }),
     });
+
+    if (!response.ok) {
+      const result = await response.json();
+      return { errorMessage: result.message || 'Password reset failed' };
+    }
 
     return {
       errorMessage: null,
       successMessage: 'Password reset email sent! Please check your inbox.',
+      email: email,
     };
-  } catch (error) {
-    if (error instanceof APIError) {
-      switch (error.status) {
-        case 'BAD_REQUEST':
-          return { errorMessage: 'Invalid email address.' };
-        case 'NOT_FOUND':
-          return { errorMessage: 'No account found with this email address.' };
-        default:
-          return { errorMessage: 'Failed to send reset email.' };
-      }
-    }
-    console.error('Forgot password failed:', error);
-    return { errorMessage: 'Failed to send reset email.' };
+  } catch (error: any) {
+    console.error('Forgot password error:', error);
+    return { errorMessage: error.message || 'An error occurred' };
   }
 }
 
-export async function resetPassword(prevState: State, formData: FormData) {
+export async function resetPassword(
+  _: any,
+  formData: FormData,
+): Promise<State> {
+  const password = formData.get('password') as string;
   const token = formData.get('token') as string;
+
+  const validation = validatePassword(password);
+  if (!validation.isValid) {
+    return { errorMessage: validation.errors[0] };
+  }
+
+  try {
+    const response = await backendAuthRequest('reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ password, token }),
+    });
+
+    if (!response.ok) {
+      const result = await response.json();
+      return { errorMessage: result.message || 'Password reset failed' };
+    }
+
+    redirect('/sign-in');
+  } catch (error: any) {
+    console.error('Reset password error:', error);
+    return { errorMessage: error.message || 'An error occurred' };
+  }
+}
+
+// Note: These functions below are simplified since they primarily use client-side auth
+// For production, consider moving these operations entirely to the client-side
+
+export async function changePassword(_: any, formData: FormData): Promise<any> {
+  const currentPassword = formData.get('currentPassword') as string;
   const newPassword = formData.get('newPassword') as string;
 
-  if (!token) {
-    return { errorMessage: 'Reset token is required.' };
-  }
-
-  if (!newPassword) {
-    return { errorMessage: 'New password is required.' };
-  }
-
-  // Validate password using our comprehensive validation
-  const passwordValidation = validatePassword(newPassword);
-  if (!passwordValidation.isValid) {
+  const validation = validatePassword(newPassword);
+  if (!validation.isValid) {
     return {
-      errorMessage: passwordValidation.errors.join(' '),
-    };
-  }
-
-  try {
-    await auth.api.resetPassword({
-      body: {
-        token,
-        newPassword,
-      },
-    });
-  } catch (error) {
-    if (error instanceof APIError) {
-      switch (error.status) {
-        case 'BAD_REQUEST':
-          return { errorMessage: 'Invalid or expired reset token.' };
-        default:
-          return { errorMessage: 'Password reset failed.' };
-      }
-    }
-    console.error('Password reset failed:', error);
-    return { errorMessage: 'Password reset failed.' };
-  }
-  redirect(
-    '/sign-in?reset=success&message=Password+reset+successful.+Please+sign+in+with+your+new+password.',
-  );
-}
-
-export async function searchAccount(email: string) {
-  const userInfo = await db.select().from(user).where(eq(user.email, email));
-
-  return userInfo.length > 0 ? userInfo[0] : null;
-}
-
-// Additional auth actions moved from (login)/actions.ts
-
-export async function signOut(prevState: State, formData: FormData) {
-  try {
-    await auth.api.signOut({
-      headers: await headers(),
-    });
-  } catch (error) {
-    console.error('Sign out failed:', error);
-    return { errorMessage: 'Failed to sign out. Please try again.' };
-  }
-  redirect('/sign-in');
-}
-
-interface UpdatePasswordState {
-  currentPassword?: string;
-  newPassword?: string;
-  confirmPassword?: string;
-  errorMessage?: string;
-  successMessage?: string;
-}
-
-export async function updatePassword(
-  prevState: UpdatePasswordState,
-  formData: FormData,
-): Promise<UpdatePasswordState> {
-  const rawFormData = {
-    currentPassword: formData.get('currentPassword') as string,
-    newPassword: formData.get('newPassword') as string,
-    confirmPassword: formData.get('confirmPassword') as string,
-  };
-
-  const { currentPassword, newPassword, confirmPassword } = rawFormData;
-
-  // Basic validation
-  if (!currentPassword || !newPassword || !confirmPassword) {
-    return {
-      ...rawFormData,
-      errorMessage: 'All fields are required.',
-    };
-  }
-
-  if (currentPassword === newPassword) {
-    return {
-      ...rawFormData,
-      errorMessage: 'New password must be different from the current password.',
-    };
-  }
-
-  if (confirmPassword !== newPassword) {
-    return {
-      ...rawFormData,
-      errorMessage: 'New password and confirmation password do not match.',
-    };
-  }
-
-  // Validate new password using our comprehensive validation
-  const passwordValidation = validatePassword(newPassword);
-  if (!passwordValidation.isValid) {
-    return {
-      ...rawFormData,
-      errorMessage: passwordValidation.errors.join(' '),
+      currentPassword,
+      errorMessage: validation.errors[0],
     };
   }
 
   try {
     // Get current user session
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const sessionResponse = await backendAuthRequest('get-session');
+    const session = sessionResponse.ok ? await sessionResponse.json() : null;
 
     if (!session?.user) {
       return {
-        ...rawFormData,
+        currentPassword,
         errorMessage: 'You must be signed in to change your password.',
       };
     }
 
     // Verify current password first
-    const verifyResult = await auth.api.signInEmail({
-      body: {
+    const verifyResponse = await backendAuthRequest('sign-in/email', {
+      method: 'POST',
+      body: JSON.stringify({
         email: session.user.email,
         password: currentPassword,
-      },
-      headers: await headers(),
+      }),
     });
 
-    if (!verifyResult.user) {
+    if (!verifyResponse.ok) {
       return {
-        ...rawFormData,
+        currentPassword,
         errorMessage: 'Current password is incorrect.',
       };
     }
 
-    // Update the password using the change password endpoint
-    await auth.api.changePassword({
-      body: {
-        currentPassword,
+    // Change password
+    const changeResponse = await backendAuthRequest('change-password', {
+      method: 'POST',
+      body: JSON.stringify({
         newPassword,
-      },
-      headers: await headers(),
+        currentPassword,
+      }),
     });
 
+    if (!changeResponse.ok) {
+      const result = await changeResponse.json();
+      return {
+        currentPassword,
+        errorMessage: result.message || 'Failed to change password.',
+      };
+    }
+
+    redirect('/dashboard/settings');
+  } catch (error: any) {
+    console.error('Change password error:', error);
     return {
-      successMessage: 'Password updated successfully.',
-    };
-  } catch (error) {
-    console.error('Password update failed:', error);
-    return {
-      ...rawFormData,
-      errorMessage: 'Failed to update password. Please try again.',
+      currentPassword,
+      errorMessage:
+        error.message || 'An error occurred while changing your password.',
     };
   }
 }
 
-interface DeleteAccountState {
-  password?: string;
-  errorMessage?: string;
-}
-
-export async function deleteAccount(
-  prevState: DeleteAccountState,
-  formData: FormData,
-): Promise<DeleteAccountState> {
+export async function deleteAccount(_: any, formData: FormData): Promise<any> {
   const password = formData.get('password') as string;
-
-  if (!password) {
-    return {
-      password,
-      errorMessage: 'Password is required to delete your account.',
-    };
-  }
 
   try {
     // Get current user session
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const sessionResponse = await backendAuthRequest('get-session');
+    const session = sessionResponse.ok ? await sessionResponse.json() : null;
 
     if (!session?.user) {
       return {
@@ -577,37 +243,110 @@ export async function deleteAccount(
     }
 
     // Verify password using better-auth
-    const verifyResult = await auth.api.signInEmail({
-      body: {
+    const verifyResponse = await backendAuthRequest('sign-in/email', {
+      method: 'POST',
+      body: JSON.stringify({
         email: session.user.email,
         password,
-      },
-      headers: await headers(),
+      }),
     });
 
-    if (!verifyResult.user) {
+    if (!verifyResponse.ok) {
       return {
         password,
         errorMessage: 'Incorrect password. Account deletion failed.',
       };
     }
 
-    // Delete the user account
-    await auth.api.deleteUser({
-      body: {},
-      headers: await headers(),
+    // Delete user account (Note: This endpoint may need to be implemented on backend)
+    const deleteResponse = await backendAuthRequest('delete-user', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
     });
 
-    await auth.api.signOut({
-      headers: await headers(),
-    });
-  } catch (error) {
-    console.error('Account deletion failed:', error);
+    if (!deleteResponse.ok) {
+      const result = await deleteResponse.json();
+      return {
+        password,
+        errorMessage: result.message || 'Failed to delete account.',
+      };
+    }
+
+    redirect('/');
+  } catch (error: any) {
+    console.error('Delete account error:', error);
     return {
       password,
-      errorMessage: 'Failed to delete account. Please try again.',
+      errorMessage:
+        error.message || 'An error occurred while deleting your account.',
+    };
+  }
+}
+
+// Alias for backwards compatibility
+export const updatePassword = changePassword;
+
+// Email verification is now handled entirely by Better Auth backend
+// No server action needed - use authClient.sendVerificationEmail() instead
+
+// Server action to check if email exists
+export async function checkEmailExists(prevState: any, formData: FormData) {
+  const email = formData.get('email') as string;
+
+  if (!email || !email.includes('@')) {
+    return {
+      errorMessage: 'Please enter a valid email address',
+      emailExists: false,
+      email: '',
     };
   }
 
-  redirect('/sign-in');
+  try {
+    // Make server-side API call to backend
+    const cookieStore = await cookies();
+    const cookieHeader = cookieStore.toString();
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787'}/v1/user/verify-email`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(cookieHeader && { Cookie: cookieHeader }),
+        },
+        body: JSON.stringify({ email }),
+      },
+    );
+
+    if (!response.ok) {
+      return {
+        errorMessage: 'Unable to verify email. Please try again.',
+        emailExists: false,
+        email: '',
+      };
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      return {
+        errorMessage: 'Unable to verify email. Please try again.',
+        emailExists: false,
+        email: '',
+      };
+    }
+
+    return {
+      errorMessage: null,
+      emailExists: result.data.exists,
+      email: email,
+    };
+  } catch (error) {
+    console.error('Email check error:', error);
+    return {
+      errorMessage: 'Something went wrong. Please try again.',
+      emailExists: false,
+      email: '',
+    };
+  }
 }

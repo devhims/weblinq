@@ -3,9 +3,8 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useActionState } from 'react';
 import { toast } from 'sonner';
-import { sendEmailVerification } from '@/server/auth-actions';
+import { authClient } from '@/lib/auth-client';
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
@@ -19,18 +18,6 @@ function VerifyEmailContent() {
 
   const [isResending, setIsResending] = useState(false);
   const [countdown, setCountdown] = useState(60); // Start with 60 seconds for new signups
-
-  // Email verification state
-  const emailVerificationInitialState = {
-    errorMessage: null,
-    successMessage: null,
-    email: '',
-  };
-  const [
-    emailVerificationState,
-    emailVerificationAction,
-    emailVerificationPending,
-  ] = useActionState(sendEmailVerification, emailVerificationInitialState);
 
   // Auto-redirect to API verification route if token is present in URL
   useEffect(() => {
@@ -48,36 +35,40 @@ function VerifyEmailContent() {
     }
   }, [countdown]);
 
-  // Handle email verification response
-  useEffect(() => {
-    if (emailVerificationState.errorMessage) {
-      toast.error(emailVerificationState.errorMessage, {
-        style: {
-          background: '#fee2e2',
-          border: '1px solid #fecaca',
-          color: '#991b1b',
-        },
-      });
-    } else if (emailVerificationState.successMessage) {
-      toast.success(emailVerificationState.successMessage, {
-        style: {
-          background: '#dcfce7',
-          border: '1px solid #bbf7d0',
-          color: '#166534',
-        },
-      });
-      setCountdown(60); // Start 60-second countdown
-    }
-  }, [emailVerificationState]);
-
   const handleResendEmail = async () => {
-    if (countdown > 0 || !email) return;
+    if (countdown > 0 || !email || isResending) return;
 
     setIsResending(true);
-    const formData = new FormData();
-    formData.set('email', email);
-    await emailVerificationAction(formData);
-    setIsResending(false);
+    try {
+      // Use Better Auth client to resend verification email
+      const { error } = await authClient.sendVerificationEmail({
+        email,
+        callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/dashboard`,
+      });
+
+      if (error) {
+        toast.error(error.message || 'Failed to resend verification email', {
+          style: {
+            background: '#fee2e2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+          },
+        });
+      } else {
+        toast.success('Verification email sent! Please check your inbox.', {
+          style: {
+            background: '#dcfce7',
+            border: '1px solid #bbf7d0',
+            color: '#166534',
+          },
+        });
+        setCountdown(60); // Start 60-second countdown
+      }
+    } catch (err) {
+      toast.error('Failed to resend email. Please try again.');
+    } finally {
+      setIsResending(false);
+    }
   };
 
   // If we're redirecting to verify a token, show loading state
@@ -160,10 +151,10 @@ function VerifyEmailContent() {
           <Button
             variant="outline"
             onClick={handleResendEmail}
-            disabled={countdown > 0 || isResending || emailVerificationPending}
+            disabled={countdown > 0 || isResending}
             className="w-full"
           >
-            {isResending || emailVerificationPending
+            {isResending
               ? 'Sending...'
               : countdown > 0
                 ? `Resend in ${countdown}s`
