@@ -234,7 +234,7 @@ const tools = [
 		},
 	},
 	{
-		name: 'extract_json',
+		name: 'ai_extract',
 		description: 'Extract structured data from a web page using AI',
 		inputSchema: {
 			type: 'object',
@@ -246,13 +246,33 @@ const tools = [
 				},
 				prompt: {
 					type: 'string',
-					description: 'Prompt describing what data to extract',
+					description: 'Natural language prompt for extraction (required for text responses, optional for JSON with schema)',
 				},
 				responseType: {
 					type: 'string',
 					enum: ['json', 'text'],
-					default: 'json',
-					description: 'Type of response to return',
+					default: 'text',
+					description: 'Type of response to return (default: text string)',
+				},
+				response_format: {
+					type: 'object',
+					properties: {
+						type: {
+							type: 'string',
+							enum: ['json_schema'],
+							description: 'Format type - must be json_schema',
+						},
+						json_schema: {
+							type: 'object',
+							description: 'JSON schema object defining the structure of expected response',
+						},
+					},
+					required: ['type', 'json_schema'],
+					description: 'Structured JSON schema for extraction (only valid when responseType is json)',
+				},
+				instructions: {
+					type: 'string',
+					description: 'Additional instructions for the AI (max 500 characters)',
 				},
 				waitTime: {
 					type: 'integer',
@@ -506,12 +526,32 @@ const ToolSchemas = {
 		url: z.string().url(),
 		waitTime: z.coerce.number().int().min(0).max(5000).default(0),
 	}),
-	extract_json: z.object({
-		url: z.string().url(),
-		prompt: z.string().optional(),
-		responseType: z.enum(['json', 'text']).default('json'),
-		waitTime: z.coerce.number().int().min(0).max(5000).default(0),
-	}),
+	ai_extract: z
+		.object({
+			url: z.string().url(),
+			prompt: z.string().min(1).max(1000).optional(),
+			responseType: z.enum(['json', 'text']).default('text'),
+			response_format: z
+				.object({
+					type: z.literal('json_schema'),
+					json_schema: z.record(z.any()),
+				})
+				.optional(),
+			instructions: z.string().max(500).optional(),
+			waitTime: z.coerce.number().int().min(0).max(5000).default(0),
+		})
+		.refine((data) => data.responseType !== 'text' || data.prompt, {
+			message: "Text responses require a 'prompt'",
+			path: ['prompt'],
+		})
+		.refine((data) => data.responseType !== 'json' || data.prompt || data.response_format, {
+			message: "JSON responses require either 'prompt' or 'response_format' (or both)",
+			path: ['responseType'],
+		})
+		.refine((data) => data.responseType !== 'text' || !data.response_format, {
+			message: "Schema-based 'response_format' is only valid for JSON responses",
+			path: ['response_format'],
+		}),
 	get_html_content: z.object({
 		url: z.string().url(),
 		waitTime: z.coerce.number().int().min(0).max(5000).default(0),
@@ -634,7 +674,7 @@ async function executeTool(name: string, args: any, apiKey: string) {
 					apiKey,
 				});
 
-			case 'extract_json':
+			case 'ai_extract':
 				return await makeApiRequest('/v1/web/extract-json', {
 					method: 'POST',
 					body: JSON.stringify(coercedArgs),
