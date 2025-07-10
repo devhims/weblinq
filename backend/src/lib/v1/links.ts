@@ -45,6 +45,15 @@ const CREDIT_COST = 1;
  */
 export async function linksV1(env: CloudflareBindings, params: LinksParams): Promise<LinksResult> {
   try {
+    // Apply explicit defaults to ensure consistent behavior
+    // This provides a safety net in case Zod defaults aren't applied properly
+    const normalizedParams = {
+      url: params.url,
+      includeExternal: params.includeExternal ?? true, // Default to true if undefined
+      visibleLinksOnly: params.visibleLinksOnly ?? false, // Default to false if undefined
+      waitTime: params.waitTime ?? 0, // Default to 0 if undefined
+    };
+
     const links: Array<{ href: string; text: string }> = await runWithBrowser(env, async (page: any) => {
       // Abort heavy resources to speed things up
       await page.setRequestInterception(true);
@@ -54,10 +63,10 @@ export async function linksV1(env: CloudflareBindings, params: LinksParams): Pro
       });
 
       // Use retry helper for better resilience against network failures
-      await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+      await pageGotoWithRetry(page, normalizedParams.url, { waitUntil: 'networkidle2', timeout: 30_000 });
 
-      if (params.waitTime && params.waitTime > 0) {
-        await new Promise((resolve) => setTimeout(resolve, params.waitTime));
+      if (normalizedParams.waitTime && normalizedParams.waitTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, normalizedParams.waitTime));
       }
 
       // Evaluate in the browser context to gather links
@@ -75,13 +84,13 @@ export async function linksV1(env: CloudflareBindings, params: LinksParams): Pro
           })
           .map((a) => ({ href: (a as HTMLAnchorElement).href, text: (a.textContent || '').trim() }))
           .filter((l) => l.href.startsWith('https://') || l.href.startsWith('http://'));
-      }, params.visibleLinksOnly ?? false);
+      }, normalizedParams.visibleLinksOnly);
 
       return pageLinks as Array<{ href: string; text: string }>;
     });
 
     const normalizeHostname = (host: string) => host.replace(/^www\./i, '');
-    const baseDomain = normalizeHostname(new URL(params.url).hostname);
+    const baseDomain = normalizeHostname(new URL(normalizedParams.url).hostname);
 
     const processed: LinkItem[] = links
       .map((l) => {
@@ -101,10 +110,28 @@ export async function linksV1(env: CloudflareBindings, params: LinksParams): Pro
           type: linkType,
         } as LinkItem;
       })
-      .filter((l) => (params.includeExternal === false ? l.type === 'internal' : true));
+      .filter((l) => {
+        // Fixed filtering logic with proper handling of boolean values
+        // When includeExternal is false, only return internal links
+        // When includeExternal is true (or any truthy value), return all links
+        if (normalizedParams.includeExternal === false) {
+          return l.type === 'internal';
+        }
+        return true; // Include all links by default
+      });
+
+    console.log('🔗 Links processing completed:', {
+      totalFound: links.length,
+      afterProcessing: processed.length,
+      includeExternal: normalizedParams.includeExternal,
+      visibleLinksOnly: normalizedParams.visibleLinksOnly,
+      baseDomain,
+      internalCount: processed.filter((l) => l.type === 'internal').length,
+      externalCount: processed.filter((l) => l.type === 'external').length,
+    });
 
     const meta: LinksMetadata = {
-      url: params.url,
+      url: normalizedParams.url,
       timestamp: new Date().toISOString(),
       totalLinks: processed.length,
       internalLinks: processed.filter((l) => l.type === 'internal').length,
