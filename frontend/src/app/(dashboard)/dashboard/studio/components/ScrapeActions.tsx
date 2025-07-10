@@ -6,7 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useState } from 'react';
 import { useQueryState, parseAsBoolean, parseAsInteger } from 'nuqs';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import React from 'react';
 
@@ -44,7 +49,10 @@ export function ScrapeMarkdownActions() {
             <div className="space-y-4 pt-2">
               <div className="flex items-start space-x-2">
                 <div className="flex-1">
-                  <Label htmlFor="wait-time" className="text-sm font-medium leading-none">
+                  <Label
+                    htmlFor="wait-time"
+                    className="text-sm font-medium leading-none"
+                  >
                     Wait Time (ms)
                   </Label>
                   <Input
@@ -58,7 +66,8 @@ export function ScrapeMarkdownActions() {
                     className="mt-2 text-base h-9 max-w-sm"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Additional time to wait for content to load before extracting markdown (0-5000ms)
+                    Additional time to wait for content to load before
+                    extracting markdown (0-5000ms)
                   </p>
                 </div>
               </div>
@@ -104,7 +113,10 @@ export function ScrapeHtmlActions() {
             <div className="space-y-4 pt-2">
               <div className="flex items-start space-x-2">
                 <div className="flex-1">
-                  <Label htmlFor="wait-time-html" className="text-sm font-medium leading-none">
+                  <Label
+                    htmlFor="wait-time-html"
+                    className="text-sm font-medium leading-none"
+                  >
                     Wait Time (ms)
                   </Label>
                   <Input
@@ -118,7 +130,8 @@ export function ScrapeHtmlActions() {
                     className="mt-2 text-base h-9 max-w-sm"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Additional time to wait for content to load before fetching HTML (0-5000ms)
+                    Additional time to wait for content to load before fetching
+                    HTML (0-5000ms)
                   </p>
                 </div>
               </div>
@@ -135,8 +148,10 @@ export function ScrapeHtmlActions() {
 export function ScrapeLinksActions() {
   // URL-backed state
   const [waitTime, setWaitTime] = useQueryState('waitTime', parseAsInteger);
-  const [includeExternal, setIncludeExternal] = useQueryState('includeExternal', parseAsBoolean);
-  const [visibleLinksOnly, setVisibleLinksOnly] = useQueryState('visibleLinksOnly', parseAsBoolean);
+  const [includeExternal, setIncludeExternal] = useQueryState(
+    'includeExternal',
+    parseAsBoolean,
+  );
 
   /* ———————————————————————————————————————————
      Handlers
@@ -152,8 +167,8 @@ export function ScrapeLinksActions() {
     }
   };
 
-  const handleIncludeExternalChange = (checked: boolean) => setIncludeExternal(checked ? true : false);
-  const handleVisibleLinksChange = (checked: boolean) => setVisibleLinksOnly(checked ? true : null);
+  const handleIncludeExternalChange = (checked: boolean) =>
+    setIncludeExternal(checked ? true : false);
 
   // Derived
   const effectiveIncludeExternal = includeExternal !== false; // default true
@@ -169,12 +184,11 @@ export function ScrapeLinksActions() {
             <span className="flex items-center">
               <Settings className="h-4 w-4 mr-2" />
               Advanced Options
-              {((waitTime && waitTime > 0) || !effectiveIncludeExternal || visibleLinksOnly) && (
+              {((waitTime && waitTime > 0) || !effectiveIncludeExternal) && (
                 <Badge variant="outline" className="ml-2">
                   {[
                     waitTime && waitTime > 0 ? `Wait: ${waitTime}ms` : null,
                     effectiveIncludeExternal ? null : 'Internal Only',
-                    visibleLinksOnly ? 'Visible Only' : null,
                   ]
                     .filter(Boolean)
                     .join(', ')}
@@ -187,7 +201,10 @@ export function ScrapeLinksActions() {
               {/* Wait Time */}
               <div className="flex items-start space-x-2">
                 <div className="flex-1">
-                  <Label htmlFor="wait-time-links" className="text-sm font-medium leading-none">
+                  <Label
+                    htmlFor="wait-time-links"
+                    className="text-sm font-medium leading-none"
+                  >
                     Wait Time (ms)
                   </Label>
                   <Input
@@ -201,7 +218,8 @@ export function ScrapeLinksActions() {
                     className="mt-2 text-base h-9 max-w-sm"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Additional time to wait for links to load before extraction (0-5000ms)
+                    Additional time to wait for links to load before extraction
+                    (0-5000ms)
                   </p>
                 </div>
               </div>
@@ -211,33 +229,21 @@ export function ScrapeLinksActions() {
                 <Checkbox
                   id="include-external-links"
                   checked={effectiveIncludeExternal}
-                  onCheckedChange={(c) => handleIncludeExternalChange(c === true)}
+                  onCheckedChange={(c) =>
+                    handleIncludeExternalChange(c === true)
+                  }
                   className="h-4 w-4 mt-1"
                 />
                 <div>
-                  <Label htmlFor="include-external-links" className="text-sm font-medium leading-none cursor-pointer">
+                  <Label
+                    htmlFor="include-external-links"
+                    className="text-sm font-medium leading-none cursor-pointer"
+                  >
                     Include External Links
                   </Label>
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    When unchecked, only links to the same domain will be returned
-                  </p>
-                </div>
-              </div>
-
-              {/* Visible Links Only */}
-              <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="visible-links-only"
-                  checked={visibleLinksOnly ?? false}
-                  onCheckedChange={(c) => handleVisibleLinksChange(c === true)}
-                  className="h-4 w-4 mt-1"
-                />
-                <div>
-                  <Label htmlFor="visible-links-only" className="text-sm font-medium leading-none cursor-pointer">
-                    Visible Links Only
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    Filters out links hidden via CSS/display properties
+                    When unchecked, only links to the same domain will be
+                    returned
                   </p>
                 </div>
               </div>
@@ -254,9 +260,17 @@ export function ScrapeElementsActions() {
   /* ———————————————————————————————————————————
      URL-backed state (nuqs)
   ——————————————————————————————————————————— */
-  const [selectorRaw, setSelectorRaw] = useQueryState('selector', { defaultValue: '' });
-  const [onlyMainContent, setOnlyMainContent] = useQueryState('onlyMainContent', parseAsBoolean);
-  const [includeMarkdown, setIncludeMarkdown] = useQueryState('includeMarkdown', parseAsBoolean);
+  const [selectorRaw, setSelectorRaw] = useQueryState('selector', {
+    defaultValue: '',
+  });
+  const [onlyMainContent, setOnlyMainContent] = useQueryState(
+    'onlyMainContent',
+    parseAsBoolean,
+  );
+  const [includeMarkdown, setIncludeMarkdown] = useQueryState(
+    'includeMarkdown',
+    parseAsBoolean,
+  );
 
   /* ———————————————————————————————————————————
      Local UI state (not stored in URL)
@@ -397,9 +411,19 @@ export function ScrapeElementsActions() {
           <Label className="text-base font-medium">Selected Elements</Label>
           <div className="bg-card border border-border rounded-md p-4 mt-2">
             {elements.map((element, index) => (
-              <div key={index} className="flex items-center justify-between py-1.5">
-                <code className="text-base bg-muted/70 px-2.5 py-1.5 rounded">{element.selector}</code>
-                <Button variant="ghost" size="sm" onClick={() => removeElement(index)} className="h-9 w-9 p-0">
+              <div
+                key={index}
+                className="flex items-center justify-between py-1.5"
+              >
+                <code className="text-base bg-muted/70 px-2.5 py-1.5 rounded">
+                  {element.selector}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeElement(index)}
+                  className="h-9 w-9 p-0"
+                >
                   <X className="h-5 w-5" />
                 </Button>
               </div>
@@ -416,7 +440,10 @@ export function ScrapeElementsActions() {
               Advanced Options
               {(onlyMainContent || includeMarkdown) && (
                 <Badge variant="outline" className="ml-2">
-                  {[onlyMainContent ? 'Main Content' : null, includeMarkdown ? 'Markdown' : null]
+                  {[
+                    onlyMainContent ? 'Main Content' : null,
+                    includeMarkdown ? 'Markdown' : null,
+                  ]
                     .filter(Boolean)
                     .join(', ')}
                 </Badge>
@@ -430,21 +457,28 @@ export function ScrapeElementsActions() {
                   id="only-main-content"
                   checked={onlyMainContent ?? false}
                   className="h-4 w-4 mt-[2px]"
-                  onCheckedChange={(c: boolean | 'indeterminate') => handleOptionChange('onlyMainContent', c === true)}
+                  onCheckedChange={(c: boolean | 'indeterminate') =>
+                    handleOptionChange('onlyMainContent', c === true)
+                  }
                 />
                 <div>
-                  <Label htmlFor="only-main-content" className="text-sm font-medium leading-none cursor-pointer">
+                  <Label
+                    htmlFor="only-main-content"
+                    className="text-sm font-medium leading-none cursor-pointer"
+                  >
                     Only Main Content
                   </Label>
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Intelligently filters results to focus on main content areas, removing elements from headers,
-                    footers, navigation, sidebars, and ads.
+                    Intelligently filters results to focus on main content
+                    areas, removing elements from headers, footers, navigation,
+                    sidebars, and ads.
                   </p>
                   <div className="mt-2 text-xs bg-accent/50 p-2.5 rounded border border-border">
                     <p className="text-foreground">
                       <InfoIcon className="h-4 w-4 inline-block mr-1.5" />
-                      This is a client-side feature that analyzes the returned results to identify and display only main
-                      content elements.
+                      This is a client-side feature that analyzes the returned
+                      results to identify and display only main content
+                      elements.
                     </p>
                   </div>
                 </div>
@@ -454,14 +488,20 @@ export function ScrapeElementsActions() {
                   id="include-markdown"
                   checked={includeMarkdown ?? false}
                   className="h-4 w-4 mt-[2px]"
-                  onCheckedChange={(c: boolean | 'indeterminate') => handleOptionChange('includeMarkdown', c === true)}
+                  onCheckedChange={(c: boolean | 'indeterminate') =>
+                    handleOptionChange('includeMarkdown', c === true)
+                  }
                 />
                 <div>
-                  <Label htmlFor="include-markdown" className="text-sm font-medium leading-none cursor-pointer">
+                  <Label
+                    htmlFor="include-markdown"
+                    className="text-sm font-medium leading-none cursor-pointer"
+                  >
                     Include Markdown
                   </Label>
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Extract the page content as Markdown along with the selected elements
+                    Extract the page content as Markdown along with the selected
+                    elements
                   </p>
                 </div>
               </div>

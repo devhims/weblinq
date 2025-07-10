@@ -10,8 +10,16 @@ import {
 } from 'nuqs';
 import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
-import { buildApiPayloadFromParams, validateParamsObject } from '../utils/api-builder';
-import { ENDPOINT_IDS, ACTION_IDS, type EndpointId, type ActionId } from '../constants';
+import {
+  buildApiPayloadFromParams,
+  validateParamsObject,
+} from '../utils/api-builder';
+import {
+  ENDPOINT_IDS,
+  ACTION_IDS,
+  type EndpointId,
+  type ActionId,
+} from '../constants';
 
 // Import the settings defaults
 const SETTINGS_STORAGE_KEY = 'weblink-studio-preferences';
@@ -37,7 +45,6 @@ const loadUserPreferences = () => {
         limit: settings.defaultSearchLimit,
         onlyMainContent: settings.onlyMainContent,
         includeExternal: settings.includeExternalLinks,
-        visibleLinksOnly: settings.visibleLinksOnly,
       };
     }
   } catch (error) {
@@ -55,7 +62,10 @@ const loadUserPreferences = () => {
 const userPrefs = loadUserPreferences();
 
 // Type-safe device enum
-const deviceParser = parseAsStringLiteral(['iphone15', 'galaxyS24']).withDefault('iphone15');
+const deviceParser = parseAsStringLiteral([
+  'iphone15',
+  'galaxyS24',
+]).withDefault('iphone15');
 
 // Type-safe endpoint and action parsers
 const endpointParser = parseAsStringLiteral(ENDPOINT_IDS).withDefault('scrape');
@@ -81,10 +91,13 @@ export const studioParsers = {
 
   // Scrape options
   selector: parseAsString,
-  onlyMainContent: parseAsBoolean.withDefault(userPrefs.onlyMainContent ?? false),
+  onlyMainContent: parseAsBoolean.withDefault(
+    userPrefs.onlyMainContent ?? false,
+  ),
   includeMarkdown: parseAsBoolean,
-  includeExternal: parseAsBoolean.withDefault(userPrefs.includeExternal ?? true),
-  visibleLinksOnly: parseAsBoolean.withDefault(userPrefs.visibleLinksOnly ?? false),
+  includeExternal: parseAsBoolean.withDefault(
+    userPrefs.includeExternal ?? true,
+  ),
 
   // Screenshot options
   format: parseAsString.withDefault(userPrefs.format ?? 'png'),
@@ -116,10 +129,25 @@ export function useStudioParams() {
   // ---------------------------------------------------------------------
   // useQueryStates – single hook for all parameters
   // ---------------------------------------------------------------------
-  const [params, setParams] = useQueryStates(studioParsers, { history: 'push' });
+  const [params, setParams] = useQueryStates(studioParsers, {
+    history: 'push',
+  });
 
   // Convenience destructuring (back-compat names)
-  const { url, query, limit, endpoint, action, format, quality, fullPage, mobile, device, width, height } = params;
+  const {
+    url,
+    query,
+    limit,
+    endpoint,
+    action,
+    format,
+    quality,
+    fullPage,
+    mobile,
+    device,
+    width,
+    height,
+  } = params;
 
   // Back-compat setter helpers ------------------------------------------------
   const setUrl = (v: string | null) => void setParams({ url: v });
@@ -131,7 +159,8 @@ export function useStudioParams() {
   const setQuality = (v: number | null) => void setParams({ quality: v });
   const setFullPage = (v: boolean | null) => void setParams({ fullPage: v });
   const setMobile = (v: boolean | null) => void setParams({ mobile: v });
-  const setDevice = (v: 'iphone15' | 'galaxyS24' | null) => void setParams({ device: v });
+  const setDevice = (v: 'iphone15' | 'galaxyS24' | null) =>
+    void setParams({ device: v });
   const setWidth = (v: number | null) => void setParams({ width: v });
   const setHeight = (v: number | null) => void setParams({ height: v });
 
@@ -139,7 +168,10 @@ export function useStudioParams() {
   useEffect(() => {
     if (!searchParams.has('endpoint') || !searchParams.has('action')) {
       // Only set endpoint and action defaults, not URL
-      setParams({ endpoint, action }, { clearOnDefault: false, history: 'replace' });
+      setParams(
+        { endpoint, action },
+        { clearOnDefault: false, history: 'replace' },
+      );
     }
   }, [searchParams, endpoint, action, setParams]);
 
@@ -167,12 +199,19 @@ export function useStudioParams() {
       ...(freshPrefs.quality && { quality: freshPrefs.quality }),
       ...(freshPrefs.width && { width: freshPrefs.width }),
       ...(freshPrefs.height && { height: freshPrefs.height }),
-      ...(typeof freshPrefs.mobile === 'boolean' && { mobile: freshPrefs.mobile }),
-      ...(typeof freshPrefs.fullPage === 'boolean' && { fullPage: freshPrefs.fullPage }),
+      ...(typeof freshPrefs.mobile === 'boolean' && {
+        mobile: freshPrefs.mobile,
+      }),
+      ...(typeof freshPrefs.fullPage === 'boolean' && {
+        fullPage: freshPrefs.fullPage,
+      }),
       ...(freshPrefs.limit && { limit: freshPrefs.limit }),
-      ...(typeof freshPrefs.onlyMainContent === 'boolean' && { onlyMainContent: freshPrefs.onlyMainContent }),
-      ...(typeof freshPrefs.includeExternal === 'boolean' && { includeExternal: freshPrefs.includeExternal }),
-      ...(typeof freshPrefs.visibleLinksOnly === 'boolean' && { visibleLinksOnly: freshPrefs.visibleLinksOnly }),
+      ...(typeof freshPrefs.onlyMainContent === 'boolean' && {
+        onlyMainContent: freshPrefs.onlyMainContent,
+      }),
+      ...(typeof freshPrefs.includeExternal === 'boolean' && {
+        includeExternal: freshPrefs.includeExternal,
+      }),
     };
 
     // Clear parameters that don't have user preferences by setting them to null

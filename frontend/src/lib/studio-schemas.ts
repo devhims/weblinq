@@ -41,7 +41,8 @@ const strictUrlSchema = z
       }
     },
     {
-      message: 'URL must include a valid domain name with a top-level domain (e.g., .com, .org, etc.)',
+      message:
+        'URL must include a valid domain name with a top-level domain (e.g., .com, .org, etc.)',
     },
   );
 
@@ -74,7 +75,6 @@ export const ContentRequestSchema = z.object({
 export const LinksRequestSchema = z.object({
   url: strictUrlSchema,
   includeExternal: z.boolean().optional().default(true),
-  visibleLinksOnly: z.boolean().optional().default(false),
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 });
 
@@ -97,7 +97,11 @@ export const ScreenshotRequestSchema = z.object({
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 
   // Return format preference - binary for optimal performance by default
-  base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary data'),
+  base64: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Return base64 string instead of binary data'),
 
   // Legacy convenience fields (all optional)
   fullPage: z.boolean().optional(),
@@ -165,10 +169,15 @@ export const JsonExtractionRequestSchema = z
     message: "Text responses require a 'prompt'",
     path: ['prompt'],
   })
-  .refine((data) => data.responseType !== 'json' || data.prompt || data.response_format, {
-    message: "JSON responses require either 'prompt' or 'response_format' (or both)",
-    path: ['responseType'],
-  })
+  .refine(
+    (data) =>
+      data.responseType !== 'json' || data.prompt || data.response_format,
+    {
+      message:
+        "JSON responses require either 'prompt' or 'response_format' (or both)",
+      path: ['responseType'],
+    },
+  )
   .refine((data) => data.responseType !== 'text' || !data.response_format, {
     message: "Schema-based 'response_format' is only valid for JSON responses",
     path: ['response_format'],
@@ -183,7 +192,11 @@ export const PdfRequestSchema = z.object({
   url: strictUrlSchema,
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
   // Return format preference - binary for optimal performance by default
-  base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary data'),
+  base64: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Return base64 string instead of binary data'),
 });
 
 /* ──────────────────────────────────────────────────────────────

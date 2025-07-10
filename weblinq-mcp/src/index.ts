@@ -366,20 +366,15 @@ const tools = [
 				},
 				includeExternal: {
 					type: 'boolean',
-					default: true,
 					description: 'Include external links in the results',
-				},
-				visibleLinksOnly: {
-					type: 'boolean',
-					default: false,
-					description: 'Extract only visible links',
+					default: true,
 				},
 				waitTime: {
 					type: 'integer',
+					description: 'Wait time in milliseconds before extracting content',
+					default: 0,
 					minimum: 0,
 					maximum: 5000,
-					default: 0,
-					description: 'Wait time in milliseconds before extracting links',
 				},
 			},
 			required: ['url'],
@@ -570,7 +565,6 @@ const ToolSchemas = {
 	extract_links: z.object({
 		url: z.string().url(),
 		includeExternal: z.coerce.boolean().default(true),
-		visibleLinksOnly: z.coerce.boolean().default(false),
 		waitTime: z.coerce.number().int().min(0).max(5000).default(0),
 	}),
 	web_search: z.object({

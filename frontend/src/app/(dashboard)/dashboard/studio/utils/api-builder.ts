@@ -51,27 +51,37 @@ export function buildApiPayloadFromParams(params: StudioParams): {
 
   // Validate required params early
   if (!params.url && endpoint !== 'search') {
-    return { action: actionKey, payload: {} as ApiPayload, error: 'URL is required' };
+    return {
+      action: actionKey,
+      payload: {} as ApiPayload,
+      error: 'URL is required',
+    };
   }
   if (!params.query && endpoint === 'search') {
-    return { action: actionKey, payload: {} as ApiPayload, error: 'Search query is required' };
+    return {
+      action: actionKey,
+      payload: {} as ApiPayload,
+      error: 'Search query is required',
+    };
   }
 
   try {
-    const undef = <T>(v: T | null | undefined): T | undefined => (v === null ? undefined : v);
+    const undef = <T>(v: T | null | undefined): T | undefined =>
+      v === null ? undefined : v;
     // ------------------ Table-driven builders -------------------
     const builders: Record<EndpointAction, (p: StudioParams) => ApiPayload> = {
-      'scrape/markdown': (p) => ({ url: p.url!, waitTime: undef(p.waitTime) } as MarkdownRequest),
+      'scrape/markdown': (p) =>
+        ({ url: p.url!, waitTime: undef(p.waitTime) }) as MarkdownRequest,
 
-      'scrape/html': (p) => ({ url: p.url!, waitTime: undef(p.waitTime) } as ContentRequest),
+      'scrape/html': (p) =>
+        ({ url: p.url!, waitTime: undef(p.waitTime) }) as ContentRequest,
 
       'scrape/links': (p) =>
         ({
           url: p.url!,
           includeExternal: p.includeExternal ?? true,
-          visibleLinksOnly: p.visibleLinksOnly,
           waitTime: undef(p.waitTime),
-        } as LinksRequest),
+        }) as LinksRequest,
 
       'scrape/elements': (p) => {
         // Build elements array
@@ -112,7 +122,13 @@ export function buildApiPayloadFromParams(params: StudioParams): {
       'visual/screenshot': (p) => {
         const format = (p.format ?? 'png') as 'png' | 'jpeg' | 'webp';
         const viewport = p.mobile
-          ? { width: 390, height: 844, deviceScaleFactor: 3, hasTouch: true, isMobile: true }
+          ? {
+              width: 390,
+              height: 844,
+              deviceScaleFactor: 3,
+              hasTouch: true,
+              isMobile: true,
+            }
           : {
               width: (p.width ?? 1920) as number,
               height: (p.height ?? 1080) as number,
@@ -120,7 +136,8 @@ export function buildApiPayloadFromParams(params: StudioParams): {
             };
 
         const screenshotOptions: any = { fullPage: p.fullPage, type: format };
-        if (format !== 'png' && p.quality) screenshotOptions.quality = p.quality;
+        if (format !== 'png' && p.quality)
+          screenshotOptions.quality = p.quality;
 
         return {
           url: p.url!,
@@ -130,7 +147,8 @@ export function buildApiPayloadFromParams(params: StudioParams): {
         } as ScreenshotRequest;
       },
 
-      'visual/pdf': (p) => ({ url: p.url!, waitTime: undef(p.waitTime) } as PdfRequest),
+      'visual/pdf': (p) =>
+        ({ url: p.url!, waitTime: undef(p.waitTime) }) as PdfRequest,
 
       'structured/json': (p) => {
         const baseRequest: any = {
@@ -170,16 +188,23 @@ export function buildApiPayloadFromParams(params: StudioParams): {
         return {
           url: p.url!,
           responseType: 'text' as 'json' | 'text',
-          prompt: p.jsonPrompt || 'Summarize the main points and key information from this webpage.',
+          prompt:
+            p.jsonPrompt ||
+            'Summarize the main points and key information from this webpage.',
           waitTime: undef(p.waitTime),
         } as JsonExtractionRequest;
       },
 
-      'search/web': (p) => ({ query: p.query!, limit: p.limit ?? 10 } as SearchRequest),
+      'search/web': (p) =>
+        ({ query: p.query!, limit: p.limit ?? 10 }) as SearchRequest,
     } as const;
 
     if (!builders[actionKey]) {
-      return { action: actionKey, payload: {} as ApiPayload, error: `Unknown action: ${actionKey}` };
+      return {
+        action: actionKey,
+        payload: {} as ApiPayload,
+        error: `Unknown action: ${actionKey}`,
+      };
     }
 
     let payload = builders[actionKey](params);
@@ -203,13 +228,19 @@ export function buildApiPayloadFromParams(params: StudioParams): {
     return {
       action: actionKey,
       payload: {} as ApiPayload,
-      error: err instanceof Error ? err.message : 'Unknown error building API payload',
+      error:
+        err instanceof Error
+          ? err.message
+          : 'Unknown error building API payload',
     };
   }
 }
 
 // Helper to get allowed parameters for current action (extracted from schemas)
-export function getAllowedParamsForAction(endpoint: string, action: string): string[] {
+export function getAllowedParamsForAction(
+  endpoint: string,
+  action: string,
+): string[] {
   const actionKey = `${endpoint}/${action}` as EndpointAction;
 
   // Always preserve core UI parameters
@@ -238,14 +269,21 @@ export function getAllowedParamsForAction(endpoint: string, action: string): str
   };
 
   // Combine schema params with UI-specific params
-  const allParams = [...coreParams, ...schemaParams, ...(uiSpecificParams[actionKey] || [])];
+  const allParams = [
+    ...coreParams,
+    ...schemaParams,
+    ...(uiSpecificParams[actionKey] || []),
+  ];
 
   // Remove duplicates and return
   return [...new Set(allParams)];
 }
 
 // New validation util (params-based)
-export function validateParamsObject(params: StudioParams): { valid: boolean; errors: string[] } {
+export function validateParamsObject(params: StudioParams): {
+  valid: boolean;
+  errors: string[];
+} {
   const { error } = buildApiPayloadFromParams(params);
   if (error) return { valid: false, errors: [error] };
   return { valid: true, errors: [] };
@@ -265,20 +303,30 @@ export function buildApiPayload(
     limit: nuqsParams.limit,
     endpoint: searchParams.get('endpoint') ?? undefined,
     action: searchParams.get('action') ?? undefined,
-    waitTime: searchParams.get('waitTime') ? Number(searchParams.get('waitTime')) : undefined,
+    waitTime: searchParams.get('waitTime')
+      ? Number(searchParams.get('waitTime'))
+      : undefined,
     selector: searchParams.get('selector') ?? undefined,
-    onlyMainContent: searchParams.get('onlyMainContent') === 'true' || undefined,
-    includeExternal: searchParams.get('includeExternal') === 'true' || undefined,
-    visibleLinksOnly: searchParams.get('visibleLinksOnly') === 'true' || undefined,
+    onlyMainContent:
+      searchParams.get('onlyMainContent') === 'true' || undefined,
+    includeExternal:
+      searchParams.get('includeExternal') === 'true' || undefined,
     format: searchParams.get('format') ?? undefined,
-    quality: searchParams.get('quality') ? Number(searchParams.get('quality')) : undefined,
+    quality: searchParams.get('quality')
+      ? Number(searchParams.get('quality'))
+      : undefined,
     fullPage: searchParams.get('fullPage') === 'true' || undefined,
     mobile: searchParams.get('mobile') === 'true' || undefined,
     device: searchParams.get('device') ?? undefined,
-    width: searchParams.get('width') ? Number(searchParams.get('width')) : undefined,
-    height: searchParams.get('height') ? Number(searchParams.get('height')) : undefined,
+    width: searchParams.get('width')
+      ? Number(searchParams.get('width'))
+      : undefined,
+    height: searchParams.get('height')
+      ? Number(searchParams.get('height'))
+      : undefined,
     jsonPrompt: searchParams.get('jsonPrompt') ?? undefined,
-    includeMarkdown: searchParams.get('includeMarkdown') === 'true' || undefined,
+    includeMarkdown:
+      searchParams.get('includeMarkdown') === 'true' || undefined,
   } as StudioParams;
 
   return buildApiPayloadFromParams(p);
@@ -290,5 +338,7 @@ export function validateCurrentParams(
   nuqsParams: { url?: string; query?: string; limit?: number },
 ) {
   const { error } = buildApiPayload(searchParams, nuqsParams);
-  return error ? { valid: false, errors: [error] } : { valid: true, errors: [] };
+  return error
+    ? { valid: false, errors: [error] }
+    : { valid: true, errors: [] };
 }

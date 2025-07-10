@@ -46,13 +46,19 @@ export async function researchTopic(query) {
     ),
   );
 
-  return results.map((r, i) => ({ url: r.url, ...extracted[i].data.extracted }));
+  return results.map((r, i) => ({
+    url: r.url,
+    ...extracted[i].data.extracted,
+  }));
 }
 
 function post(p, body) {
   return fetch(`${base}${p}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(body),
   }).then((r) => r.json());
 }
@@ -134,19 +140,27 @@ const apiKey = process.env.WEBLINQ_API_KEY;
 const base = 'https://api.weblinq.dev/v1';
 
 export async function monitor(url) {
-  const shot = await post('/web/screenshot', { url, screenshotOptions: { fullPage: true } });
+  const shot = await post('/web/screenshot', {
+    url,
+    screenshotOptions: { fullPage: true },
+  });
 
   const {
     data: { links },
-  } = await post('/web/links', { url, visibleLinksOnly: true });
-  const productLinks = links.filter((l) => /\/product\//.test(l.url)).slice(0, 10);
+  } = await post('/web/links', { url });
+  const productLinks = links
+    .filter((l) => /\/product\//.test(l.url))
+    .slice(0, 10);
 
   const schema = {
     type: 'object',
     properties: {
       products: {
         type: 'array',
-        items: { type: 'object', properties: { name: { type: 'string' }, price: { type: 'number' } } },
+        items: {
+          type: 'object',
+          properties: { name: { type: 'string' }, price: { type: 'number' } },
+        },
       },
     },
   };
@@ -306,7 +320,9 @@ export async function buildStrategy(topic) {
   const {
     data: { text: strategy },
   } = await post('/web/extract-json', {
-    url: 'data:text/plain;base64,' + Buffer.from(JSON.stringify(analysis)).toString('base64'),
+    url:
+      'data:text/plain;base64,' +
+      Buffer.from(JSON.stringify(analysis)).toString('base64'),
     responseType: 'text',
     prompt: `Create a content plan for "${topic}" using this JSON.`,
   });

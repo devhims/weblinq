@@ -50,7 +50,6 @@ export async function linksV1(env: CloudflareBindings, params: LinksParams): Pro
     const normalizedParams = {
       url: params.url,
       includeExternal: params.includeExternal ?? true, // Default to true if undefined
-      visibleLinksOnly: params.visibleLinksOnly ?? false, // Default to false if undefined
       waitTime: params.waitTime ?? 0, // Default to 0 if undefined
     };
 
@@ -70,21 +69,11 @@ export async function linksV1(env: CloudflareBindings, params: LinksParams): Pro
       }
 
       // Evaluate in the browser context to gather links
-      const pageLinks = await page.evaluate((visibleOnly: boolean) => {
-        const isVisible = (el: Element) => {
-          const rect = (el as HTMLElement).getBoundingClientRect();
-          const style = window.getComputedStyle(el as HTMLElement);
-          return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-        };
-
+      const pageLinks = await page.evaluate(() => {
         return Array.from(document.querySelectorAll('a[href]'))
-          .filter((el) => {
-            if (!visibleOnly) return true;
-            return isVisible(el);
-          })
           .map((a) => ({ href: (a as HTMLAnchorElement).href, text: (a.textContent || '').trim() }))
           .filter((l) => l.href.startsWith('https://') || l.href.startsWith('http://'));
-      }, normalizedParams.visibleLinksOnly);
+      });
 
       return pageLinks as Array<{ href: string; text: string }>;
     });
@@ -124,7 +113,6 @@ export async function linksV1(env: CloudflareBindings, params: LinksParams): Pro
       totalFound: links.length,
       afterProcessing: processed.length,
       includeExternal: normalizedParams.includeExternal,
-      visibleLinksOnly: normalizedParams.visibleLinksOnly,
       baseDomain,
       internalCount: processed.filter((l) => l.type === 'internal').length,
       externalCount: processed.filter((l) => l.type === 'external').length,

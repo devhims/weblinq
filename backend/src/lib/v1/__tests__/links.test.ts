@@ -67,7 +67,6 @@ describe('links parameter processing', () => {
       return {
         url: params.url || 'https://example.com',
         includeExternal: params.includeExternal ?? true,
-        visibleLinksOnly: params.visibleLinksOnly ?? false,
         waitTime: params.waitTime ?? 0,
       };
     }
@@ -75,26 +74,22 @@ describe('links parameter processing', () => {
     // Test with all defaults
     const defaultParams = normalizeParams({});
     expect(defaultParams.includeExternal).toBe(true);
-    expect(defaultParams.visibleLinksOnly).toBe(false);
     expect(defaultParams.waitTime).toBe(0);
 
     // Test with explicit values
     const explicitParams = normalizeParams({
       includeExternal: false,
-      visibleLinksOnly: true,
       waitTime: 1000,
     });
     expect(explicitParams.includeExternal).toBe(false);
-    expect(explicitParams.visibleLinksOnly).toBe(true);
     expect(explicitParams.waitTime).toBe(1000);
 
     // Test with partial values
     const partialParams = normalizeParams({
       includeExternal: false,
-      // visibleLinksOnly and waitTime should get defaults
+      // waitTime should get default
     });
     expect(partialParams.includeExternal).toBe(false);
-    expect(partialParams.visibleLinksOnly).toBe(false);
     expect(partialParams.waitTime).toBe(0);
   });
 });

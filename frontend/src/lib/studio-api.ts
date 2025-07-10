@@ -161,7 +161,6 @@ export interface ScrapeResponse {
 export interface LinksRequest {
   url: string;
   includeExternal?: boolean;
-  visibleLinksOnly?: boolean;
   waitTime?: number;
 }
 

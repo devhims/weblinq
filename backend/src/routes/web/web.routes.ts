@@ -121,7 +121,6 @@ const scrapeInputSchema = z.object({
 export const linksInputSchema = z.object({
   url: z.string().url('Must be a valid URL'),
   includeExternal: z.boolean().optional().default(true),
-  visibleLinksOnly: z.boolean().optional().default(false),
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
 });
 

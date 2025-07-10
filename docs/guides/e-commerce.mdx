@@ -37,7 +37,10 @@ export async function extractProduct(url) {
 function post(p, b) {
   return fetch(`${base}${p}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(b),
   }).then((r) => r.json());
 }
@@ -107,10 +110,13 @@ const base = 'https://api.weblinq.dev/v1';
 
 export async function snapshotStore(storeUrl) {
   // ① screenshot
-  const shot = post('/web/screenshot', { url: storeUrl, screenshotOptions: { fullPage: true } });
+  const shot = post('/web/screenshot', {
+    url: storeUrl,
+    screenshotOptions: { fullPage: true },
+  });
 
   // ② internal links
-  const links = post('/web/links', { url: storeUrl, includeExternal: false, visibleLinksOnly: true });
+  const links = post('/web/links', { url: storeUrl, includeExternal: false });
 
   // ③ quick store schema
   const schema = {
@@ -127,9 +133,15 @@ export async function snapshotStore(storeUrl) {
     prompt: 'Store overview',
   });
 
-  const [screenshot, linkData, storeInfo] = await Promise.all([shot, links, meta]);
+  const [screenshot, linkData, storeInfo] = await Promise.all([
+    shot,
+    links,
+    meta,
+  ]);
 
-  const productLinks = (linkData.data.links || []).filter((l) => /\/(product|item|p)\//.test(l.url)).slice(0, 20);
+  const productLinks = (linkData.data.links || [])
+    .filter((l) => /\/(product|item|p)\//.test(l.url))
+    .slice(0, 20);
 
   return {
     url: storeUrl,
@@ -142,7 +154,10 @@ export async function snapshotStore(storeUrl) {
 function post(p, b) {
   return fetch(`${base}${p}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(b),
   }).then((r) => r.json());
 }
@@ -163,7 +178,11 @@ const base = 'https://api.weblinq.dev/v1';
 export async function priceReport(urls) {
   const schema = {
     type: 'object',
-    properties: { product: { type: 'string' }, price: { type: 'number' }, currency: { type: 'string' } },
+    properties: {
+      product: { type: 'string' },
+      price: { type: 'number' },
+      currency: { type: 'string' },
+    },
     required: ['product', 'price', 'currency'],
   };
 
@@ -189,7 +208,8 @@ export async function priceReport(urls) {
       .join('')}
     </table></body></html>`;
 
-  const dataUri = 'data:text/html;base64,' + Buffer.from(html).toString('base64');
+  const dataUri =
+    'data:text/html;base64,' + Buffer.from(html).toString('base64');
 
   const {
     data: { permanentUrl },
@@ -225,7 +245,11 @@ export async function findProducts(query, limit = 10) {
 
   const schema = {
     type: 'object',
-    properties: { name: { type: 'string' }, price: { type: 'number' }, currency: { type: 'string' } },
+    properties: {
+      name: { type: 'string' },
+      price: { type: 'number' },
+      currency: { type: 'string' },
+    },
   };
 
   const products = await Promise.all(
@@ -233,7 +257,10 @@ export async function findProducts(query, limit = 10) {
       post('/web/extract-json', {
         url: r.url,
         response_format: { type: 'json_schema', json_schema: schema },
-      }).then((p) => ({ platform: new URL(r.url).hostname, ...p.data.extracted })),
+      }).then((p) => ({
+        platform: new URL(r.url).hostname,
+        ...p.data.extracted,
+      })),
     ),
   );
 
@@ -302,20 +329,25 @@ Define exact data structures to extract consistent, structured product informati
 </Accordion>
 
 <Accordion title="🔍 Multi-API Workflows">
-  Combine search, links, extract-json, screenshot, and PDF APIs for comprehensive e-commerce intelligence.
+  Combine search, links, extract-json, screenshot, and PDF APIs for
+  comprehensive e-commerce intelligence.
 </Accordion>
 
 <Accordion title="📊 Competitive Analysis">
-  Monitor competitor pricing, inventory, and promotions across multiple platforms automatically.
+  Monitor competitor pricing, inventory, and promotions across multiple
+  platforms automatically.
 </Accordion>
 
 <Accordion title="📈 Trend Tracking">
-  Build historical datasets by regularly extracting product data and generating trend reports.
+  Build historical datasets by regularly extracting product data and generating
+  trend reports.
 </Accordion>
 
 <Accordion title="📊 When to Use JSON Schema">
-  - **Consistent data structure** needed across multiple products - **Integration with databases** or structured systems
-  - **Automated processing** and comparison workflows - **Data validation** and quality assurance requirements
+  - **Consistent data structure** needed across multiple products -
+  **Integration with databases** or structured systems - **Automated
+  processing** and comparison workflows - **Data validation** and quality
+  assurance requirements
 </Accordion>
 
 <Accordion title="📝 When to Use Text Response">
@@ -327,5 +359,6 @@ Define exact data structures to extract consistent, structured product informati
 </AccordionGroup>
 
 <Warning>
-  Always respect website terms of service and implement appropriate rate limiting when monitoring e-commerce sites.
+  Always respect website terms of service and implement appropriate rate
+  limiting when monitoring e-commerce sites.
 </Warning>

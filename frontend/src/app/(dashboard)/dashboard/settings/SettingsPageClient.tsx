@@ -58,7 +58,6 @@ type SettingsState = {
 
   // Link Extraction
   includeExternalLinks: boolean;
-  visibleLinksOnly: boolean;
 
   // Search Settings
   defaultSearchLimit: number;
@@ -106,7 +105,6 @@ const DEFAULT_SETTINGS: SettingsState = {
 
   // Link Extraction
   includeExternalLinks: true,
-  visibleLinksOnly: false,
 
   // Search Settings
   defaultSearchLimit: 10,
@@ -176,7 +174,6 @@ export const getStudioDefaults = () => {
     limit: settings.defaultSearchLimit,
     onlyMainContent: settings.onlyMainContent, // Fixed: Use correct onlyMainContent setting
     includeExternal: settings.includeExternalLinks,
-    visibleLinksOnly: settings.visibleLinksOnly,
   };
 };
 
@@ -694,18 +691,6 @@ export default function SettingsPageClient() {
                       />
                       <Label className="text-sm cursor-pointer">
                         Include External Links
-                      </Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                      <Switch
-                        checked={settings.visibleLinksOnly}
-                        onCheckedChange={(checked) =>
-                          updateSetting('visibleLinksOnly', checked)
-                        }
-                      />
-                      <Label className="text-sm cursor-pointer">
-                        Visible Links Only
                       </Label>
                     </div>
                   </div>
