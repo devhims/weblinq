@@ -31,16 +31,25 @@ export function downloadBlob(blob: Blob, filename: string): void {
 /**
  * Generate a filename for screenshots based on URL and timestamp
  */
-export function generateScreenshotFilename(url: string, format: string = 'png', timestamp?: string): string {
+export function generateScreenshotFilename(
+  url: string,
+  format: string = 'png',
+  timestamp?: string,
+): string {
   try {
     const urlObj = new URL(url);
     const domain = urlObj.hostname.replace(/^www\./, '');
-    const path = urlObj.pathname.replace(/\//g, '-').replace(/^-/, '') || 'home';
-    const date = timestamp ? new Date(timestamp).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const path =
+      urlObj.pathname.replace(/\//g, '-').replace(/^-/, '') || 'home';
+    const date = timestamp
+      ? new Date(timestamp).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
 
     return `screenshot-${domain}-${path}-${date}.${format}`;
   } catch {
-    const date = timestamp ? new Date(timestamp).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const date = timestamp
+      ? new Date(timestamp).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
     return `screenshot-${date}.${format}`;
   }
 }
@@ -52,12 +61,17 @@ export function generatePdfFilename(url: string, timestamp?: string): string {
   try {
     const urlObj = new URL(url);
     const domain = urlObj.hostname.replace(/^www\./, '');
-    const path = urlObj.pathname.replace(/\//g, '-').replace(/^-/, '') || 'home';
-    const date = timestamp ? new Date(timestamp).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const path =
+      urlObj.pathname.replace(/\//g, '-').replace(/^-/, '') || 'home';
+    const date = timestamp
+      ? new Date(timestamp).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
 
     return `${domain}-${path}-${date}.pdf`;
   } catch {
-    const date = timestamp ? new Date(timestamp).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const date = timestamp
+      ? new Date(timestamp).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
     return `page-${date}.pdf`;
   }
 }
@@ -95,7 +109,9 @@ export function isVercelPreview(): boolean {
 
   // Fallback: hostname pattern matching (legacy behaviour)
   const host = window.location.hostname;
-  return host.startsWith('weblinq-') && host.endsWith('-devhims-projects.vercel.app');
+  return (
+    host.startsWith('weblinq-') && host.endsWith('-devhims-projects.vercel.app')
+  );
 }
 
 export function getApiKeyFromStorage(): string | null {
@@ -115,4 +131,18 @@ export function removeApiKeyFromStorage(): void {
 
 export function isPreviewAuthenticated(): boolean {
   return isVercelPreview() && !!getApiKeyFromStorage();
+}
+
+/**
+ * Check if we should use frontend auth (preview/dev environments)
+ */
+export function shouldUseFrontendAuth(): boolean {
+  if (typeof window === 'undefined') {
+    // Server-side: check environment variables
+    const env = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
+    return env === 'preview' || env === 'development';
+  } else {
+    // Client-side: check if we're in a preview environment
+    return isVercelPreview() || window.location.hostname === 'localhost';
+  }
 }

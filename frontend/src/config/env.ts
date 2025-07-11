@@ -1,3 +1,15 @@
+// Helper function to get the current frontend URL dynamically
+function getCurrentFrontendUrl(): string {
+  // Server-side: use environment variable
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000';
+  }
+
+  // Client-side: use current window location
+  const { protocol, host } = window.location;
+  return `${protocol}//${host}`;
+}
+
 export const config = {
   // Backend API URL
   // For local development, use your local Hono.js server
@@ -5,15 +17,15 @@ export const config = {
   backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787',
 
   // Frontend URL (for callbacks, redirects, etc.)
-  frontendUrl: process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
+  // Dynamically determined to support preview environments
+  frontendUrl: getCurrentFrontendUrl(),
 
   // Auth-specific URLs
   auth: {
     // Backend auth endpoints
     baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787',
-    // Frontend callback URL for OAuth
-    callbackUrl:
-      process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000',
+    // Frontend callback URL for OAuth - dynamically determined
+    callbackUrl: getCurrentFrontendUrl(),
   },
 
   // Environment detection

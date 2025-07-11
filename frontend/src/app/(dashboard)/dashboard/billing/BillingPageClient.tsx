@@ -14,6 +14,24 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession, authClient } from '@/lib/auth-client';
 import { Suspense } from 'react';
+import {
+  PRICING_PLANS,
+  getPlanById,
+  formatCredits,
+} from '@/lib/utils/pricing-plans';
+import {
+  CreditCard,
+  Zap,
+  AlertTriangle,
+  CheckCircle2,
+  TrendingUp,
+  Calendar,
+  User,
+  Mail,
+  Settings,
+  SquareUserRound,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CreditInfo {
   balance: number;
@@ -23,10 +41,24 @@ interface CreditInfo {
 
 function SubscriptionSkeleton() {
   return (
-    <Card className="mb-8 h-[140px]">
+    <Card className="mb-8">
       <CardHeader>
-        <CardTitle>Subscription</CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 bg-muted animate-pulse rounded" />
+          <div className="h-6 w-32 bg-muted animate-pulse rounded" />
+        </div>
       </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+          <div className="h-4 w-1/2 bg-muted animate-pulse rounded" />
+          <div className="grid grid-cols-2 gap-4 pt-4">
+            <div className="h-16 bg-muted animate-pulse rounded" />
+            <div className="h-16 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="h-2 bg-muted animate-pulse rounded" />
+        </div>
+      </CardContent>
     </Card>
   );
 }
@@ -34,16 +66,12 @@ function SubscriptionSkeleton() {
 export function ManageSubscription() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
-  const [creditInfo, setCreditInfo] = useState<{
-    balance: number;
-    plan: 'free' | 'pro';
-    lastRefill: string | null;
-  } | null>(null);
+  const [creditInfo, setCreditInfo] = useState<CreditInfo | null>(null);
 
   /* ------------------------------------------------------------------ */
   /*  Fetch credit balance                                               */
   /* ------------------------------------------------------------------ */
-  React.useEffect(() => {
+  useEffect(() => {
     (async () => {
       if (!session?.user?.id) return setLoading(false);
 
@@ -69,17 +97,16 @@ export function ManageSubscription() {
   /* ------------------------------------------------------------------ */
   const plan = creditInfo?.plan || 'free';
   const balance = creditInfo?.balance || 0;
+  const currentPlan = getPlanById(plan);
 
-  const planDisplay = plan === 'pro' ? 'Pro' : 'Free';
-  const planStatus = plan === 'pro' ? 'Active subscription' : 'Free plan';
+  if (!currentPlan) return null;
 
-  const quota = plan === 'pro' ? 5000 : 1000;
+  const quota = currentPlan.credits || 1000; // Use plan credits as total quota
   const used = Math.max(0, quota - balance);
   const usedPct = Math.round((used / quota) * 100);
 
   const handleManageSubscription = async () => {
     try {
-      // Use Better Auth's built-in customer portal method - much cleaner!
       await authClient.customer.portal();
     } catch (error) {
       console.error('Portal error:', error);
@@ -87,75 +114,159 @@ export function ManageSubscription() {
     }
   };
 
+  const isProPlan = plan === 'pro';
+
   /* ------------------------------------------------------------------ */
   /*  UI                                                                 */
   /* ------------------------------------------------------------------ */
   return (
     <Card className="mb-8">
       <CardHeader>
-        <CardTitle>Subscription</CardTitle>
+        <CardTitle className="flex items-center gap-3">
+          <Zap className="h-5 w-5 text-muted-foreground" />
+          Subscription & Usage
+        </CardTitle>
+        <CardDescription>
+          Manage your plan and monitor your API usage
+        </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         {/* Plan & actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-          <div>
-            <p className="font-medium flex items-center gap-2">
-              Current Plan: {planDisplay}
-              {plan === 'pro' && (
-                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-2.5 py-0.5 text-xs font-medium text-white">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <h3 className="font-semibold text-lg">{currentPlan.name} Plan</h3>
+              {isProPlan && (
+                <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white border-0">
+                  <Zap className="h-3 w-3 mr-1" />
                   PRO
-                </span>
+                </Badge>
               )}
-            </p>
-            <p className="text-sm text-muted-foreground">{planStatus}</p>
-            {plan === 'free' && (
-              <p className="text-sm text-blue-600 mt-1">
-                Upgrade to Pro for 5× more credits (5 000 / month)
+              {!isProPlan && <Badge variant="outline">Free</Badge>}
+            </div>
+            <p className="text-muted-foreground">{currentPlan.description}</p>
+            {!isProPlan && (
+              <p className="text-sm text-blue-600 font-medium">
+                💡 Upgrade to Pro for 5× more credits and advanced features
               </p>
             )}
           </div>
 
-          <div className="flex gap-2 mt-4 sm:mt-0">
-            {plan === 'free' && (
-              <Button asChild>
-                <a href="/dashboard/pricing">Upgrade to Pro</a>
+          <div className="flex self-start gap-3">
+            {!isProPlan && (
+              <Button
+                asChild
+                size="sm"
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white border-0"
+              >
+                <a href="/dashboard/pricing">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Upgrade to Pro
+                </a>
               </Button>
             )}
-            {plan === 'pro' && (
-              <Button variant="outline" onClick={handleManageSubscription}>
+            {isProPlan && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleManageSubscription}
+              >
+                <Settings className="h-4 w-4 mr-2" />
                 Manage Subscription
               </Button>
             )}
           </div>
         </div>
 
-        {/* Credits quick stats */}
-        <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-          <Stat
-            label="Available Credits"
-            value={balance}
-            accent="text-green-600"
-          />
-          <Stat label="Credits Used" value={used} />
+        {/* Credits overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2 p-4 border border-border rounded-lg bg-muted/30">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4" />
+              Available Credits
+            </div>
+            <p className="text-2xl font-bold text-green-600">
+              {formatCredits(balance)}
+            </p>
+          </div>
+
+          <div className="space-y-2 p-4 border border-border rounded-lg bg-muted/30">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <TrendingUp className="h-4 w-4" />
+              Credits Used
+            </div>
+            <p className="text-2xl font-bold text-muted-foreground">
+              {formatCredits(used)}
+            </p>
+          </div>
+
+          {/* <div className="space-y-2 p-4 border border-border rounded-lg bg-muted/30">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Zap className="h-4 w-4" />
+              Total Quota
+            </div>
+            <p className="text-2xl font-bold text-muted-foreground">
+              {formatCredits(quota)}
+            </p>
+          </div> */}
         </div>
 
-        {/* Usage bar */}
-        <UsageBar usedPct={usedPct} quota={quota} />
+        {/* Usage progress bar */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">Usage Progress</span>
+            <span className="font-medium">{usedPct}% used</span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+            <div
+              className={cn(
+                'h-3 rounded-full transition-all duration-500 ease-out',
+                usedPct > 80
+                  ? 'bg-red-500'
+                  : usedPct > 60
+                    ? 'bg-yellow-500'
+                    : 'bg-green-500',
+              )}
+              style={{ width: `${Math.min(usedPct, 100)}%` }}
+            />
+          </div>
+        </div>
 
-        {/* Helper tips */}
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
-          💡 <strong>How credits work:</strong> each scrape/search uses 1
-          credit.
-          {plan === 'free'
-            ? ' Free plan gives you 1 000 lifetime credits. Upgrade to Pro for 5 000 credits every month.'
-            : ' Your credits reset to 5 000 every month.'}
+        {/* Information panel */}
+        <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="text-blue-600 dark:text-blue-400 mt-0.5">💡</div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                How credits work
+              </p>
+              <p className="text-sm text-blue-700 dark:text-blue-200">
+                Each API request (scrape, search, screenshot, etc.) uses 1
+                credit.
+                {isProPlan
+                  ? ' Your credits reset to 5,000 every month.'
+                  : ' Free plan gives you 1,000 lifetime credits. Upgrade to Pro for 5,000 credits monthly.'}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Low balance warning */}
-        {plan === 'free' && balance < 100 && (
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-            ⚠️ You have only {balance} credits left. Consider upgrading to Pro.
+        {!isProPlan && balance < 100 && (
+          <div className="p-4 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                  Low credit balance
+                </p>
+                <p className="text-sm text-yellow-700 dark:text-yellow-200">
+                  You have only {formatCredits(balance)} credits remaining.
+                  Consider upgrading to Pro for unlimited monthly credits.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>
@@ -170,25 +281,42 @@ function UserInfo() {
   return (
     <Card className="mb-8">
       <CardHeader>
-        <CardTitle>Account Information</CardTitle>
+        <CardTitle className="flex items-center gap-3">
+          <User className="h-5 w-5 text-muted-foreground" />
+          Account Information
+        </CardTitle>
+        <CardDescription>Your account details and settings</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <div>
-            <p className="font-medium">Name</p>
-            <p className="text-sm text-muted-foreground">
-              {user?.name || 'Not set'}
-            </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <SquareUserRound className="h-4 w-4" />
+              Full Name
+            </div>
+            <p className="font-medium">{user?.name || 'Not set'}</p>
           </div>
-          <div>
-            <p className="font-medium">Email</p>
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Mail className="h-4 w-4" />
+              Email Address
+            </div>
+            <p className="font-medium">{user?.email}</p>
           </div>
-          <div>
-            <p className="font-medium">Account Created</p>
-            <p className="text-sm text-muted-foreground">
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              Member Since
+            </div>
+            <p className="font-medium">
               {user?.createdAt
-                ? new Date(user.createdAt).toLocaleDateString()
+                ? new Date(user.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
                 : 'Unknown'}
             </p>
           </div>
@@ -200,67 +328,47 @@ function UserInfo() {
 
 function UserInfoSkeleton() {
   return (
-    <Card className="mb-8 h-[140px]">
+    <Card className="mb-8">
       <CardHeader>
-        <CardTitle>Account Information</CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 bg-muted animate-pulse rounded" />
+          <div className="h-6 w-40 bg-muted animate-pulse rounded" />
+        </div>
+        <div className="h-4 w-48 bg-muted animate-pulse rounded" />
       </CardHeader>
       <CardContent>
-        <div className="animate-pulse space-y-4 mt-1">
-          <div className="space-y-2">
-            <div className="h-4 w-16 bg-gray-200 rounded"></div>
-            <div className="h-3 w-32 bg-gray-200 rounded"></div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-4 w-20 bg-muted animate-pulse rounded" />
+              <div className="h-5 w-32 bg-muted animate-pulse rounded" />
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-/* --- helpers ------------------------------------------------------- */
-
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent?: string;
-}) {
-  return (
-    <div>
-      <p className="text-sm font-medium text-gray-700">{label}</p>
-      <p className={`text-lg font-semibold ${accent ?? 'text-gray-600'}`}>
-        {value.toLocaleString()}
-      </p>
-    </div>
-  );
-}
-
-function UsageBar({ usedPct, quota }: { usedPct: number; quota: number }) {
-  return (
-    <div className="pt-2">
-      <div className="flex justify-between text-sm text-gray-600 mb-1">
-        <span>Total Credits: {quota.toLocaleString()}</span>
-        <span>{usedPct}% used</span>
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
-        <div
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${usedPct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 export default function BillingPageClient() {
   return (
-    <section className="flex-1 p-4 lg:p-8">
-      <h1 className="text-lg lg:text-2xl font-medium mb-6">Billing & Usage</h1>
+    <section className="flex-1 p-4 sm:p-6 lg:p-8">
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <CreditCard className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-lg lg:text-2xl font-medium text-foreground">
+            Billing
+          </h1>
+        </div>
+        <p className="text-muted-foreground">
+          Monitor your subscription, usage, and manage billing preferences
+        </p>
+      </div>
+
       <Suspense fallback={<SubscriptionSkeleton />}>
         <ManageSubscription />
       </Suspense>
+
       <Suspense fallback={<UserInfoSkeleton />}>
         <UserInfo />
       </Suspense>
