@@ -1,7 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Code, Check, CheckCheck } from 'lucide-react';
+import { ArrowRight, Code, Check, CheckCheck, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 import { TextEffect } from '@/components/ui/text-effect';
 import { AnimatedGroup } from '@/components/ui/animated-group';
@@ -11,6 +12,11 @@ import { BorderBeam } from '@/components/magicui/border-beam';
 import { FAQSection } from '@/components/faq-section';
 import { FeaturesSection } from '@/components/features-section';
 import { ScrollToFeaturesButton } from '@/components/scroll-to-features-button';
+import {
+  PRICING_PLANS,
+  formatPrice,
+  formatCredits,
+} from '@/lib/utils/pricing-plans';
 
 const transitionVariants = {
   item: {
@@ -39,7 +45,10 @@ export default async function HomePage() {
 
       <main className="overflow-hidden">
         {/* Light beam gradient effects */}
-        <div aria-hidden className="absolute inset-0 isolate hidden opacity-50 lg:block">
+        <div
+          aria-hidden
+          className="absolute inset-0 isolate hidden opacity-50 lg:block"
+        >
           <div className="w-[35rem] h-[80rem] absolute left-0 top-0 -translate-y-[21.875rem] -rotate-45 rounded-full bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,hsla(0,0%,85%,.08)_0,hsla(0,0%,55%,.02)_50%,hsla(0,0%,45%,0)_80%)]" />
           <div className="h-[80rem] absolute left-0 top-0 w-60 -rotate-45 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.06)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)] translate-x-[5%] -translate-y-[50%]" />
           <div className="h-[80rem] absolute left-0 top-0 w-60 -translate-y-[21.875rem] -rotate-45 bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.04)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)]" />
@@ -90,7 +99,9 @@ export default async function HomePage() {
                       href="/dashboard/studio"
                       className="hover:bg-background dark:hover:border-t-border bg-muted group mx-auto flex w-fit items-center gap-4 rounded-full border p-1 pl-4 shadow-md shadow-zinc-950/5 transition-colors duration-300 dark:border-t-white/5 dark:shadow-zinc-950"
                     >
-                      <span className="text-foreground text-sm">Explore Studio</span>
+                      <span className="text-foreground text-sm">
+                        Explore Studio
+                      </span>
                       <span className="dark:border-background block h-4 w-0.5 border-l bg-white dark:bg-zinc-700" />
                       <div className="bg-background group-hover:bg-muted size-6 overflow-hidden rounded-full duration-500">
                         <div className="flex w-12 -translate-x-1/2 duration-500 ease-in-out group-hover:translate-x-0">
@@ -129,8 +140,8 @@ export default async function HomePage() {
                   as="p"
                   className="mx-auto mt-8 max-w-4xl text-balance text-sm md:text-lg"
                 >
-                  Extract data, capture screenshots, and search the internet with our web scraping and browser
-                  automation platform
+                  Extract data, capture screenshots, and search the internet
+                  with our web scraping and browser automation platform
                 </TextEffect>
 
                 <AnimatedGroup
@@ -148,7 +159,11 @@ export default async function HomePage() {
                   className="mt-12 flex flex-col items-center justify-center gap-2 md:flex-row"
                 >
                   <div className="bg-foreground/10 rounded-[calc(var(--radius-xl)+0.125rem)] border p-0.5">
-                    <Button asChild size="lg" className="rounded-xl px-5 text-base">
+                    <Button
+                      asChild
+                      size="lg"
+                      className="rounded-xl px-5 text-base"
+                    >
                       <Link href="/dashboard/studio">
                         <Code className="mr-2 h-5 w-5" />
                         <span className="text-nowrap">Try API Studio</span>
@@ -193,7 +208,9 @@ export default async function HomePage() {
                         <div className="text-gray-500 mb-2">{`// Scrape any website`}</div>
                         <div>
                           <span className="text-blue-400">POST</span>{' '}
-                          <span className="text-gray-300">https://api.weblinq.dev/v1/web/</span>
+                          <span className="text-gray-300">
+                            https://api.weblinq.dev/v1/web/
+                          </span>
                           <span className="text-yellow-400">markdown</span>{' '}
                         </div>
 
@@ -203,7 +220,9 @@ export default async function HomePage() {
                         <div className="ml-4">
                           <span className="text-blue-400">&quot;url&quot;</span>
                           <span className="text-gray-300">: </span>
-                          <span className="text-green-400">&quot;https://example.com&quot;</span>
+                          <span className="text-green-400">
+                            &quot;https://example.com&quot;
+                          </span>
                         </div>
 
                         <div className="ml-0 text-gray-300">{'}'}</div>
@@ -213,14 +232,22 @@ export default async function HomePage() {
                             <CheckCheck className="h-3 w-3" /> Response
                           </div>
                           <div className="text-gray-300 leading-relaxed">
-                            <div className="text-purple-400"># Example Domain</div>
-                            <div className="mt-2">
-                              This domain is for use in illustrative examples in documents. You may use this domain in
-                              literature without prior coordination or asking for permission.
+                            <div className="text-purple-400">
+                              # Example Domain
                             </div>
                             <div className="mt-2">
-                              <span className="text-blue-400">[More information...]</span>
-                              <span className="text-gray-500">(https://www.iana.org/domains/example)</span>
+                              This domain is for use in illustrative examples in
+                              documents. You may use this domain in literature
+                              without prior coordination or asking for
+                              permission.
+                            </div>
+                            <div className="mt-2">
+                              <span className="text-blue-400">
+                                [More information...]
+                              </span>
+                              <span className="text-gray-500">
+                                (https://www.iana.org/domains/example)
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -239,127 +266,93 @@ export default async function HomePage() {
         <section id="pricing" className="py-20">
           <div className="mx-auto max-w-7xl px-6">
             <div className="text-center mb-16">
-              <TextEffect preset="fade-in-blur" speedSegment={0.3} as="h2" className="text-4xl font-bold mb-4">
+              <TextEffect
+                preset="fade-in-blur"
+                speedSegment={0.3}
+                as="h2"
+                className="text-4xl font-bold mb-4"
+              >
                 Simple, Transparent Pricing
               </TextEffect>
-              <p className="text-muted-foreground text-lg">Choose the plan that fits your needs</p>
+              <p className="text-muted-foreground text-lg">
+                Choose the plan that fits your needs
+              </p>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {/* Free Plan */}
-              <div className="bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm">
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold mb-2">Free</h3>
-                  <div className="text-4xl font-bold">
-                    $0
-                    <span className="text-lg text-muted-foreground">/month</span>
-                  </div>
-                  <p className="text-muted-foreground mt-2">1,000 API requests</p>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Up to 2 concurrent requests</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>
-                      Access to <b>all API endpoints</b>
-                    </span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>API usage tracking</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>24/7 customer support</span>
-                  </li>
-                </ul>
-                <Button variant="outline" className="w-full">
-                  Get Started
-                </Button>
-              </div>
+              {PRICING_PLANS.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`rounded-2xl border p-8 backdrop-blur-sm relative flex flex-col ${
+                    plan.highlighted
+                      ? 'border-primary/30 bg-primary/10'
+                      : plan.id === 'free'
+                        ? 'bg-muted/50'
+                        : 'bg-muted/50'
+                  }`}
+                >
+                  {plan.highlighted && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <Badge className="bg-primary text-primary-foreground px-4 py-2 text-sm font-medium">
+                        Most Popular
+                      </Badge>
+                    </div>
+                  )}
 
-              {/* Pro Plan */}
-              <div className="bg-primary/10 rounded-2xl border border-primary/30 p-8 backdrop-blur-sm relative">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium">
-                    Most Popular
-                  </span>
-                </div>
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold mb-2">Pro</h3>
-                  <div className="text-4xl font-bold">
-                    $20
-                    <span className="text-lg text-muted-foreground">/month</span>
+                  <div className="text-center mb-8">
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      {plan.icon ? (
+                        <plan.icon className="h-6 w-6 text-primary" />
+                      ) : (
+                        <User className="h-6 w-6 text-primary" />
+                      )}
+                      <h3 className="text-2xl font-bold">{plan.name}</h3>
+                    </div>
+                    <div className="text-4xl font-bold mb-2">
+                      {formatPrice(plan.price)}
+                      {plan.price !== null && plan.price > 0 && (
+                        <span className="text-lg text-muted-foreground">
+                          /month
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-muted-foreground">
+                      {plan.id === 'free'
+                        ? 'Free forever'
+                        : plan.credits
+                          ? `${formatCredits(plan.credits)} API requests`
+                          : 'Unlimited usage'}
+                    </p>
                   </div>
-                  <p className="text-muted-foreground mt-2">5,000 API requests</p>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Upto 10 concurrent requests</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>
-                      Access to <b>all API endpoints</b>
-                    </span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Early access to new features</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Advanced rate limit & usage dashboard</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Overage alerts & usage thresholds</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Priority customer support</span>
-                  </li>
-                </ul>
-                <Button className="w-full">Subscribe →</Button>
-              </div>
 
-              {/* Enterprise Plan */}
-              <div className="bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm">
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold mb-2">Enterprise</h3>
-                  <div className="text-4xl font-bold">Contact us</div>
-                  <p className="text-muted-foreground mt-2">Unlimited usage</p>
+                  <ul className="space-y-3 mb-8 flex-1">
+                    {plan.features.slice(0, 6).map((feature, index) => (
+                      <li key={index} className="flex items-center">
+                        <Check className="h-5 w-5 text-green-400 mr-3 flex-shrink-0" />
+                        <span className="text-sm">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-auto">
+                    {plan.type === 'free' && (
+                      <Button variant="outline" className="w-full">
+                        Get Started
+                      </Button>
+                    )}
+
+                    {plan.type === 'subscription' && (
+                      <Button className="w-full">Subscribe →</Button>
+                    )}
+
+                    {plan.type === 'contact' && (
+                      <Button variant="outline" className="w-full">
+                        Contact Sales
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Unlimited concurrent requests</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Custom API integrations</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>SLA & compliance support</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Dedicated infrastructure or region</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-400 mr-3" />
-                    <span>Monthly strategy calls</span>
-                  </li>
-                </ul>
-                <Button variant="outline" className="w-full">
-                  Contact Support →
-                </Button>
-              </div>
+              ))}
             </div>
           </div>
         </section>
@@ -376,7 +369,8 @@ export default async function HomePage() {
                 <Logo className="h-10" />
               </div>
               <p className="text-muted-foreground mb-4">
-                Professional web scraping API platform built for developers and enterprises.
+                Professional web scraping API platform built for developers and
+                enterprises.
               </p>
             </div>
 
@@ -384,17 +378,26 @@ export default async function HomePage() {
               <h3 className="font-semibold mb-4">Legal</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li>
-                  <Link href="#" className="hover:text-foreground transition-colors">
+                  <Link
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-foreground transition-colors">
+                  <Link
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
                     Terms of Service
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-foreground transition-colors">
+                  <Link
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
                     Refund Policy
                   </Link>
                 </li>
@@ -405,17 +408,26 @@ export default async function HomePage() {
               <h3 className="font-semibold mb-4">Links</h3>
               <ul className="space-y-2 text-muted-foreground">
                 <li>
-                  <Link href="#" className="hover:text-foreground transition-colors">
+                  <Link
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
                     Support
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-foreground transition-colors">
+                  <Link
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
                     Documentation
                   </Link>
                 </li>
                 <li>
-                  <Link href="/dashboard/studio" className="hover:text-foreground transition-colors">
+                  <Link
+                    href="/dashboard/studio"
+                    className="hover:text-foreground transition-colors"
+                  >
                     API Studio
                   </Link>
                 </li>
@@ -423,7 +435,9 @@ export default async function HomePage() {
             </div>
 
             <div>
-              <p className="text-muted-foreground text-sm">© 2025 Weblinq. All rights reserved.</p>
+              <p className="text-muted-foreground text-sm">
+                © 2025 Weblinq. All rights reserved.
+              </p>
             </div>
           </div>
         </div>

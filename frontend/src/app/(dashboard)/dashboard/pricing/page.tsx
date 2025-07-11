@@ -1,64 +1,25 @@
 'use client';
 
-import { Check, MessageSquare, CreditCard } from 'lucide-react';
+import {
+  Check,
+  MessageSquare,
+  CreditCard,
+  Zap,
+  TrendingUp,
+} from 'lucide-react';
 import { useSession, authClient } from '@/lib/auth-client';
 import { useEffect, useState } from 'react';
 import { userApi } from '@/lib/studio-api';
-
-// Pricing plans with credit-based system for web scraping
-const PLANS = [
-  {
-    name: 'Free',
-    planId: 'free',
-    type: 'free' as const,
-    price: 0,
-    credits: 1000,
-    features: [
-      '1,000 Lifetime Credits',
-      'Web Scraping (Markdown, HTML, Links)',
-      'Visual Capture (Screenshots, PDF)',
-      'Structured Data Extraction (JSON)',
-      'Web Search',
-      'Community Support',
-      'Basic Analytics',
-    ],
-  },
-  {
-    name: 'Pro',
-    planId: 'pro',
-    type: 'subscription' as const,
-    price: 2000, // $20.00 in cents
-    credits: 5000,
-    features: [
-      '5,000 Credits per month',
-      'All Free plan features',
-      'Monthly credit renewal',
-      'Priority Processing',
-      'Advanced Analytics',
-      'API Access',
-      'Priority Support',
-      'Custom Headers & Options',
-    ],
-  },
-  {
-    name: 'Enterprise',
-    planId: 'enterprise',
-    type: 'contact' as const,
-    price: null,
-    credits: null,
-    features: [
-      'Unlimited Credits',
-      'All Pro plan features',
-      'Dedicated Infrastructure',
-      '24/7 Dedicated Support',
-      'Custom Features',
-      'SLA Guarantee',
-      'On-premise Deployment',
-      'Dedicated Account Manager',
-      'Custom Integrations',
-    ],
-  },
-];
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  PRICING_PLANS,
+  formatPrice,
+  formatCredits,
+  type PricingPlan,
+} from '@/lib/utils/pricing-plans';
+import { cn } from '@/lib/utils';
 
 export default function PricingPage() {
   const { data: session } = useSession();
@@ -95,90 +56,51 @@ export default function PricingPage() {
   const hasActiveSubscription = currentPlan === 'pro';
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">
-          Choose Your Plan
-        </h1>
-        <p className="text-lg text-gray-600 mb-4">
-          Start free, upgrade when you need more. No credit card required to get
-          started.
-        </p>
-
-        {/* Current Plan Status */}
-        {!loading && session?.user && (
-          <div className="max-w-2xl mx-auto mb-6">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-green-700 text-sm">
-                You're currently on the{' '}
-                <strong className="capitalize">{currentPlan}</strong> plan
-                {hasActiveSubscription && (
-                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Active Subscription
-                  </span>
-                )}
-              </p>
-              {creditInfo && (
-                <p className="text-green-600 text-sm mt-1">
-                  {creditInfo.balance} credits available
-                </p>
-              )}
-            </div>
+    <main className="flex-1 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-3 mb-12">
+            <TrendingUp className="h-8 w-8 text-muted-foreground" />
+            <h1 className="text-3xl font-bold text-foreground">
+              Choose Your Plan
+            </h1>
           </div>
-        )}
 
-        {/* Payment Information */}
-        <div className="max-w-2xl mx-auto mb-8">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-blue-700 text-sm">
-              Secure payments powered by Polar
-            </p>
+          {/* Pricing Cards */}
+          <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+            {PRICING_PLANS.map((plan) => (
+              <PricingCard
+                key={plan.id}
+                plan={plan}
+                currentPlan={currentPlan}
+                hasActiveSubscription={hasActiveSubscription}
+              />
+            ))}
           </div>
         </div>
-      </div>
-
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-        {PLANS.map((plan) => (
-          <PricingCard
-            key={plan.planId}
-            {...plan}
-            currentPlan={currentPlan}
-            hasActiveSubscription={hasActiveSubscription}
-          />
-        ))}
       </div>
     </main>
   );
 }
 
 function PricingCard({
-  name,
-  planId,
-  type,
-  price,
-  credits,
-  features,
+  plan,
   currentPlan,
   hasActiveSubscription,
 }: {
-  name: string;
-  planId: string;
-  type: 'free' | 'subscription' | 'contact';
-  price: number | null;
-  credits: number | null;
-  features: string[];
+  plan: PricingPlan;
   currentPlan?: string | null;
   hasActiveSubscription?: boolean;
 }) {
-  const isPopular = planId === 'pro';
-  const isCurrentPlan = currentPlan === planId;
-  const isCurrentlySubscribed = hasActiveSubscription && planId === 'pro';
+  const isPopular = plan.highlighted;
+  const isCurrentPlan = currentPlan === plan.id;
+  const isCurrentlySubscribed = hasActiveSubscription && plan.id === 'pro';
 
   const handleCheckout = async () => {
     try {
-      // Use Better Auth's built-in checkout method - much cleaner!
       await authClient.checkout({
-        slug: 'pro', // This matches the slug configured in backend auth.ts
+        slug: plan.planSlug || 'pro',
       });
     } catch (error) {
       console.error('Checkout error:', error);
@@ -188,7 +110,6 @@ function PricingCard({
 
   const handlePortal = async () => {
     try {
-      // Use Better Auth's built-in customer portal method
       await authClient.customer.portal();
     } catch (error) {
       console.error('Portal error:', error);
@@ -196,125 +117,154 @@ function PricingCard({
     }
   };
 
+  const handleContact = () => {
+    window.open(
+      'mailto:sales@weblinq.dev?subject=Enterprise Plan Inquiry',
+      '_blank',
+    );
+  };
+
   return (
-    <div
-      className={`border-2 rounded-lg p-8 relative ${isPopular ? 'border-orange-500 shadow-lg' : 'border-gray-200'} ${
-        isCurrentPlan ? 'ring-2 ring-green-500' : ''
-      }`}
+    <Card
+      className={cn(
+        'relative transition-all duration-200 hover:shadow-lg flex flex-col',
+        isPopular && 'border-primary shadow-lg scale-105',
+      )}
     >
       {isPopular && (
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <span className="bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-medium">
+        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+          <Badge className="bg-primary hover:bg-primary text-primary-foreground px-4 py-1">
+            <Zap className="h-3 w-3 mr-1" />
             Most Popular
-          </span>
+          </Badge>
         </div>
       )}
 
       {isCurrentPlan && (
-        <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-2">
-          <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+        <div className="absolute -top-3 -right-3 z-10">
+          <Badge className="bg-green-600 hover:bg-green-700 text-white">
             Current Plan
-          </span>
+          </Badge>
         </div>
       )}
 
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{name}</h2>
-        <div className="mb-4">
-          {price === null ? (
-            <p className="text-3xl font-bold text-gray-900">Custom Pricing</p>
-          ) : price === 0 ? (
-            <p className="text-4xl font-bold text-gray-900">Free</p>
-          ) : (
-            <p className="text-4xl font-bold text-gray-900">
-              ${price / 100}
-              <span className="text-lg font-normal text-gray-600">/month</span>
-            </p>
-          )}
+      <CardHeader className="text-center space-y-4">
+        <div className="flex items-center justify-center gap-2">
+          {plan.icon && <plan.icon className="h-6 w-6 text-primary" />}
+          <CardTitle className="text-2xl">{plan.name}</CardTitle>
         </div>
-      </div>
 
-      <ul className="space-y-4 mb-8">
-        {features.map((feature, index) => (
-          <li key={index} className="flex items-start">
-            <Check className="h-5 w-5 text-orange-500 mr-3 mt-0.5 flex-shrink-0" />
-            <span className="text-gray-700">{feature}</span>
-          </li>
-        ))}
-      </ul>
-
-      <div className="w-full">
-        {type === 'free' && (
-          <div className="text-center">
-            <p className="text-sm text-gray-600 mb-4">
-              {isCurrentPlan
-                ? "You're currently on the Free plan"
-                : "You're automatically on the Free plan when you sign up"}
-            </p>
-            <div className="w-full py-3 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium">
-              {isCurrentPlan ? 'Current Plan' : 'Free Plan'}
-            </div>
-          </div>
-        )}
-
-        {type === 'subscription' && (
-          <div className="w-full space-y-3">
-            {isCurrentlySubscribed ? (
-              <div className="text-center">
-                <div className="w-full py-3 px-4 bg-green-100 text-green-700 rounded-lg font-medium mb-3">
-                  ✓ Active Subscription
-                </div>
-                <button
-                  onClick={handlePortal}
-                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
-                >
-                  Manage Subscription
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={handleCheckout}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
-                >
-                  {currentPlan === 'free' ? 'Upgrade to Pro' : 'Get Started'}
-                  <Check className="ml-2 h-4 w-4" />
-                </button>
-
-                <div className="text-center">
-                  <div className="flex items-center justify-center text-xs text-gray-500">
-                    <CreditCard className="h-3 w-3 mr-1" />
-                    <span>Powered by Polar</span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Credit Card, Bank Transfer, Digital Wallets
-                  </p>
-                </div>
-              </>
+        <div className="space-y-2">
+          <div className="text-3xl font-bold text-foreground">
+            {formatPrice(plan.price)}
+            {plan.price !== null && plan.price > 0 && (
+              <span className="text-lg font-normal text-muted-foreground">
+                /month
+              </span>
             )}
           </div>
-        )}
+          {/* 
+          {plan.credits && (
+            <p className="text-muted-foreground">
+              {formatCredits(plan.credits)} credits
+              {plan.type === 'subscription' ? ' per month' : ' lifetime'}
+            </p>
+          )}
+          {plan.credits === null && (
+            <p className="text-muted-foreground">Unlimited usage</p>
+          )} */}
 
-        {type === 'contact' && <ContactButton />}
-      </div>
-    </div>
-  );
-}
+          <p className="text-sm text-muted-foreground">{plan.description}</p>
+        </div>
+      </CardHeader>
 
-function ContactButton() {
-  return (
-    <button
-      onClick={() => {
-        // You can replace this with your preferred contact method
-        window.open(
-          'mailto:sales@yourcompany.com?subject=Enterprise Plan Inquiry',
-          '_blank',
-        );
-      }}
-      className="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
-    >
-      <MessageSquare className="mr-2 h-4 w-4" />
-      Contact Sales
-    </button>
+      <CardContent className="space-y-6">
+        {/* Features List */}
+        <ul className="space-y-3 flex-1">
+          {plan.features.map((feature, index) => (
+            <li key={index} className="flex items-start gap-3">
+              <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+              <span className="text-sm text-muted-foreground">{feature}</span>
+            </li>
+          ))}
+        </ul>
+
+        {/* Action Button */}
+        <div className="pt-4 mt-auto">
+          {plan.type === 'free' && (
+            <div className="text-center space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {isCurrentPlan
+                  ? "You're currently on the Free plan"
+                  : 'Automatically included when you sign up'}
+              </p>
+              <Button variant="outline" className="w-full" disabled>
+                {isCurrentPlan ? 'Current Plan' : 'Free Plan'}
+              </Button>
+            </div>
+          )}
+
+          {plan.type === 'subscription' && (
+            <div className="space-y-3">
+              {isCurrentlySubscribed ? (
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300"
+                    disabled
+                  >
+                    <Check className="mr-2 h-4 w-4" />
+                    Active Subscription
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handlePortal}
+                    className="w-full"
+                    size="sm"
+                  >
+                    Manage Subscription
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button
+                    onClick={handleCheckout}
+                    className={cn(
+                      'w-full font-medium transition-all',
+                      isPopular
+                        ? 'bg-primary hover:bg-primary/90'
+                        : 'bg-primary hover:bg-primary/90',
+                    )}
+                  >
+                    {currentPlan === 'free' ? 'Upgrade to Pro' : 'Get Started'}
+                    <TrendingUp className="ml-2 h-4 w-4" />
+                  </Button>
+
+                  <div className="text-center">
+                    <div className="flex items-center justify-center text-xs text-muted-foreground gap-1">
+                      <CreditCard className="h-3 w-3" />
+                      <span>Powered by Polar</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Credit Card, Bank Transfer, Digital Wallets
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {plan.type === 'contact' && (
+            <Button
+              onClick={handleContact}
+              variant="outline"
+              className="w-full font-medium"
+            >
+              Contact Sales
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

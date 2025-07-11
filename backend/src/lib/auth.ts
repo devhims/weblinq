@@ -152,7 +152,7 @@ export function createAuth(env: CloudflareBindings) {
                 slug: 'pro', // Custom slug for easy reference in Checkout URL, e.g. /checkout/pro
               },
             ],
-            successUrl: `${env.FRONTEND_URL}/dashboard/success?checkout_id={CHECKOUT_ID}`,
+            successUrl: `${env.FRONTEND_URL}/dashboard/pricing/success?checkout_id={CHECKOUT_ID}`,
             authenticatedUsersOnly: true,
           }),
           portal(),
