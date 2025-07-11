@@ -1,14 +1,28 @@
 import { createAuthClient } from 'better-auth/react';
 import { polarClient } from '@polar-sh/better-auth';
 import { config } from '@/config/env';
+import { shouldUseFrontendAuth } from '@/lib/utils';
 
-/* 1. Create the Better-Auth client with Polar integration.
-      Point directly to the backend where Better Auth + Polar is configured.
-      No frontend proxy needed - Better Auth handles cross-domain cookies.   */
+/* ------------------------------------------------------------------ */
+/*  Hybrid Auth Client - Routes to Frontend or Backend Based on Env   */
+/* ------------------------------------------------------------------ */
+
+// For preview environments, use frontend auth (same domain cookies work)
+// For production, use backend auth (cross-domain cookies work)
+const baseURL = shouldUseFrontendAuth()
+  ? config.frontendUrl
+  : config.backendUrl;
+
+console.log('🔧 Auth client configuration:', {
+  environment: process.env.VERCEL_ENV || process.env.NODE_ENV,
+  shouldUseFrontendAuth: shouldUseFrontendAuth(),
+  baseURL,
+});
+
 export const authClient = createAuthClient({
-  baseURL: config.backendUrl, // Point directly to backend
+  baseURL, // Dynamic based on environment
   fetchOptions: { credentials: 'include' },
-  plugins: [polarClient()], // Adds checkout(), portal(), usage() methods
+  plugins: shouldUseFrontendAuth() ? [] : [polarClient()], // Polar only in production
 });
 
 /* 2.  Re-export the hooks & helpers Better Auth injects. */

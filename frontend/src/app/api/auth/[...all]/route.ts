@@ -1,19 +1,4 @@
-import { NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { toNextJsHandler } from 'better-auth/next-js';
 
-export async function GET() {
-  return NextResponse.json(
-    {
-      error: 'Frontend auth routes removed - using direct backend connection',
-    },
-    { status: 410 },
-  );
-}
-
-export async function POST() {
-  return NextResponse.json(
-    {
-      error: 'Frontend auth routes removed - using direct backend connection',
-    },
-    { status: 410 },
-  );
-}
+export const { GET, POST } = toNextJsHandler(auth.handler);

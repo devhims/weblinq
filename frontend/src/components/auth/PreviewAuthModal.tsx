@@ -4,7 +4,13 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { AlertCircle, Key, ExternalLink } from 'lucide-react';
 import { setApiKeyInStorage, removeApiKeyFromStorage } from '@/lib/utils';
 import { parseErrorResponse, getErrorMessage } from '@/lib/error-utils';
@@ -13,7 +19,9 @@ interface PreviewAuthModalProps {
   onAuthenticated: () => void;
 }
 
-export default function PreviewAuthModal({ onAuthenticated }: PreviewAuthModalProps) {
+export default function PreviewAuthModal({
+  onAuthenticated,
+}: PreviewAuthModalProps) {
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState('');
   const [isValidating, setIsValidating] = useState(false);
@@ -72,24 +80,31 @@ export default function PreviewAuthModal({ onAuthenticated }: PreviewAuthModalPr
           <div className="flex items-center justify-center mb-2">
             <Key className="h-8 w-8 text-blue-500" />
           </div>
-          <CardTitle className="text-xl">Preview Environment Authentication</CardTitle>
+          <CardTitle className="text-xl">
+            Preview Environment Authentication
+          </CardTitle>
           <CardDescription className="text-sm text-left">
-            You're accessing a Vercel preview deployment. Session cookies don't work across different domains, so please
-            provide an API key for authentication.
+            You&apos;re accessing a Vercel preview deployment. Session cookies
+            don&apos;t work across different domains, so please provide an API
+            key for authentication.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <div className="flex items-start space-x-2">
-              <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-amber-800">
-                <p className="font-medium">How to get an API key:</p>
-                <ol className="mt-1 list-decimal list-inside space-y-1 text-xs">
-                  <li>Visit the production site</li>
-                  <li>Sign in to your account</li>
+              <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">Studio API Key Required:</p>
+                <p className="mt-1 text-xs">
+                  While you can sign in with email/password for dashboard access
+                  in preview mode, Studio features require an API key to connect
+                  to the backend services.
+                </p>
+                <ol className="mt-2 list-decimal list-inside space-y-1 text-xs">
+                  <li>Sign in to dashboard first (if not already signed in)</li>
                   <li>Go to Dashboard → API Keys</li>
                   <li>Create a new API key</li>
-                  <li>Copy it and paste it here</li>
+                  <li>Paste it here for Studio access</li>
                 </ol>
               </div>
             </div>
@@ -109,10 +124,18 @@ export default function PreviewAuthModal({ onAuthenticated }: PreviewAuthModalPr
           </div>
 
           <div className="flex space-x-2">
-            <Button onClick={validateAndSetApiKey} disabled={isValidating || !apiKey.trim()} className="flex-1">
+            <Button
+              onClick={validateAndSetApiKey}
+              disabled={isValidating || !apiKey.trim()}
+              className="flex-1"
+            >
               {isValidating ? 'Validating...' : 'Authenticate'}
             </Button>
-            <Button variant="outline" onClick={clearApiKey} disabled={isValidating}>
+            <Button
+              variant="outline"
+              onClick={clearApiKey}
+              disabled={isValidating}
+            >
               Clear
             </Button>
           </div>
@@ -121,7 +144,12 @@ export default function PreviewAuthModal({ onAuthenticated }: PreviewAuthModalPr
             <Button
               variant="link"
               size="sm"
-              onClick={() => window.open('https://www.weblinq.dev/dashboard/security', '_blank')}
+              onClick={() =>
+                window.open(
+                  'https://www.weblinq.dev/dashboard/security',
+                  '_blank',
+                )
+              }
               className="text-xs"
             >
               <ExternalLink className="h-3 w-3 mr-1" />

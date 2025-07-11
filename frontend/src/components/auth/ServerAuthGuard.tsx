@@ -1,6 +1,8 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { config } from '@/config/env';
+import { auth } from '@/lib/auth';
+import { shouldUseFrontendAuth } from '@/lib/utils';
 
 interface ServerAuthGuardProps {
   children: React.ReactNode;
@@ -32,25 +34,73 @@ export async function ServerAuthGuard({
   const finalRedirectTo = redirectTo || `${currentOrigin}/sign-in`;
 
   try {
-    const response = await fetch(`${config.backendUrl}/api/auth/get-session`, {
-      headers: {
-        cookie: headersList.get('cookie') || '',
-        'content-type': 'application/json',
-      },
-      credentials: 'include',
+    let session;
+    const useFrontendAuth = shouldUseFrontendAuth();
+
+    console.log('🔍 [ServerAuthGuard] Environment check:', {
+      host: headersList.get('host'),
+      origin: currentOrigin,
+      useFrontendAuth,
     });
 
-    if (!response.ok) {
-      redirect(finalRedirectTo);
-    }
+    if (useFrontendAuth) {
+      // Preview/dev: Use frontend auth instance with host-only cookies
+      session = await auth.api.getSession({
+        headers: headersList,
+      });
 
-    const session = await response.json();
+      console.log('🔍 [ServerAuthGuard] Frontend auth session:', {
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        email: session?.user?.email,
+      });
+    } else {
+      // Production: Use backend auth via HTTP request
+      const cookieHeader = headersList.get('cookie') || '';
+      console.log('🔍 [ServerAuthGuard] Backend auth check:', {
+        hasCookies: !!cookieHeader,
+        cookiePreview: cookieHeader.substring(0, 100),
+      });
+
+      const response = await fetch(
+        `${config.backendUrl}/api/auth/get-session`,
+        {
+          headers: {
+            cookie: cookieHeader,
+            'content-type': 'application/json',
+            origin: currentOrigin,
+          },
+          credentials: 'include',
+        },
+      );
+
+      if (!response.ok) {
+        console.log(
+          '🔒 [ServerAuthGuard] Backend response not OK:',
+          response.status,
+        );
+        redirect(finalRedirectTo);
+      }
+
+      session = await response.json();
+      console.log('🔍 [ServerAuthGuard] Backend auth session:', {
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+        email: session?.user?.email,
+      });
+    }
 
     if (!session?.user) {
+      console.log(
+        '🔒 [ServerAuthGuard] No user in session, redirecting to:',
+        finalRedirectTo,
+      );
       redirect(finalRedirectTo);
     }
+
+    console.log('✅ [ServerAuthGuard] Authentication successful');
   } catch (error) {
-    console.error('ServerAuthGuard error:', error);
+    console.error('❌ [ServerAuthGuard] Error:', error);
     redirect(finalRedirectTo);
   }
 
