@@ -195,7 +195,7 @@ export default function UnifiedAuthForm() {
                   try {
                     await authClient.sendVerificationEmail({
                       email,
-                      callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/dashboard`,
+                      callbackURL: `${window.location.origin}/dashboard`,
                     });
                     showToast(
                       'success',
