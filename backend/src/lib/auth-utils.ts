@@ -204,7 +204,13 @@ export function getTrustedOrigins(env: CloudflareBindings): string[] {
     return ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8787'];
   }
 
-  // For production, we'll dynamically check origins using isValidOrigin
-  // but still need to return the base origins for Better Auth configuration
-  return ['https://weblinq.dev', 'https://www.weblinq.dev'];
+  // Include production origins
+  const origins = ['https://weblinq.dev', 'https://www.weblinq.dev'];
+
+  // Add Vercel preview support using wildcard patterns
+  // Use the known Vercel account domain for this project
+  const vercelAccountDomain = env.VERCEL_ACCOUNT_DOMAIN;
+  origins.push(`https://*.${vercelAccountDomain}`);
+
+  return origins;
 }
