@@ -29,6 +29,7 @@ import {
   User,
   Mail,
   Settings,
+  SquareUserRound,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -290,7 +291,7 @@ function UserInfo() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
+              <SquareUserRound className="h-4 w-4" />
               Full Name
             </div>
             <p className="font-medium">{user?.name || 'Not set'}</p>

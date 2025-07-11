@@ -16,7 +16,10 @@
     "NODE_ENV": "production",
     "INITIAL_FREE_CREDITS": "1000",
     "INITIAL_PRO_CREDITS": "5000",
-    "MONTHLY_PRO_REFILL": "5000"
+    "MONTHLY_PRO_REFILL": "5000",
+    "APP_NAME": "WebLinq",
+    "ZOHO_EMAIL_HOST": "smtp.zoho.in",
+    "POLAR_ENVIRONMENT": "sandbox"
   },
   "d1_databases": [
     {
