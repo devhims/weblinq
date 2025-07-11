@@ -7,13 +7,31 @@ interface ServerAuthGuardProps {
   redirectTo?: string;
 }
 
+// Helper function to get the current request's origin for server-side redirects
+function getCurrentRequestOrigin(headersList: Headers): string {
+  // Try to get the origin from various headers
+  const host = headersList.get('host');
+  const proto = headersList.get('x-forwarded-proto') || 'https';
+
+  if (host) {
+    return `${proto}://${host}`;
+  }
+
+  // Fallback to config if we can't determine the origin
+  return config.frontendUrl;
+}
+
 export async function ServerAuthGuard({
   children,
-  redirectTo = `${config.frontendUrl}/sign-in`,
+  redirectTo,
 }: ServerAuthGuardProps) {
-  try {
-    const headersList = await headers();
+  const headersList = await headers();
 
+  // Dynamically determine redirectTo if not provided
+  const currentOrigin = getCurrentRequestOrigin(headersList);
+  const finalRedirectTo = redirectTo || `${currentOrigin}/sign-in`;
+
+  try {
     const response = await fetch(`${config.backendUrl}/api/auth/get-session`, {
       headers: {
         cookie: headersList.get('cookie') || '',
@@ -23,17 +41,17 @@ export async function ServerAuthGuard({
     });
 
     if (!response.ok) {
-      redirect(redirectTo);
+      redirect(finalRedirectTo);
     }
 
     const session = await response.json();
 
     if (!session?.user) {
-      redirect(redirectTo);
+      redirect(finalRedirectTo);
     }
   } catch (error) {
     console.error('ServerAuthGuard error:', error);
-    redirect(redirectTo);
+    redirect(finalRedirectTo);
   }
 
   return <>{children}</>;
