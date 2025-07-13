@@ -15,3 +15,5 @@ dev.db-wal
 project_docs
 
 _tests/
+
+MARKDOWN_PERFORMANCE_TESTING.md

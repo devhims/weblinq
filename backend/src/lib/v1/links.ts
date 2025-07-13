@@ -62,7 +62,7 @@ export async function linksV1(env: CloudflareBindings, params: LinksParams): Pro
       });
 
       // Use retry helper for better resilience against network failures
-      await pageGotoWithRetry(page, normalizedParams.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+      await pageGotoWithRetry(page, normalizedParams.url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
 
       if (normalizedParams.waitTime && normalizedParams.waitTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, normalizedParams.waitTime));

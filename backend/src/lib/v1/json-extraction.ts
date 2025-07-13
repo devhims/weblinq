@@ -1,4 +1,6 @@
-import type { z } from 'zod';
+// Add token counting import for Cloudflare Workers
+import { Tiktoken } from 'js-tiktoken/lite';
+import cl100k_base from 'js-tiktoken/ranks/cl100k_base';
 
 import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
 import { markdownV1 } from './markdown';
@@ -30,6 +32,9 @@ interface JsonExtractionMetadata {
   fieldsExtracted?: number;
   inputTokens?: number;
   outputTokens?: number;
+  originalContentTokens?: number;
+  finalContentTokens?: number;
+  contentTruncated?: boolean;
 }
 
 interface JsonExtractionSuccess {
@@ -55,6 +60,89 @@ export type JsonExtractionResult = JsonExtractionSuccess | JsonExtractionFailure
 const CREDIT_COST = 2; // Higher cost due to AI usage
 const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as any;
 
+// Context window limits for the model
+const MODEL_CONTEXT_LIMIT = 24000; // Total context window
+const MAX_OUTPUT_TOKENS = 4096; // Reserve for output
+const SYSTEM_PROMPT_BUFFER = 500; // Reserve for system prompt
+const MAX_INPUT_TOKENS = MODEL_CONTEXT_LIMIT - MAX_OUTPUT_TOKENS - SYSTEM_PROMPT_BUFFER; // ~19,400 tokens
+
+/**
+ * Count tokens in text using tiktoken for accurate token counting
+ * Uses cl100k_base encoding which is used by GPT-3.5/4 and similar models
+ */
+function countTokens(text: string): number {
+  try {
+    const encoder = new Tiktoken(cl100k_base);
+    const tokens = encoder.encode(text);
+    // Note: js-tiktoken lite doesn't have a free() method, it's garbage collected
+    return tokens.length;
+  } catch (error) {
+    console.warn('Token counting failed, using character-based estimate:', error);
+    // Fallback: rough estimate of 4 characters per token
+    return Math.ceil(text.length / 4);
+  }
+}
+
+/**
+ * Truncate content to fit within token limits while preserving structure
+ * Prioritizes keeping the most important content at the beginning
+ */
+function truncateContent(
+  content: string,
+  maxTokens: number,
+): { truncated: string; originalTokens: number; finalTokens: number } {
+  const originalTokens = countTokens(content);
+
+  if (originalTokens <= maxTokens) {
+    return {
+      truncated: content,
+      originalTokens,
+      finalTokens: originalTokens,
+    };
+  }
+
+  console.log(`Content exceeds token limit. Original: ${originalTokens}, Max: ${maxTokens}`);
+
+  // Split content into sections to preserve structure
+  const sections = content.split('\n\n');
+  let truncated = '';
+  let currentTokens = 0;
+
+  // Add sections until we approach the token limit
+  for (const section of sections) {
+    const sectionTokens = countTokens(section);
+
+    // If adding this section would exceed the limit
+    if (currentTokens + sectionTokens > maxTokens) {
+      // If we haven't added any sections yet, truncate this section
+      if (truncated === '') {
+        // Character-based truncation as a fallback
+        const avgCharsPerToken = section.length / sectionTokens;
+        const maxChars = Math.floor(maxTokens * avgCharsPerToken * 0.9); // 90% safety margin
+        truncated = `${section.substring(0, maxChars)}\n\n[Content truncated due to length...]`;
+        break;
+      } else {
+        // Add truncation notice
+        truncated += '\n\n[Content truncated due to length...]';
+        break;
+      }
+    }
+
+    truncated += (truncated ? '\n\n' : '') + section;
+    currentTokens += sectionTokens;
+  }
+
+  const finalTokens = countTokens(truncated);
+
+  console.log(`Content truncated: ${originalTokens} → ${finalTokens} tokens`);
+
+  return {
+    truncated,
+    originalTokens,
+    finalTokens,
+  };
+}
+
 /**
  * AI-powered content extraction from web pages
  *
@@ -63,6 +151,7 @@ const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as any;
  * - 'text': Returns natural language analysis as plain text
  *
  * Uses markdown processing for superior content understanding and AI analysis
+ * Automatically truncates content to fit within the model's context window
  */
 export async function jsonExtractionV1(
   env: CloudflareBindings,
@@ -149,7 +238,7 @@ export async function jsonExtractionV1(
     const extractionType = params.response_format ? 'schema' : 'prompt';
 
     // Build the structured content string for AI (using markdown for better context)
-    const contentForAI = `
+    const rawContentForAI = `
 Page Title: ${additionalData.title}
 Meta Description: ${additionalData.metaDescription}
 Page URL: ${additionalData.url}
@@ -164,6 +253,13 @@ ${
 Page Content (Structured Markdown):
 ${markdown}
     `.trim();
+
+    // Truncate content to fit within model's context window
+    const { truncated: contentForAI, originalTokens, finalTokens } = truncateContent(rawContentForAI, MAX_INPUT_TOKENS);
+
+    if (originalTokens > finalTokens) {
+      console.log(`⚠️  Content truncated for AI processing: ${originalTokens} → ${finalTokens} tokens`);
+    }
 
     // Prepare AI messages with response type awareness
     let systemPrompt: string;
@@ -462,6 +558,9 @@ Guidelines:
         extractionType,
         inputTokens: tokenUsage.input,
         outputTokens: tokenUsage.output,
+        originalContentTokens: originalTokens,
+        finalContentTokens: finalTokens,
+        contentTruncated: originalTokens > finalTokens,
       },
     };
 

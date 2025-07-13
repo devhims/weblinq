@@ -105,7 +105,9 @@ export async function markdownV1(env: CloudflareBindings, params: MarkdownParams
       });
 
       // Navigate with retry logic for better resilience
-      await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+      // await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
 
       if (params.waitTime && params.waitTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, params.waitTime));
