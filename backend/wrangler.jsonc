@@ -19,7 +19,7 @@
     "MONTHLY_PRO_REFILL": "5000",
     "APP_NAME": "WebLinq",
     "ZOHO_EMAIL_HOST": "smtp.zoho.in",
-    "POLAR_ENVIRONMENT": "sandbox"
+    "POLAR_ENVIRONMENT": "production"
   },
   "d1_databases": [
     {
