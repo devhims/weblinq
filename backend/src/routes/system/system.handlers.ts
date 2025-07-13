@@ -306,3 +306,47 @@ export async function checkRemaining(c: Context<AppBindings>) {
     });
   }
 }
+
+/**
+ * Close browser session endpoint - Permanently close a browser session by session ID
+ */
+export async function closeBrowserSession(c: Context<AppBindings>) {
+  try {
+    const user = c.get('user')!; // requireAuth ensures user exists
+    const body = await c.req.json();
+
+    console.log('🔒 Close browser session request:', { userId: user.id, sessionId: body.sessionId });
+
+    // Import puppeteer dynamically to access connect function
+    const { connect } = await import('@cloudflare/puppeteer');
+
+    // Connect to the browser session
+    const browser = await connect(c.env.BROWSER, body.sessionId);
+
+    // Close the browser session permanently
+    await browser.close();
+
+    console.log('✅ Browser session closed successfully:', { sessionId: body.sessionId });
+
+    const result = {
+      action: 'close-session' as const,
+      sessionId: body.sessionId,
+      message: `Browser session ${body.sessionId} closed successfully`,
+      success: true,
+    };
+
+    return c.json(
+      createStandardSuccessResponse(result, 0), // No credits cost for system operations
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    console.error('Close browser session error:', error);
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Unknown close browser session error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
+  }
+}

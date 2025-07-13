@@ -32,6 +32,10 @@ const deleteAllBrowsersInputSchema = z.object({});
 
 const checkRemainingInputSchema = z.object({});
 
+const closeBrowserSessionInputSchema = z.object({
+  sessionId: z.string().min(1, 'Session ID is required'),
+});
+
 /**
  * Standardized output schemas following ApiSuccessResponse<T> format
  */
@@ -124,6 +128,15 @@ const checkRemainingOutputSchema = createStandardSuccessSchema(
     maxConcurrentSessions: z.number(),
     allowedBrowserAcquisitions: z.number(),
     timeUntilNextAllowedBrowserAcquisition: z.number(),
+  }),
+);
+
+const closeBrowserSessionOutputSchema = createStandardSuccessSchema(
+  z.object({
+    action: z.literal('close-session'),
+    sessionId: z.string(),
+    message: z.string(),
+    success: z.boolean(),
   }),
 );
 
@@ -253,9 +266,31 @@ export const checkRemaining = createRoute({
   },
 });
 
+export const closeBrowserSession = createRoute({
+  path: '/system/close-browser-session',
+  method: 'post',
+  tags,
+  security,
+  summary: 'Close a browser session',
+  description: 'Permanently close a browser session by session ID using browser.close()',
+  request: {
+    body: jsonContentRequired(closeBrowserSessionInputSchema, 'Browser session close parameters'),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(closeBrowserSessionOutputSchema, 'Browser session closed successfully'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(closeBrowserSessionInputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+  },
+});
+
 export type BrowserStatusRoute = typeof browserStatus;
 export type SessionHealthRoute = typeof sessionHealth;
 export type CreateBrowsersRoute = typeof createBrowsers;
 export type CleanupDoRoute = typeof cleanupDo;
 export type DeleteAllBrowsersRoute = typeof deleteAllBrowsers;
 export type CheckRemainingRoute = typeof checkRemaining;
+export type CloseBrowserSessionRoute = typeof closeBrowserSession;

@@ -115,7 +115,7 @@ export function isValidOrigin(origin: string, env: CloudflareBindings): boolean 
   }
 
   // Production allowed origins
-  const productionOrigins = ['https://weblinq.dev', 'https://www.weblinq.dev'];
+  const productionOrigins = ['https://weblinq.dev', 'https://www.weblinq.dev', 'https://api.weblinq.dev'];
 
   // Check if it's a production origin
   if (productionOrigins.includes(origin)) {

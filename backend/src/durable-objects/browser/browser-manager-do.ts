@@ -30,7 +30,7 @@ interface WaitingRequest {
  * - Worker only communicates with Manager DO for all browser access
  */
 export class BrowserManagerDO extends DurableObject<CloudflareBindings> {
-  private readonly MAX_BROWSER_DOS = 5; // Maximum total DOs (reduced from 10)
+  private readonly MAX_BROWSER_DOS = 10; // Maximum total DOs
   private readonly INACTIVE_CLEANUP_HOURS = 24; // Clean up DOs after 24 hours of inactivity
   private readonly CLEANUP_CHECK_INTERVAL = 60 * 60 * 1000; // Check every hour
   private readonly BROWSER_CREATION_DELAY = 5000; // 5 second delay between browser creations

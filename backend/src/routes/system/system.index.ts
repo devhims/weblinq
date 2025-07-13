@@ -18,5 +18,6 @@ router.post('/system/create-browsers', handlers.createBrowsers);
 router.post('/system/cleanup-do', handlers.cleanupDo);
 router.post('/system/delete-all-browsers', handlers.deleteAllBrowsers);
 router.post('/system/check-remaining', handlers.checkRemaining);
+router.post('/system/close-browser-session', handlers.closeBrowserSession);
 
 export default router;
