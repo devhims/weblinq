@@ -205,3 +205,120 @@ export const creditTransactions = sqliteTable(
     idxUserId: index('idx_credit_user').on(t.userId),
   }),
 );
+
+/* ------------------------------------------------------------------ */
+/*  error logging                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Comprehensive error logging table following industry best practices
+ * Stores all errors from web route handlers for monitoring and debugging
+ */
+export const errorLogs = sqliteTable(
+  'error_logs',
+  {
+    /** Unique error log ID */
+    id: text('id').primaryKey(),
+
+    /** Request ID from response-utils for correlation */
+    requestId: text('request_id'),
+
+    /** User ID if available (nullable for unauthenticated errors) */
+    userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
+
+    /** Error severity level */
+    level: text('level', {
+      enum: ['error', 'warning', 'critical', 'fatal'],
+    })
+      .notNull()
+      .default('error'),
+
+    /** Error source/category */
+    source: text('source').notNull(), // e.g., 'web_handler', 'auth', 'browser', 'ai'
+
+    /** Specific operation that failed */
+    operation: text('operation').notNull(), // e.g., 'screenshot', 'markdown', 'pdf'
+
+    /** HTTP status code */
+    statusCode: integer('status_code'),
+
+    /** Error code from ERROR_CODES */
+    errorCode: text('error_code'),
+
+    /** Human-readable error message */
+    message: text('message').notNull(),
+
+    /** Full error stack trace */
+    stackTrace: text('stack_trace'),
+
+    /** Request URL */
+    url: text('url'),
+
+    /** HTTP method */
+    method: text('method'),
+
+    /** User agent */
+    userAgent: text('user_agent'),
+
+    /** Client IP address */
+    ipAddress: text('ip_address'),
+
+    /** Additional context data as JSON */
+    context: text('context'), // JSON: request body, params, env info, etc.
+
+    /** Error resolution status */
+    resolved: integer('resolved', { mode: 'boolean' }).default(false),
+
+    /** Resolution notes */
+    resolutionNotes: text('resolution_notes'),
+
+    /** When error was resolved */
+    resolvedAt: integer('resolved_at', { mode: 'timestamp' }),
+
+    /** Who resolved the error */
+    resolvedBy: text('resolved_by'),
+
+    /** Error occurrence count for similar errors */
+    occurrenceCount: integer('occurrence_count').default(1),
+
+    /** First occurrence of this error pattern */
+    firstOccurrence: integer('first_occurrence', { mode: 'timestamp' })
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+
+    /** Last occurrence of this error pattern */
+    lastOccurrence: integer('last_occurrence', { mode: 'timestamp' })
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+
+    /** Error fingerprint for grouping similar errors */
+    fingerprint: text('fingerprint'),
+
+    /** Environment where error occurred */
+    environment: text('environment'), // 'production', 'preview', 'development'
+
+    /** Application version/commit hash */
+    version: text('version'),
+
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+
+    updatedAt: integer('updated_at', { mode: 'timestamp' })
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (t) => ({
+    idxUserId: index('idx_error_user').on(t.userId),
+    idxLevel: index('idx_error_level').on(t.level),
+    idxSource: index('idx_error_source').on(t.source),
+    idxOperation: index('idx_error_operation').on(t.operation),
+    idxStatusCode: index('idx_error_status').on(t.statusCode),
+    idxErrorCode: index('idx_error_code').on(t.errorCode),
+    idxFingerprint: index('idx_error_fingerprint').on(t.fingerprint),
+    idxEnvironment: index('idx_error_environment').on(t.environment),
+    idxCreatedAt: index('idx_error_created').on(t.createdAt),
+    idxResolved: index('idx_error_resolved').on(t.resolved),
+    idxRequestId: index('idx_error_request').on(t.requestId),
+  }),
+);
