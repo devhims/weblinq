@@ -2,7 +2,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
 import { createDb } from './index';
-import { creditBalances, creditTransactions, payments, subscriptions, user } from './schema';
+import { creditBalances, creditTransactions, errorLogs, payments, subscriptions, user } from './schema';
 
 /* ------------------------------------------------------------------ */
 /* Safe environment variable parsing                                  */
@@ -541,5 +541,264 @@ export async function getSubscriptionData(env: CloudflareBindings, userId: strin
     currentPlan: credits.plan,
     credits,
     subscription: sub,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 5. Error Logging                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface ErrorLogParams {
+  /** Request ID for correlation (usually from response-utils) */
+  requestId?: string;
+  /** User ID if available */
+  userId?: string;
+  /** Error severity level */
+  level?: 'error' | 'warning' | 'critical' | 'fatal';
+  /** Error source/category */
+  source: string;
+  /** Specific operation that failed */
+  operation: string;
+  /** HTTP status code */
+  statusCode?: number;
+  /** Error code from ERROR_CODES */
+  errorCode?: string;
+  /** Human-readable error message */
+  message: string;
+  /** Error object for stack trace extraction */
+  error?: Error;
+  /** Request URL */
+  url?: string;
+  /** HTTP method */
+  method?: string;
+  /** User agent */
+  userAgent?: string;
+  /** Client IP address */
+  ipAddress?: string;
+  /** Additional context data */
+  context?: Record<string, any>;
+  /** Environment */
+  environment?: string;
+  /** Application version */
+  version?: string;
+}
+
+/**
+ * Generate a fingerprint for error grouping
+ * Groups similar errors together for better monitoring
+ */
+function generateErrorFingerprint(message: string, operation: string, errorCode?: string): string {
+  // Normalize error message by removing dynamic parts
+  const normalizedMessage = message
+    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z/g, 'TIMESTAMP') // ISO timestamps
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, 'UUID') // UUIDs
+    .replace(/\d+ms/g, 'DURATIONms') // Duration
+    .replace(/\d+/g, 'NUMBER') // Generic numbers
+    .replace(/https?:\/\/\S+/g, 'URL') // URLs
+    .toLowerCase()
+    .trim();
+
+  const components = [operation, errorCode || 'unknown', normalizedMessage].filter(Boolean);
+  return components.join('::');
+}
+
+/**
+ * Log an error to the database with comprehensive context
+ */
+export async function logError(env: CloudflareBindings, params: ErrorLogParams): Promise<string> {
+  const db = createDb(env);
+  const errorId = randomUUID();
+
+  try {
+    const fingerprint = generateErrorFingerprint(params.message, params.operation, params.errorCode);
+    const now = new Date();
+
+    // Check if we've seen this error pattern before (for occurrence counting)
+    const existingError = await db
+      .select()
+      .from(errorLogs)
+      .where(eq(errorLogs.fingerprint, fingerprint))
+      .orderBy(desc(errorLogs.lastOccurrence))
+      .limit(1);
+
+    let occurrenceCount = 1;
+    let firstOccurrence = now;
+
+    if (existingError.length > 0) {
+      occurrenceCount = (existingError[0].occurrenceCount || 0) + 1;
+      firstOccurrence = new Date(existingError[0].firstOccurrence);
+
+      // Update the existing error's occurrence count and last occurrence
+      await db
+        .update(errorLogs)
+        .set({
+          occurrenceCount,
+          lastOccurrence: now,
+          updatedAt: now,
+        })
+        .where(eq(errorLogs.id, existingError[0].id));
+    }
+
+    // Create new error log entry
+    await db.insert(errorLogs).values({
+      id: errorId,
+      requestId: params.requestId,
+      userId: params.userId,
+      level: params.level || 'error',
+      source: params.source,
+      operation: params.operation,
+      statusCode: params.statusCode,
+      errorCode: params.errorCode,
+      message: params.message,
+      stackTrace: params.error?.stack,
+      url: params.url,
+      method: params.method,
+      userAgent: params.userAgent,
+      ipAddress: params.ipAddress,
+      context: params.context ? JSON.stringify(params.context) : null,
+      fingerprint,
+      environment: params.environment || 'unknown',
+      version: params.version,
+      occurrenceCount,
+      firstOccurrence,
+      lastOccurrence: now,
+    });
+
+    console.log(`✅ Logged error ${errorId} (fingerprint: ${fingerprint}, occurrence: ${occurrenceCount})`);
+    return errorId;
+  } catch (logError) {
+    console.error('❌ Failed to log error to database:', logError);
+    console.error('Original error that failed to log:', params);
+    return errorId; // Return the ID even if logging failed
+  }
+}
+
+/**
+ * Retrieve error logs with filtering and pagination
+ */
+export async function getErrorLogs(
+  env: CloudflareBindings,
+  options: {
+    userId?: string;
+    level?: 'error' | 'warning' | 'critical' | 'fatal';
+    source?: string;
+    operation?: string;
+    resolved?: boolean;
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  const db = createDb(env);
+
+  // Apply filters
+  const conditions: any[] = [];
+  if (options.userId) conditions.push(eq(errorLogs.userId, options.userId));
+  if (options.level) conditions.push(eq(errorLogs.level, options.level));
+  if (options.source) conditions.push(eq(errorLogs.source, options.source));
+  if (options.operation) conditions.push(eq(errorLogs.operation, options.operation));
+  if (options.resolved !== undefined) conditions.push(eq(errorLogs.resolved, options.resolved));
+
+  let baseQuery = db.select().from(errorLogs);
+
+  if (conditions.length > 0) {
+    baseQuery = baseQuery.where(and(...conditions)) as any;
+  }
+
+  const errors = await baseQuery
+    .orderBy(desc(errorLogs.createdAt))
+    .limit(options.limit || 50)
+    .offset(options.offset || 0);
+
+  // Parse context JSON
+  return errors.map((error) => ({
+    ...error,
+    context: error.context ? JSON.parse(error.context) : null,
+  }));
+}
+
+/**
+ * Mark an error as resolved
+ */
+export async function resolveError(
+  env: CloudflareBindings,
+  errorId: string,
+  resolvedBy: string,
+  resolutionNotes?: string,
+): Promise<void> {
+  const db = createDb(env);
+
+  await db
+    .update(errorLogs)
+    .set({
+      resolved: true,
+      resolvedAt: new Date(),
+      resolvedBy,
+      resolutionNotes,
+      updatedAt: new Date(),
+    })
+    .where(eq(errorLogs.id, errorId));
+
+  console.log(`✅ Marked error ${errorId} as resolved by ${resolvedBy}`);
+}
+
+/**
+ * Get error statistics for monitoring dashboard
+ */
+export async function getErrorStats(env: CloudflareBindings, timeframe: 'hour' | 'day' | 'week' | 'month' = 'day') {
+  const db = createDb(env);
+
+  const now = new Date();
+  const timeframes = {
+    hour: new Date(now.getTime() - 60 * 60 * 1000),
+    day: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+    week: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+    month: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+  };
+
+  const since = timeframes[timeframe];
+
+  // Get total error counts by level
+  const errorsByLevel = await db
+    .select({
+      level: errorLogs.level,
+      count: sql<number>`count(*)`.as('count'),
+    })
+    .from(errorLogs)
+    .where(sql`${errorLogs.createdAt} >= ${since}`)
+    .groupBy(errorLogs.level);
+
+  // Get top error sources
+  const errorsBySources = await db
+    .select({
+      source: errorLogs.source,
+      count: sql<number>`count(*)`.as('count'),
+    })
+    .from(errorLogs)
+    .where(sql`${errorLogs.createdAt} >= ${since}`)
+    .groupBy(errorLogs.source)
+    .orderBy(desc(sql`count(*)`))
+    .limit(10);
+
+  // Get most frequent errors by fingerprint
+  const topErrors = await db
+    .select({
+      fingerprint: errorLogs.fingerprint,
+      message: errorLogs.message,
+      operation: errorLogs.operation,
+      count: sql<number>`sum(${errorLogs.occurrenceCount})`.as('count'),
+      resolved: errorLogs.resolved,
+    })
+    .from(errorLogs)
+    .where(sql`${errorLogs.createdAt} >= ${since}`)
+    .groupBy(errorLogs.fingerprint, errorLogs.message, errorLogs.operation, errorLogs.resolved)
+    .orderBy(desc(sql`sum(${errorLogs.occurrenceCount})`))
+    .limit(10);
+
+  return {
+    timeframe,
+    since: since.toISOString(),
+    byLevel: errorsByLevel,
+    bySources: errorsBySources,
+    topErrors,
   };
 }

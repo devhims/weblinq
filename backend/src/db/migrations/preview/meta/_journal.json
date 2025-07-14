@@ -43,6 +43,13 @@
       "when": 1751733760552,
       "tag": "0005_cynical_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1752497238857,
+      "tag": "0006_daffy_spiral",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import type { WebDurableObject } from '@/durable-objects/user-do';
 import type { AppRouteHandler } from '@/lib/types';
 
+import { logError } from '@/db/queries';
 import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
 
 import type {
@@ -16,6 +17,70 @@ import type {
   ScreenshotRoute,
   SearchRoute,
 } from './web.routes';
+
+/**
+ * Helper to extract common request context for error logging
+ */
+function extractRequestContext(c: any, body?: any) {
+  return {
+    userId: c.get('user')?.id,
+    url: c.req.url,
+    method: c.req.method || 'POST',
+    userAgent: c.req.header('User-Agent'),
+    ipAddress: c.req.header('CF-Connecting-IP'),
+    environment: c.env.NODE_ENV || 'unknown',
+    requestBody: body,
+  };
+}
+
+/**
+ * Helper to log operation failures from Durable Object results
+ */
+async function logOperationFailure(c: any, operation: string, result: any, body?: any, targetUrl?: string) {
+  const errorMessage = result.error || `${operation} operation failed`;
+  const errorCode = result.error?.includes('Insufficient credits')
+    ? 'INSUFFICIENT_CREDITS'
+    : `${operation.toUpperCase()}_FAILED`;
+  const statusCode = result.error?.includes('Insufficient credits')
+    ? HttpStatusCodes.PAYMENT_REQUIRED
+    : HttpStatusCodes.INTERNAL_SERVER_ERROR;
+
+  const context = extractRequestContext(c, body);
+
+  await logError(c.env, {
+    ...context,
+    source: 'web_handler',
+    operation,
+    level: 'error',
+    message: errorMessage,
+    statusCode,
+    errorCode,
+    url: targetUrl || context.url,
+    context: {
+      requestBody: body,
+      durableObjectResult: result,
+    },
+  });
+}
+
+/**
+ * Helper to log critical errors from try/catch blocks
+ */
+async function logCriticalError(c: any, operation: string, error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+  const context = extractRequestContext(c);
+
+  await logError(c.env, {
+    ...context,
+    source: 'web_handler',
+    operation,
+    level: 'critical',
+    message: errorMessage,
+    error: error instanceof Error ? error : undefined,
+    statusCode: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+  });
+}
 
 /**
  * Helper function to get the WebDurableObject stub for a user
@@ -74,6 +139,8 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     const result: any = await webDO.screenshotV1({ ...body, base64: false });
 
     if (!result.success) {
+      await logOperationFailure(c, 'screenshot', result, body);
+
       if (result.error?.includes('Insufficient credits')) {
         return c.json(
           createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
@@ -90,14 +157,14 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     let permanentUrl: string | undefined;
     let fileId: string | undefined;
 
-    if (result.data.image instanceof Uint8Array) {
+    if (result.data.data.image instanceof Uint8Array) {
       try {
         const stored = await webDO.storeFileAndCreatePermanentUrl(
-          result.data.image,
+          result.data.data.image,
           body.url,
           'screenshot',
-          result.data.metadata,
-          result.data.metadata.format,
+          result.data.data.metadata,
+          result.data.data.metadata.format,
         );
         permanentUrl = stored.permanentUrl;
         fileId = stored.fileId;
@@ -111,17 +178,17 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     /* ------------------------------------------------------------------ */
 
     // 3a.  Binary (default path)
-    if (wantsBinary && result.data.image instanceof Uint8Array) {
-      const binaryBody = result.data.image.buffer as ArrayBuffer; // <- Cast via ArrayBuffer
+    if (wantsBinary && result.data.data.image instanceof Uint8Array) {
+      const binaryBody = result.data.data.image.buffer as ArrayBuffer; // <- Cast via ArrayBuffer
       return new Response(binaryBody, {
         status: HttpStatusCodes.OK,
         headers: {
-          'Content-Type': `image/${result.data.metadata.format}`,
-          'Content-Length': result.data.metadata.size.toString(),
-          'Content-Disposition': `inline; filename="screenshot.${result.data.metadata.format}"`,
+          'Content-Type': `image/${result.data.data.metadata.format}`,
+          'Content-Length': result.data.data.metadata.size.toString(),
+          'Content-Disposition': `inline; filename="screenshot.${result.data.data.metadata.format}"`,
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
-          'X-Metadata': JSON.stringify(result.data.metadata),
+          'X-Metadata': JSON.stringify(result.data.data.metadata),
           'X-Permanent-Url': permanentUrl ?? '',
           'X-File-Id': fileId ?? '',
         },
@@ -129,31 +196,29 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     }
 
     // 3b.  Base-64 envelope (only when asked for)
-    if (wantsBase64 && result.data.image instanceof Uint8Array) {
-      const base64Image = Buffer.from(result.data.image).toString('base64');
+    if (wantsBase64 && result.data.data.image instanceof Uint8Array) {
+      const base64Image = Buffer.from(result.data.data.image).toString('base64');
       return c.json(
         {
-          ...result.data,
-          image: base64Image,
-          permanentUrl,
-          fileId,
+          ...result,
+          data: {
+            ...result.data.data,
+            image: base64Image,
+            permanentUrl,
+            fileId,
+          },
         },
         HttpStatusCodes.OK,
-        {
-          'X-Credits-Cost': result.creditsCost.toString(),
-          'X-Credits-Remaining': result.creditsRemaining.toString(),
-        },
       );
     }
 
     /* 3c. Fallback – should never hit this with current logic            */
     console.warn('⚠️ unexpected data type for screenshot response');
-    return c.json({ ...result.data, permanentUrl, fileId }, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-    });
+    return c.json({ ...result, data: { ...result.data.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Screenshot error:', error);
+    await logCriticalError(c, 'screenshot', error);
+
     const errResp = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
@@ -178,6 +243,8 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
     const result: any = await webDurableObject.markdownV1(body);
 
     if (!result.success) {
+      await logOperationFailure(c, 'markdown', result, body);
+
       if (result.error?.includes('Insufficient credits')) {
         return c.json(
           createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
@@ -193,6 +260,8 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
     });
   } catch (error) {
     console.error('Markdown error:', error);
+    await logCriticalError(c, 'markdown', error);
+
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
@@ -226,6 +295,8 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
     const result: any = await webDurableObject.jsonExtractionV1(body);
 
     if (!result.success) {
+      await logOperationFailure(c, 'json_extraction', result, body);
+
       if (result.error?.includes('Insufficient credits')) {
         return c.json(
           createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
@@ -241,6 +312,8 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
     });
   } catch (error) {
     console.error('JSON extraction error:', error);
+    await logCriticalError(c, 'json_extraction', error);
+
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
@@ -265,6 +338,8 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
     const result: any = await webDurableObject.contentV1(body);
 
     if (!result.success) {
+      await logOperationFailure(c, 'content', result, body);
+
       if (result.error?.includes('Insufficient credits')) {
         return c.json(
           createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
@@ -280,6 +355,8 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
     });
   } catch (error) {
     console.error('Content error:', error);
+    await logCriticalError(c, 'content', error);
+
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
@@ -304,6 +381,8 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
     const result: any = await webDurableObject.scrapeV1(body);
 
     if (!result.success) {
+      await logOperationFailure(c, 'scrape', result, body);
+
       if (result.error?.includes('Insufficient credits')) {
         return c.json(
           createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
@@ -319,6 +398,8 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
     });
   } catch (error) {
     console.error('Scrape error:', error);
+    await logCriticalError(c, 'scrape', error);
+
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
@@ -343,6 +424,8 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
     const result: any = await webDurableObject.linksV1(body);
 
     if (!result.success) {
+      await logOperationFailure(c, 'links', result, body);
+
       if (result.error?.includes('Insufficient credits')) {
         return c.json(
           createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
@@ -358,6 +441,8 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
     });
   } catch (error) {
     console.error('Links error:', error);
+    await logCriticalError(c, 'links', error);
+
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
@@ -383,6 +468,8 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
     const result: any = await webDurableObject.searchV1(body);
 
     if (!result.success) {
+      await logOperationFailure(c, 'search', result, body, `search:${body.query}`);
+
       if (result.error?.includes('Insufficient credits')) {
         return c.json(
           createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
@@ -398,6 +485,8 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
     });
   } catch (error) {
     console.error('Search error:', error);
+    await logCriticalError(c, 'search', error);
+
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
@@ -436,6 +525,8 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     const result: any = await webDO.pdfV1({ ...body, base64: false });
 
     if (!result.success) {
+      await logOperationFailure(c, 'pdf', result, body);
+
       if (result.error?.includes('Insufficient credits')) {
         return c.json(
           createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
@@ -452,13 +543,13 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     let permanentUrl: string | undefined;
     let fileId: string | undefined;
 
-    if (result.data.pdf instanceof Uint8Array) {
+    if (result.data.data.pdf instanceof Uint8Array) {
       try {
         const stored = await webDO.storeFileAndCreatePermanentUrl(
-          result.data.pdf,
+          result.data.data.pdf,
           body.url,
           'pdf',
-          result.data.metadata,
+          result.data.data.metadata,
           'pdf',
         );
         permanentUrl = stored.permanentUrl;
@@ -473,18 +564,18 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     /* ------------------------------------------------------------------ */
 
     // 3a. Binary  (default)
-    if (wantsBinary && result.data.pdf instanceof Uint8Array) {
-      const binaryBody = result.data.pdf as unknown as BodyInit; // safe cast
+    if (wantsBinary && result.data.data.pdf instanceof Uint8Array) {
+      const binaryBody = result.data.data.pdf as unknown as BodyInit; // safe cast
 
       return new Response(binaryBody, {
         status: HttpStatusCodes.OK,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Length': result.data.metadata.size.toString(),
+          'Content-Length': result.data.data.metadata.size.toString(),
           'Content-Disposition': 'attachment; filename="page.pdf"',
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
-          'X-Metadata': JSON.stringify(result.data.metadata),
+          'X-Metadata': JSON.stringify(result.data.data.metadata),
           'X-Permanent-Url': permanentUrl ?? '',
           'X-File-Id': fileId ?? '',
         },
@@ -492,31 +583,29 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     }
 
     // 3b. Base-64  (only when asked for)
-    if (wantsBase64 && result.data.pdf instanceof Uint8Array) {
-      const base64Pdf = Buffer.from(result.data.pdf).toString('base64');
+    if (wantsBase64 && result.data.data.pdf instanceof Uint8Array) {
+      const base64Pdf = Buffer.from(result.data.data.pdf).toString('base64');
 
       return c.json(
         {
-          ...result.data,
-          pdf: base64Pdf,
-          permanentUrl,
-          fileId,
+          ...result,
+          data: {
+            ...result.data.data,
+            pdf: base64Pdf,
+            permanentUrl,
+            fileId,
+          },
         },
         HttpStatusCodes.OK,
-        {
-          'X-Credits-Cost': result.creditsCost.toString(),
-          'X-Credits-Remaining': result.creditsRemaining.toString(),
-        },
       );
     }
 
     /* 3c. Fallback – should never hit */
-    return c.json({ ...result.data, permanentUrl, fileId }, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-    });
+    return c.json({ ...result, data: { ...result.data.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('PDF error:', error);
+    await logCriticalError(c, 'pdf', error);
+
     const errResp = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
