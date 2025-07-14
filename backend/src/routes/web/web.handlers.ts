@@ -133,21 +133,25 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
       const base64Image = Buffer.from(result.data.image).toString('base64');
       return c.json(
         {
-          ...result,
-          data: {
-            ...result.data,
-            image: base64Image,
-            permanentUrl,
-            fileId,
-          },
+          ...result.data,
+          image: base64Image,
+          permanentUrl,
+          fileId,
         },
         HttpStatusCodes.OK,
+        {
+          'X-Credits-Cost': result.creditsCost.toString(),
+          'X-Credits-Remaining': result.creditsRemaining.toString(),
+        },
       );
     }
 
     /* 3c. Fallback – should never hit this with current logic            */
     console.warn('⚠️ unexpected data type for screenshot response');
-    return c.json({ ...result, data: { ...result.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
+    return c.json({ ...result.data, permanentUrl, fileId }, HttpStatusCodes.OK, {
+      'X-Credits-Cost': result.creditsCost.toString(),
+      'X-Credits-Remaining': result.creditsRemaining.toString(),
+    });
   } catch (error) {
     console.error('Screenshot error:', error);
     const errResp = createStandardErrorResponse(
@@ -493,20 +497,24 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
 
       return c.json(
         {
-          ...result,
-          data: {
-            ...result.data,
-            pdf: base64Pdf,
-            permanentUrl,
-            fileId,
-          },
+          ...result.data,
+          pdf: base64Pdf,
+          permanentUrl,
+          fileId,
         },
         HttpStatusCodes.OK,
+        {
+          'X-Credits-Cost': result.creditsCost.toString(),
+          'X-Credits-Remaining': result.creditsRemaining.toString(),
+        },
       );
     }
 
     /* 3c. Fallback – should never hit */
-    return c.json({ ...result, data: { ...result.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
+    return c.json({ ...result.data, permanentUrl, fileId }, HttpStatusCodes.OK, {
+      'X-Credits-Cost': result.creditsCost.toString(),
+      'X-Credits-Remaining': result.creditsRemaining.toString(),
+    });
   } catch (error) {
     console.error('PDF error:', error);
     const errResp = createStandardErrorResponse(
