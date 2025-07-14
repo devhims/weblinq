@@ -3,6 +3,7 @@ import type { Buffer } from 'node:buffer';
 import { DurableObject } from 'cloudflare:workers';
 import { createHash } from 'node:crypto';
 
+import { deductCredits, getUserCredits } from '@/db/queries';
 import { contentV1 } from '@/lib/v1/content';
 import { jsonExtractionV1 } from '@/lib/v1/json-extraction';
 import { linksV1 } from '@/lib/v1/links';
@@ -23,6 +24,33 @@ interface FileRecord {
   metadata: string; // JSON string
   created_at: string;
   expires_at?: string;
+}
+
+/**
+ * Credit costs for different web operations
+ */
+export const CREDIT_COSTS = {
+  SCREENSHOT: 1,
+  MARKDOWN: 1,
+  JSON_EXTRACTION: 2, // Higher cost due to AI processing
+  CONTENT: 1,
+  SCRAPE: 1,
+  LINKS: 1,
+  SEARCH: 1,
+  PDF: 1,
+} as const;
+
+export type WebOperation = keyof typeof CREDIT_COSTS;
+
+/**
+ * Result wrapper that includes credit information
+ */
+export interface CreditAwareResult<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  creditsCost: number;
+  creditsRemaining: number;
 }
 
 export class WebDurableObject extends DurableObject<CloudflareBindings> {
@@ -579,55 +607,178 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   /*  v1 – Browser-based screenshot                                          */
   /* ------------------------------------------------------------------------ */
 
-  async screenshotV1(params: Parameters<typeof screenshotV1>[1]) {
-    return screenshotV1(this.env, params);
+  async screenshotV1(params: Parameters<typeof screenshotV1>[1]): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits('SCREENSHOT', () => screenshotV1(this.env, params), {
+      url: params.url,
+      userId: this.userId,
+      viewport: params.viewport,
+      waitTime: params.waitTime,
+    });
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – Browser-based markdown extraction                                 */
   /* ------------------------------------------------------------------------ */
 
-  async markdownV1(params: Parameters<typeof markdownV1>[1]) {
-    return markdownV1(this.env, params);
+  async markdownV1(params: Parameters<typeof markdownV1>[1]): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits('MARKDOWN', () => markdownV1(this.env, params), {
+      url: params.url,
+      userId: this.userId,
+      waitTime: params.waitTime,
+    });
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – Browser-based HTML content extraction                              */
   /* ------------------------------------------------------------------------ */
 
-  async contentV1(params: Parameters<typeof contentV1>[1]) {
-    return contentV1(this.env, params);
+  async contentV1(params: Parameters<typeof contentV1>[1]): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits('CONTENT', () => contentV1(this.env, params), {
+      url: params.url,
+      userId: this.userId,
+      waitTime: params.waitTime,
+    });
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – Browser-based Link extraction                                      */
   /* ------------------------------------------------------------------------ */
 
-  async linksV1(params: Parameters<typeof linksV1>[1]) {
-    return linksV1(this.env, params);
+  async linksV1(params: Parameters<typeof linksV1>[1]): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits('LINKS', () => linksV1(this.env, params), {
+      url: params.url,
+      userId: this.userId,
+      includeExternal: params.includeExternal,
+      waitTime: params.waitTime,
+    });
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – Browser-based Element scraping                                     */
   /* ------------------------------------------------------------------------ */
 
-  async scrapeV1(params: Parameters<typeof scrapeV1>[1]) {
-    return scrapeV1(this.env, params);
+  async scrapeV1(params: Parameters<typeof scrapeV1>[1]): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits('SCRAPE', () => scrapeV1(this.env, params), {
+      url: params.url,
+      userId: this.userId,
+      elements: params.elements?.length || 0,
+      waitTime: params.waitTime,
+    });
   }
 
-  async pdfV1(params: Parameters<typeof pdfV1>[1]) {
-    return pdfV1(this.env, params);
+  async pdfV1(params: Parameters<typeof pdfV1>[1]): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits('PDF', () => pdfV1(this.env, params), {
+      url: params.url,
+      userId: this.userId,
+      base64: params.base64,
+      waitTime: params.waitTime,
+    });
   }
 
-  async searchV1(params: Parameters<typeof searchV1>[1]) {
-    return searchV1(this.env, params);
+  async searchV1(params: Parameters<typeof searchV1>[1]): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits('SEARCH', () => searchV1(this.env, params), {
+      query: params.query,
+      userId: this.userId,
+      limit: params.limit,
+    });
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – AI-powered JSON extraction                                        */
   /* ------------------------------------------------------------------------ */
 
-  async jsonExtractionV1(params: Parameters<typeof jsonExtractionV1>[1]) {
-    return jsonExtractionV1(this.env, params);
+  async jsonExtractionV1(params: Parameters<typeof jsonExtractionV1>[1]): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits('JSON_EXTRACTION', () => jsonExtractionV1(this.env, params), {
+      url: params.url,
+      userId: this.userId,
+      prompt: params.prompt?.length || 0,
+      responseType: params.responseType,
+      waitTime: params.waitTime,
+    });
+  }
+
+  /**
+   * Check if user has sufficient credits for an operation
+   */
+  private async checkCredits(operation: WebOperation): Promise<{ hasCredits: boolean; balance: number; cost: number }> {
+    const cost = CREDIT_COSTS[operation];
+
+    try {
+      const credits = await getUserCredits(this.env, this.userId);
+      return {
+        hasCredits: credits.balance >= cost,
+        balance: credits.balance,
+        cost,
+      };
+    } catch (error) {
+      console.error(`❌ Failed to check credits for user ${this.userId}:`, error);
+      throw new Error('Failed to check credit balance');
+    }
+  }
+
+  /**
+   * Deduct credits for an operation using waitUntil (non-blocking)
+   * This method should be called after a successful operation
+   */
+  private async deductCreditsAsync(operation: WebOperation, metadata?: Record<string, any>): Promise<void> {
+    const cost = CREDIT_COSTS[operation];
+
+    try {
+      await deductCredits(this.env, this.userId, cost, operation.toLowerCase(), {
+        operation,
+        cost,
+        timestamp: new Date().toISOString(),
+        ...metadata,
+      });
+      console.log(`✅ Deducted ${cost} credits for ${operation} operation (user: ${this.userId})`);
+    } catch (error) {
+      console.error(`❌ Failed to deduct credits for ${operation} operation (user: ${this.userId}):`, error);
+      // Don't throw here - credit deduction errors shouldn't break the user experience
+      // The operation was already successful, we just log the error
+    }
+  }
+
+  /**
+   * Execute a web operation with credit checking and deduction
+   */
+  private async executeWithCredits<T>(
+    operation: WebOperation,
+    operationFn: () => Promise<T>,
+    metadata?: Record<string, any>,
+  ): Promise<CreditAwareResult<T>> {
+    // 1. Check credits first
+    const creditCheck = await this.checkCredits(operation);
+
+    if (!creditCheck.hasCredits) {
+      return {
+        success: false,
+        error: `Insufficient credits. Required: ${creditCheck.cost}, Available: ${creditCheck.balance}`,
+        creditsCost: creditCheck.cost,
+        creditsRemaining: creditCheck.balance,
+      };
+    }
+
+    try {
+      // 2. Execute the operation
+      const result = await operationFn();
+
+      // 3. Deduct credits in background (non-blocking)
+      this.ctx.waitUntil(this.deductCreditsAsync(operation, metadata));
+
+      return {
+        success: true,
+        data: result,
+        creditsCost: creditCheck.cost,
+        creditsRemaining: creditCheck.balance - creditCheck.cost, // Estimated remaining balance
+      };
+    } catch (error) {
+      // If operation fails, don't deduct credits
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Operation failed',
+        creditsCost: creditCheck.cost,
+        creditsRemaining: creditCheck.balance,
+      };
+    }
   }
 }

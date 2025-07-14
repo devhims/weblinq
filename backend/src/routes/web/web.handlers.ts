@@ -71,9 +71,15 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     const webDO = getWebDurableObject(c, user.id);
     await webDO.initializeUser(user.id);
 
-    const result = await webDO.screenshotV1({ ...body, base64: false });
+    const result: any = await webDO.screenshotV1({ ...body, base64: false });
 
     if (!result.success) {
+      if (result.error?.includes('Insufficient credits')) {
+        return c.json(
+          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
+          HttpStatusCodes.PAYMENT_REQUIRED,
+        );
+      }
       console.error('📤 Screenshot failed:', result.error);
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
@@ -114,6 +120,7 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
           'Content-Length': result.data.metadata.size.toString(),
           'Content-Disposition': `inline; filename="screenshot.${result.data.metadata.format}"`,
           'X-Credits-Cost': result.creditsCost.toString(),
+          'X-Credits-Remaining': result.creditsRemaining.toString(),
           'X-Metadata': JSON.stringify(result.data.metadata),
           'X-Permanent-Url': permanentUrl ?? '',
           'X-File-Id': fileId ?? '',
@@ -164,10 +171,22 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    // const result = await webDurableObject.extractMarkdown(body);
-    const result = await webDurableObject.markdownV1(body);
+    const result: any = await webDurableObject.markdownV1(body);
 
-    return c.json(result, HttpStatusCodes.OK);
+    if (!result.success) {
+      if (result.error?.includes('Insufficient credits')) {
+        return c.json(
+          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
+          HttpStatusCodes.PAYMENT_REQUIRED,
+        );
+      }
+      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    }
+
+    return c.json(result.data, HttpStatusCodes.OK, {
+      'X-Credits-Cost': result.creditsCost.toString(),
+      'X-Credits-Remaining': result.creditsRemaining.toString(),
+    });
   } catch (error) {
     console.error('Markdown error:', error);
     const errorResponse = createStandardErrorResponse(
@@ -200,8 +219,22 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
     await webDurableObject.initializeUser(user.id);
 
     // Use the new AI-powered v1 implementation
-    const result = await webDurableObject.jsonExtractionV1(body);
-    return c.json(result, HttpStatusCodes.OK);
+    const result: any = await webDurableObject.jsonExtractionV1(body);
+
+    if (!result.success) {
+      if (result.error?.includes('Insufficient credits')) {
+        return c.json(
+          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
+          HttpStatusCodes.PAYMENT_REQUIRED,
+        );
+      }
+      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    }
+
+    return c.json(result.data, HttpStatusCodes.OK, {
+      'X-Credits-Cost': result.creditsCost.toString(),
+      'X-Credits-Remaining': result.creditsRemaining.toString(),
+    });
   } catch (error) {
     console.error('JSON extraction error:', error);
     const errorResponse = createStandardErrorResponse(
@@ -225,8 +258,22 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.contentV1(body);
-    return c.json(result, HttpStatusCodes.OK);
+    const result: any = await webDurableObject.contentV1(body);
+
+    if (!result.success) {
+      if (result.error?.includes('Insufficient credits')) {
+        return c.json(
+          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
+          HttpStatusCodes.PAYMENT_REQUIRED,
+        );
+      }
+      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    }
+
+    return c.json(result.data, HttpStatusCodes.OK, {
+      'X-Credits-Cost': result.creditsCost.toString(),
+      'X-Credits-Remaining': result.creditsRemaining.toString(),
+    });
   } catch (error) {
     console.error('Content error:', error);
     const errorResponse = createStandardErrorResponse(
@@ -250,9 +297,22 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    // const result = await webDurableObject.scrapeElements(body);
-    const result = await webDurableObject.scrapeV1(body);
-    return c.json(result, HttpStatusCodes.OK);
+    const result: any = await webDurableObject.scrapeV1(body);
+
+    if (!result.success) {
+      if (result.error?.includes('Insufficient credits')) {
+        return c.json(
+          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
+          HttpStatusCodes.PAYMENT_REQUIRED,
+        );
+      }
+      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    }
+
+    return c.json(result.data, HttpStatusCodes.OK, {
+      'X-Credits-Cost': result.creditsCost.toString(),
+      'X-Credits-Remaining': result.creditsRemaining.toString(),
+    });
   } catch (error) {
     console.error('Scrape error:', error);
     const errorResponse = createStandardErrorResponse(
@@ -276,8 +336,22 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    const result = await webDurableObject.linksV1(body);
-    return c.json(result, HttpStatusCodes.OK);
+    const result: any = await webDurableObject.linksV1(body);
+
+    if (!result.success) {
+      if (result.error?.includes('Insufficient credits')) {
+        return c.json(
+          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
+          HttpStatusCodes.PAYMENT_REQUIRED,
+        );
+      }
+      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    }
+
+    return c.json(result.data, HttpStatusCodes.OK, {
+      'X-Credits-Cost': result.creditsCost.toString(),
+      'X-Credits-Remaining': result.creditsRemaining.toString(),
+    });
   } catch (error) {
     console.error('Links error:', error);
     const errorResponse = createStandardErrorResponse(
@@ -302,9 +376,22 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
     const webDurableObject = getWebDurableObject(c, user.id);
     await webDurableObject.initializeUser(user.id);
 
-    // const result = await webDurableObject.search(body, clientIp);
-    const result = await webDurableObject.searchV1(body);
-    return c.json(result, HttpStatusCodes.OK);
+    const result: any = await webDurableObject.searchV1(body);
+
+    if (!result.success) {
+      if (result.error?.includes('Insufficient credits')) {
+        return c.json(
+          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
+          HttpStatusCodes.PAYMENT_REQUIRED,
+        );
+      }
+      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    }
+
+    return c.json(result.data, HttpStatusCodes.OK, {
+      'X-Credits-Cost': result.creditsCost.toString(),
+      'X-Credits-Remaining': result.creditsRemaining.toString(),
+    });
   } catch (error) {
     console.error('Search error:', error);
     const errorResponse = createStandardErrorResponse(
@@ -342,9 +429,15 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     const webDO = getWebDurableObject(c, user.id);
     await webDO.initializeUser(user.id);
 
-    const result = await webDO.pdfV1({ ...body, base64: false });
+    const result: any = await webDO.pdfV1({ ...body, base64: false });
 
     if (!result.success) {
+      if (result.error?.includes('Insufficient credits')) {
+        return c.json(
+          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
+          HttpStatusCodes.PAYMENT_REQUIRED,
+        );
+      }
       console.error('📤 PDF generation failed:', result.error);
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
@@ -386,6 +479,7 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
           'Content-Length': result.data.metadata.size.toString(),
           'Content-Disposition': 'attachment; filename="page.pdf"',
           'X-Credits-Cost': result.creditsCost.toString(),
+          'X-Credits-Remaining': result.creditsRemaining.toString(),
           'X-Metadata': JSON.stringify(result.data.metadata),
           'X-Permanent-Url': permanentUrl ?? '',
           'X-File-Id': fileId ?? '',

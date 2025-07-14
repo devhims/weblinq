@@ -54,7 +54,7 @@ export async function contentV1(env: CloudflareBindings, params: ContentParams):
       });
 
       // Use retry helper for better resilience against network failures
-      await pageGotoWithRetry(page, params.url, { waitUntil: 'networkidle2', timeout: 30_000 });
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
 
       if (params.waitTime && params.waitTime > 0) {
         await new Promise((resolve) => setTimeout(resolve, params.waitTime));
