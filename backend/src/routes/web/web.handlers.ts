@@ -230,6 +230,16 @@ async function executeWithCache<T>(
   const user = c.get('user')!;
   const userId = user.id;
 
+  // Capture waitUntil function from ExecutionContext early to avoid context issues later
+  const waitUntilFn =
+    typeof c.executionCtx?.waitUntil === 'function' ? c.executionCtx.waitUntil.bind(c.executionCtx) : null;
+  console.log(`🔍 Context capture for ${operation}:`, {
+    hasExecutionCtx: !!c.executionCtx,
+    hasWaitUntil: !!waitUntilFn,
+    contextType: typeof c,
+    executionCtxType: typeof c.executionCtx,
+  });
+
   // 2. Check credits for new operation
   const creditCheck = await checkCredits(c.env, userId, operation);
 
@@ -293,7 +303,22 @@ async function executeWithCache<T>(
     const updatedBalance = creditCheck.balance - creditCheck.cost;
 
     // 5. Cache the successful result in background
-    c.waitUntil(setCachedResult(cacheKey, operation, result.data));
+    // Use the captured waitUntil function to avoid context issues
+    try {
+      if (waitUntilFn) {
+        waitUntilFn(setCachedResult(cacheKey, operation, result.data));
+        console.log(`✅ Background caching initiated for ${operation}`);
+      } else {
+        console.warn(`⚠️ waitUntil not available for ${operation}, falling back to async caching`);
+        // Fallback: cache asynchronously (non-blocking for user)
+        setCachedResult(cacheKey, operation, result.data).catch((error) => {
+          console.error(`❌ Background cache operation failed for ${operation}:`, error);
+        });
+      }
+    } catch (cacheError) {
+      console.error(`❌ Failed to initiate background caching for ${operation}:`, cacheError);
+      // Don't throw - caching failures shouldn't break the response
+    }
 
     return {
       success: true,
@@ -304,6 +329,7 @@ async function executeWithCache<T>(
     };
   } catch (error) {
     // If operation fails, don't deduct credits or cache the result
+    console.error(`❌ Operation ${operation} failed:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Operation failed',
