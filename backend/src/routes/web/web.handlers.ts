@@ -69,6 +69,7 @@ interface CreditAwareResult<T> {
 /**
  * Generate a cache key for Cloudflare Cache API
  * Uses a dummy internal URL as recommended by Cloudflare docs
+ * Includes base64 preference for binary operations to ensure correct format caching
  */
 function generateCacheKey(operation: WebOperation, userId: string, params: Record<string, any>): string {
   // Create a normalized parameter string for consistent caching
@@ -96,15 +97,29 @@ function generateCacheKey(operation: WebOperation, userId: string, params: Recor
 
 /**
  * Store result in Cloudflare Cache with custom TTL
+ * Handles binary data by converting to base64 for JSON storage
+ * Automatically detects base64 preference from cache parameters for binary operations
  */
-async function setCachedResult<T>(cacheKey: string, operation: WebOperation, data: T): Promise<void> {
+async function setCachedResult<T>(
+  cacheKey: string,
+  operation: WebOperation,
+  data: T,
+  cacheParams?: Record<string, any>,
+): Promise<void> {
   try {
     const ttlSeconds = CACHE_TTL_SECONDS[operation];
+
+    // Handle binary data for screenshot and PDF operations
+    let processedData = data;
+    if (operation === 'SCREENSHOT' || operation === 'PDF') {
+      const wantsBase64 = cacheParams?.base64 === true;
+      processedData = convertBinaryToBase64ForCache(data as any, wantsBase64) as T;
+    }
 
     // Create the response to cache
     const cacheData = {
       success: true,
-      data,
+      data: processedData,
       fromCache: true,
       cachedAt: Date.now(),
     };
@@ -132,7 +147,67 @@ async function setCachedResult<T>(cacheKey: string, operation: WebOperation, dat
 }
 
 /**
+ * Convert binary data to base64 for JSON storage
+ * Only converts if the original request wanted binary (not base64)
+ */
+function convertBinaryToBase64ForCache(data: any, wantsBase64?: boolean): any {
+  if (!data || !data.data) return data;
+
+  const result = { ...data };
+
+  // Handle screenshot data - only convert if the response was originally binary (not base64)
+  if (result.data.image instanceof Uint8Array) {
+    result.data = {
+      ...result.data,
+      image: Buffer.from(result.data.image).toString('base64'),
+      _imageBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
+    };
+  }
+
+  // Handle PDF data - only convert if the response was originally binary (not base64)
+  if (result.data.pdf instanceof Uint8Array) {
+    result.data = {
+      ...result.data,
+      pdf: Buffer.from(result.data.pdf).toString('base64'),
+      _pdfBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Convert base64 data back to binary for cached results
+ */
+function convertBase64ToBinaryFromCache(data: any): any {
+  if (!data || !data.data) return data;
+
+  const result = { ...data };
+
+  // Handle screenshot data
+  if (result.data._imageBinary && typeof result.data.image === 'string') {
+    result.data = {
+      ...result.data,
+      image: new Uint8Array(Buffer.from(result.data.image, 'base64')),
+    };
+    delete result.data._imageBinary;
+  }
+
+  // Handle PDF data
+  if (result.data._pdfBinary && typeof result.data.pdf === 'string') {
+    result.data = {
+      ...result.data,
+      pdf: new Uint8Array(Buffer.from(result.data.pdf, 'base64')),
+    };
+    delete result.data._pdfBinary;
+  }
+
+  return result;
+}
+
+/**
  * Get cached result from Cloudflare Cache
+ * Handles binary data by converting from base64 back to Uint8Array
  */
 async function getCachedResult<T>(cacheKey: string, operation: WebOperation): Promise<CreditAwareResult<T> | null> {
   try {
@@ -159,7 +234,16 @@ async function getCachedResult<T>(cacheKey: string, operation: WebOperation): Pr
       }
     }
 
-    const cachedData = (await cachedResponse.json()) as CreditAwareResult<T>;
+    let cachedData = (await cachedResponse.json()) as CreditAwareResult<T>;
+
+    // Convert base64 back to binary for screenshot and PDF operations
+    if (operation === 'SCREENSHOT' || operation === 'PDF') {
+      cachedData = {
+        ...cachedData,
+        data: convertBase64ToBinaryFromCache(cachedData.data as any) as T,
+      };
+    }
+
     console.log(`✅ Cache hit for ${operation} (Key: ${cacheKey})`);
 
     return cachedData;
@@ -295,11 +379,11 @@ async function executeWithCache<T>(
     // 5. Cache the successful result in background
     try {
       if (c.executionCtx?.waitUntil) {
-        c.executionCtx.waitUntil(setCachedResult(cacheKey, operation, result.data));
+        c.executionCtx.waitUntil(setCachedResult(cacheKey, operation, result.data, cacheParams));
         console.log(`✅ Background caching initiated for ${operation}`);
       } else {
         // Fallback: cache asynchronously (non-blocking for user)
-        setCachedResult(cacheKey, operation, result.data).catch((error) => {
+        setCachedResult(cacheKey, operation, result.data, cacheParams).catch((error) => {
           console.error(`❌ Background cache operation failed for ${operation}:`, error);
         });
       }
@@ -459,6 +543,7 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
         url: body.url,
         viewport: body.viewport,
         waitTime: body.waitTime,
+        base64: body.base64, // Include base64 preference in cache key
       },
     );
 
@@ -921,6 +1006,7 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
         url: body.url,
         format: body.format,
         waitTime: body.waitTime,
+        base64: body.base64, // Include base64 preference in cache key
       },
     );
 
