@@ -1,10 +1,11 @@
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { WebDurableObject } from '@/durable-objects/user-do';
 import type { AppRouteHandler } from '@/lib/types';
 
-import { logError } from '@/db/queries';
+import { deductCredits, getUserCredits, logError } from '@/db/queries';
 import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
 
 import type {
@@ -17,6 +18,305 @@ import type {
   ScreenshotRoute,
   SearchRoute,
 } from './web.routes';
+
+/* ========================================================================== */
+/*  Cloudflare Cache API Implementation                                      */
+/* ========================================================================== */
+
+/**
+ * Cache TTL configuration (in seconds for Cache API)
+ * Using the same values from CACHE_CONFIG but converted to seconds
+ */
+const CACHE_TTL_SECONDS = {
+  SCREENSHOT: 12 * 60 * 60, // 12 hours
+  MARKDOWN: 30 * 60, // 30 minutes
+  JSON_EXTRACTION: 30 * 60, // 30 minutes
+  CONTENT: 30 * 60, // 30 minutes
+  SCRAPE: 10 * 60, // 10 minutes
+  LINKS: 30 * 60, // 30 minutes
+  SEARCH: 10 * 60, // 10 minutes
+  PDF: 12 * 60 * 60, // 12 hours
+} as const;
+
+/**
+ * Credit costs for different web operations
+ */
+const CREDIT_COSTS = {
+  SCREENSHOT: 1,
+  MARKDOWN: 1,
+  JSON_EXTRACTION: 2, // Higher cost due to AI processing
+  CONTENT: 1,
+  SCRAPE: 1,
+  LINKS: 1,
+  SEARCH: 1,
+  PDF: 1,
+} as const;
+
+type WebOperation = keyof typeof CREDIT_COSTS;
+
+/**
+ * Result wrapper that includes credit information
+ */
+interface CreditAwareResult<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  creditsCost: number;
+  creditsRemaining: number;
+  fromCache?: boolean;
+}
+
+/**
+ * Generate a cache key for Cloudflare Cache API
+ * Uses a dummy internal URL as recommended by Cloudflare docs
+ */
+function generateCacheKey(operation: WebOperation, userId: string, params: Record<string, any>): string {
+  // Create a normalized parameter string for consistent caching
+  const normalizedParams = { ...params };
+
+  // Remove userId from cache key params since it's handled separately
+  delete normalizedParams.userId;
+
+  // Sort keys for consistent hashing
+  const sortedParams = Object.keys(normalizedParams)
+    .sort()
+    .reduce((obj, key) => {
+      obj[key] = normalizedParams[key];
+      return obj;
+    }, {} as Record<string, any>);
+
+  // Create hash of parameters
+  const paramString = JSON.stringify(sortedParams);
+  const paramHash = createHash('sha256').update(paramString).digest('hex').substring(0, 16);
+
+  // Use dummy internal URL as cache key - this is just for string identification
+  // and doesn't represent an actual endpoint (as per Cloudflare best practices)
+  return `https://cache.weblinq.internal/${operation.toLowerCase()}/${userId}/${paramHash}`;
+}
+
+/**
+ * Store result in Cloudflare Cache with custom TTL
+ */
+async function setCachedResult<T>(cacheKey: string, operation: WebOperation, data: T): Promise<void> {
+  try {
+    const ttlSeconds = CACHE_TTL_SECONDS[operation];
+
+    // Create the response to cache
+    const cacheData = {
+      success: true,
+      data,
+      fromCache: true,
+      cachedAt: Date.now(),
+    };
+
+    const response = new Response(JSON.stringify(cacheData), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': `max-age=${ttlSeconds}`,
+        'X-Operation': operation,
+        'X-Cached-At': new Date().toISOString(),
+        'X-TTL-Seconds': ttlSeconds.toString(),
+      },
+    });
+
+    // Store in Cloudflare Cache
+    const cache = await caches.open('weblinq-cache');
+    await cache.put(cacheKey, response);
+
+    console.log(`💾 Cached result for ${operation} (TTL: ${ttlSeconds}s, Key: ${cacheKey})`);
+  } catch (error) {
+    console.error(`❌ Error caching result for ${operation}:`, error);
+    // Don't throw - caching failures shouldn't break operations
+  }
+}
+
+/**
+ * Get cached result from Cloudflare Cache
+ */
+async function getCachedResult<T>(cacheKey: string, operation: WebOperation): Promise<CreditAwareResult<T> | null> {
+  try {
+    const cache = await caches.open('weblinq-cache');
+    const cachedResponse = await cache.match(cacheKey);
+
+    if (!cachedResponse) {
+      console.log(`❌ Cache miss for ${operation} (Key: ${cacheKey})`);
+      return null;
+    }
+
+    // Check if cache is still valid (Cloudflare handles TTL, but we can double-check)
+    const cachedAt = cachedResponse.headers.get('X-Cached-At');
+
+    if (cachedAt) {
+      const cacheTime = new Date(cachedAt).getTime();
+      const ttlSeconds = CACHE_TTL_SECONDS[operation];
+      const expiryTime = cacheTime + ttlSeconds * 1000;
+
+      if (Date.now() > expiryTime) {
+        console.log(`🗑️ Cache entry expired for ${operation}, removing`);
+        await cache.delete(cacheKey);
+        return null;
+      }
+    }
+
+    const cachedData = (await cachedResponse.json()) as CreditAwareResult<T>;
+    console.log(`✅ Cache hit for ${operation} (Key: ${cacheKey})`);
+
+    return cachedData;
+  } catch (error) {
+    console.error(`❌ Error retrieving cache for ${operation}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Check if user has sufficient credits for an operation
+ */
+async function checkCredits(
+  env: CloudflareBindings,
+  userId: string,
+  operation: WebOperation,
+): Promise<{ hasCredits: boolean; balance: number; cost: number }> {
+  const cost = CREDIT_COSTS[operation];
+
+  try {
+    const credits = await getUserCredits(env, userId);
+    return {
+      hasCredits: credits.balance >= cost,
+      balance: credits.balance,
+      cost,
+    };
+  } catch (error) {
+    console.error(`❌ Failed to check credits for user ${userId}:`, error);
+    throw new Error('Failed to check credit balance');
+  }
+}
+
+/**
+ * Deduct credits for an operation
+ * Always deducts credits even for cache hits (for performance tracking)
+ */
+async function deductCreditsForOperation(
+  env: CloudflareBindings,
+  userId: string,
+  operation: WebOperation,
+  metadata?: Record<string, any>,
+): Promise<void> {
+  const cost = CREDIT_COSTS[operation];
+
+  try {
+    await deductCredits(env, userId, cost, operation.toLowerCase(), {
+      operation,
+      cost,
+      timestamp: new Date().toISOString(),
+      ...metadata,
+    });
+    console.log(`✅ Deducted ${cost} credits for ${operation} operation (user: ${userId})`);
+  } catch (error) {
+    console.error(`❌ Failed to deduct credits for ${operation} operation (user: ${userId}):`, error);
+    throw error; // Re-throw to handle in calling function
+  }
+}
+
+/**
+ * Execute a web operation with Cloudflare Cache API integration and credit management
+ */
+async function executeWithCache<T>(
+  c: any,
+  operation: WebOperation,
+  operationFn: () => Promise<any>,
+  cacheParams: Record<string, any>,
+): Promise<CreditAwareResult<T>> {
+  const user = c.get('user')!;
+  const userId = user.id;
+
+  // 2. Check credits for new operation
+  const creditCheck = await checkCredits(c.env, userId, operation);
+
+  if (!creditCheck.hasCredits) {
+    return {
+      success: false,
+      error: `Insufficient credits. Required: ${creditCheck.cost}, Available: ${creditCheck.balance}`,
+      creditsCost: creditCheck.cost,
+      creditsRemaining: creditCheck.balance,
+      fromCache: false,
+    };
+  }
+
+  // 1. Generate cache key and check cache first
+  const cacheKey = generateCacheKey(operation, userId, cacheParams);
+  const cachedResult = await getCachedResult<T>(cacheKey, operation);
+
+  if (cachedResult) {
+    // Update credits remaining with current balance (cache might be stale)
+    try {
+      await deductCreditsForOperation(c.env, userId, operation, cacheParams);
+      const updatedBalance = creditCheck.balance - creditCheck.cost;
+
+      // Return cached result with updated credit information
+      return {
+        ...cachedResult,
+        creditsCost: creditCheck.cost,
+        creditsRemaining: updatedBalance,
+      };
+    } catch (error) {
+      console.warn('⚠️ Failed to deduct credits for cache hit:', error);
+      // Still return cached result but with warning
+      return {
+        ...cachedResult,
+        creditsCost: creditCheck.cost,
+        creditsRemaining: creditCheck.balance, // Use current balance as fallback
+      };
+    }
+  }
+
+  try {
+    console.log(`🚀 Executing ${operation} operation (cache miss)`);
+
+    // 3. Execute the operation
+    const result = await operationFn();
+
+    if (!result.success) {
+      // Don't cache or deduct credits for failed operations
+      return {
+        success: false,
+        error: result.error,
+        creditsCost: creditCheck.cost,
+        creditsRemaining: creditCheck.balance,
+        fromCache: false,
+      };
+    }
+
+    // 4. Deduct credits for successful operation
+    await deductCreditsForOperation(c.env, userId, operation, cacheParams);
+
+    const updatedBalance = creditCheck.balance - creditCheck.cost;
+
+    // 5. Cache the successful result in background
+    c.waitUntil(setCachedResult(cacheKey, operation, result.data));
+
+    return {
+      success: true,
+      data: result.data,
+      creditsCost: creditCheck.cost,
+      creditsRemaining: updatedBalance,
+      fromCache: false,
+    };
+  } catch (error) {
+    // If operation fails, don't deduct credits or cache the result
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Operation failed',
+      creditsCost: creditCheck.cost,
+      creditsRemaining: creditCheck.balance,
+      fromCache: false,
+    };
+  }
+}
+
+/* ========================================================================== */
+/*  Helper Functions (Original)                                              */
+/* ========================================================================== */
 
 /**
  * Helper to extract common request context for error logging
@@ -131,12 +431,22 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     });
 
     /* ------------------------------------------------------------------ */
-    /* 1. get binary from the Durable Object (always)                      */
+    /* 1. Execute with cache integration                                   */
     /* ------------------------------------------------------------------ */
-    const webDO = getWebDurableObject(c, user.id);
-    await webDO.initializeUser(user.id);
-
-    const result: any = await webDO.screenshotV1({ ...body, base64: false });
+    const result: CreditAwareResult<any> = await executeWithCache(
+      c,
+      'SCREENSHOT',
+      async () => {
+        const webDO = getWebDurableObject(c, user.id);
+        await webDO.initializeUser(user.id);
+        return await webDO.screenshotV1({ ...body, base64: false });
+      },
+      {
+        url: body.url,
+        viewport: body.viewport,
+        waitTime: body.waitTime,
+      },
+    );
 
     if (!result.success) {
       await logOperationFailure(c, 'screenshot', result, body);
@@ -152,13 +462,15 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     }
 
     /* ------------------------------------------------------------------ */
-    /* 2. Persist to R2 (optional)                                         */
+    /* 2. Persist to R2 (optional) - only for non-cached results           */
     /* ------------------------------------------------------------------ */
     let permanentUrl: string | undefined;
     let fileId: string | undefined;
 
-    if (result.data.data.image instanceof Uint8Array) {
+    if (!result.fromCache && result.data?.data?.image instanceof Uint8Array) {
       try {
+        const webDO = getWebDurableObject(c, user.id);
+        await webDO.initializeUser(user.id);
         const stored = await webDO.storeFileAndCreatePermanentUrl(
           result.data.data.image,
           body.url,
@@ -178,7 +490,7 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     /* ------------------------------------------------------------------ */
 
     // 3a.  Binary (default path)
-    if (wantsBinary && result.data.data.image instanceof Uint8Array) {
+    if (wantsBinary && result.data?.data?.image instanceof Uint8Array) {
       const binaryBody = result.data.data.image.buffer as ArrayBuffer; // <- Cast via ArrayBuffer
       return new Response(binaryBody, {
         status: HttpStatusCodes.OK,
@@ -188,6 +500,7 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
           'Content-Disposition': `inline; filename="screenshot.${result.data.data.metadata.format}"`,
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
+          'X-From-Cache': result.fromCache ? 'true' : 'false',
           'X-Metadata': JSON.stringify(result.data.data.metadata),
           'X-Permanent-Url': permanentUrl ?? '',
           'X-File-Id': fileId ?? '',
@@ -196,7 +509,7 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     }
 
     // 3b.  Base-64 envelope (only when asked for)
-    if (wantsBase64 && result.data.data.image instanceof Uint8Array) {
+    if (wantsBase64 && result.data?.data?.image instanceof Uint8Array) {
       const base64Image = Buffer.from(result.data.data.image).toString('base64');
       return c.json(
         {
@@ -214,7 +527,7 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
 
     /* 3c. Fallback – should never hit this with current logic            */
     console.warn('⚠️ unexpected data type for screenshot response');
-    return c.json({ ...result, data: { ...result.data.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
+    return c.json({ ...result, data: { ...result.data?.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Screenshot error:', error);
     await logCriticalError(c, 'screenshot', error);
@@ -237,10 +550,19 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
     const user = c.get('user')!;
     const body = c.req.valid('json');
 
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
-
-    const result: any = await webDurableObject.markdownV1(body);
+    const result: CreditAwareResult<any> = await executeWithCache(
+      c,
+      'MARKDOWN',
+      async () => {
+        const webDurableObject = getWebDurableObject(c, user.id);
+        await webDurableObject.initializeUser(user.id);
+        return await webDurableObject.markdownV1(body);
+      },
+      {
+        url: body.url,
+        waitTime: body.waitTime,
+      },
+    );
 
     if (!result.success) {
       await logOperationFailure(c, 'markdown', result, body);
@@ -257,6 +579,7 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
     return c.json(result.data, HttpStatusCodes.OK, {
       'X-Credits-Cost': result.creditsCost.toString(),
       'X-Credits-Remaining': result.creditsRemaining.toString(),
+      'X-From-Cache': result.fromCache ? 'true' : 'false',
     });
   } catch (error) {
     console.error('Markdown error:', error);
@@ -288,11 +611,21 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
       hasResponseFormat: !!body.response_format,
     });
 
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
-
-    // Use the new AI-powered v1 implementation
-    const result: any = await webDurableObject.jsonExtractionV1(body);
+    const result: CreditAwareResult<any> = await executeWithCache(
+      c,
+      'JSON_EXTRACTION',
+      async () => {
+        const webDurableObject = getWebDurableObject(c, user.id);
+        await webDurableObject.initializeUser(user.id);
+        return await webDurableObject.jsonExtractionV1(body);
+      },
+      {
+        url: body.url,
+        responseType: body.responseType,
+        prompt: body.prompt?.substring(0, 100), // Truncate for cache key
+        waitTime: body.waitTime,
+      },
+    );
 
     if (!result.success) {
       await logOperationFailure(c, 'json_extraction', result, body);
@@ -309,6 +642,7 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
     return c.json(result.data, HttpStatusCodes.OK, {
       'X-Credits-Cost': result.creditsCost.toString(),
       'X-Credits-Remaining': result.creditsRemaining.toString(),
+      'X-From-Cache': result.fromCache ? 'true' : 'false',
     });
   } catch (error) {
     console.error('JSON extraction error:', error);
@@ -332,10 +666,19 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
     const user = c.get('user')!;
     const body = c.req.valid('json');
 
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
-
-    const result: any = await webDurableObject.contentV1(body);
+    const result: CreditAwareResult<any> = await executeWithCache(
+      c,
+      'CONTENT',
+      async () => {
+        const webDurableObject = getWebDurableObject(c, user.id);
+        await webDurableObject.initializeUser(user.id);
+        return await webDurableObject.contentV1(body);
+      },
+      {
+        url: body.url,
+        waitTime: body.waitTime,
+      },
+    );
 
     if (!result.success) {
       await logOperationFailure(c, 'content', result, body);
@@ -352,6 +695,7 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
     return c.json(result.data, HttpStatusCodes.OK, {
       'X-Credits-Cost': result.creditsCost.toString(),
       'X-Credits-Remaining': result.creditsRemaining.toString(),
+      'X-From-Cache': result.fromCache ? 'true' : 'false',
     });
   } catch (error) {
     console.error('Content error:', error);
@@ -375,10 +719,20 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
     const user = c.get('user')!;
     const body = c.req.valid('json');
 
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
-
-    const result: any = await webDurableObject.scrapeV1(body);
+    const result: CreditAwareResult<any> = await executeWithCache(
+      c,
+      'SCRAPE',
+      async () => {
+        const webDurableObject = getWebDurableObject(c, user.id);
+        await webDurableObject.initializeUser(user.id);
+        return await webDurableObject.scrapeV1(body);
+      },
+      {
+        url: body.url,
+        elements: body.elements?.length || 0,
+        waitTime: body.waitTime,
+      },
+    );
 
     if (!result.success) {
       await logOperationFailure(c, 'scrape', result, body);
@@ -395,6 +749,7 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
     return c.json(result.data, HttpStatusCodes.OK, {
       'X-Credits-Cost': result.creditsCost.toString(),
       'X-Credits-Remaining': result.creditsRemaining.toString(),
+      'X-From-Cache': result.fromCache ? 'true' : 'false',
     });
   } catch (error) {
     console.error('Scrape error:', error);
@@ -418,10 +773,20 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
     const user = c.get('user')!;
     const body = c.req.valid('json');
 
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
-
-    const result: any = await webDurableObject.linksV1(body);
+    const result: CreditAwareResult<any> = await executeWithCache(
+      c,
+      'LINKS',
+      async () => {
+        const webDurableObject = getWebDurableObject(c, user.id);
+        await webDurableObject.initializeUser(user.id);
+        return await webDurableObject.linksV1(body);
+      },
+      {
+        url: body.url,
+        includeExternal: body.includeExternal,
+        waitTime: body.waitTime,
+      },
+    );
 
     if (!result.success) {
       await logOperationFailure(c, 'links', result, body);
@@ -438,6 +803,7 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
     return c.json(result.data, HttpStatusCodes.OK, {
       'X-Credits-Cost': result.creditsCost.toString(),
       'X-Credits-Remaining': result.creditsRemaining.toString(),
+      'X-From-Cache': result.fromCache ? 'true' : 'false',
     });
   } catch (error) {
     console.error('Links error:', error);
@@ -462,10 +828,19 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
     const body = c.req.valid('json');
     const _clientIp = c.req.header('CF-Connecting-IP') || 'unknown';
 
-    const webDurableObject = getWebDurableObject(c, user.id);
-    await webDurableObject.initializeUser(user.id);
-
-    const result: any = await webDurableObject.searchV1(body);
+    const result: CreditAwareResult<any> = await executeWithCache(
+      c,
+      'SEARCH',
+      async () => {
+        const webDurableObject = getWebDurableObject(c, user.id);
+        await webDurableObject.initializeUser(user.id);
+        return await webDurableObject.searchV1(body);
+      },
+      {
+        query: body.query,
+        limit: body.limit,
+      },
+    );
 
     if (!result.success) {
       await logOperationFailure(c, 'search', result, body, `search:${body.query}`);
@@ -482,6 +857,7 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
     return c.json(result.data, HttpStatusCodes.OK, {
       'X-Credits-Cost': result.creditsCost.toString(),
       'X-Credits-Remaining': result.creditsRemaining.toString(),
+      'X-From-Cache': result.fromCache ? 'true' : 'false',
     });
   } catch (error) {
     console.error('Search error:', error);
@@ -517,12 +893,22 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     });
 
     /* ------------------------------------------------------------------ */
-    /* 1. Fetch binary from Durable Object                                */
+    /* 1. Execute with cache integration                                   */
     /* ------------------------------------------------------------------ */
-    const webDO = getWebDurableObject(c, user.id);
-    await webDO.initializeUser(user.id);
-
-    const result: any = await webDO.pdfV1({ ...body, base64: false });
+    const result: CreditAwareResult<any> = await executeWithCache(
+      c,
+      'PDF',
+      async () => {
+        const webDO = getWebDurableObject(c, user.id);
+        await webDO.initializeUser(user.id);
+        return await webDO.pdfV1({ ...body, base64: false });
+      },
+      {
+        url: body.url,
+        format: body.format,
+        waitTime: body.waitTime,
+      },
+    );
 
     if (!result.success) {
       await logOperationFailure(c, 'pdf', result, body);
@@ -538,13 +924,15 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     }
 
     /* ------------------------------------------------------------------ */
-    /* 2. Optional R2 persistence                                         */
+    /* 2. Optional R2 persistence - only for non-cached results           */
     /* ------------------------------------------------------------------ */
     let permanentUrl: string | undefined;
     let fileId: string | undefined;
 
-    if (result.data.data.pdf instanceof Uint8Array) {
+    if (!result.fromCache && result.data?.data?.pdf instanceof Uint8Array) {
       try {
+        const webDO = getWebDurableObject(c, user.id);
+        await webDO.initializeUser(user.id);
         const stored = await webDO.storeFileAndCreatePermanentUrl(
           result.data.data.pdf,
           body.url,
@@ -564,7 +952,7 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     /* ------------------------------------------------------------------ */
 
     // 3a. Binary  (default)
-    if (wantsBinary && result.data.data.pdf instanceof Uint8Array) {
+    if (wantsBinary && result.data?.data?.pdf instanceof Uint8Array) {
       const binaryBody = result.data.data.pdf as unknown as BodyInit; // safe cast
 
       return new Response(binaryBody, {
@@ -575,6 +963,7 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
           'Content-Disposition': 'attachment; filename="page.pdf"',
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
+          'X-From-Cache': result.fromCache ? 'true' : 'false',
           'X-Metadata': JSON.stringify(result.data.data.metadata),
           'X-Permanent-Url': permanentUrl ?? '',
           'X-File-Id': fileId ?? '',
@@ -583,7 +972,7 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     }
 
     // 3b. Base-64  (only when asked for)
-    if (wantsBase64 && result.data.data.pdf instanceof Uint8Array) {
+    if (wantsBase64 && result.data?.data?.pdf instanceof Uint8Array) {
       const base64Pdf = Buffer.from(result.data.data.pdf).toString('base64');
 
       return c.json(
@@ -601,7 +990,7 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     }
 
     /* 3c. Fallback – should never hit */
-    return c.json({ ...result, data: { ...result.data.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
+    return c.json({ ...result, data: { ...result.data?.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('PDF error:', error);
     await logCriticalError(c, 'pdf', error);
