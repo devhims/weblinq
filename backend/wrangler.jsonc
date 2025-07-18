@@ -52,10 +52,6 @@
       "deleted_classes": ["TaskDurableObject"]
     },
     {
-      "tag": "v5",
-      "new_sqlite_classes": ["PlaywrightManagerDO", "PlaywrightBrowserDO"]
-    },
-    {
       "tag": "v6",
       "deleted_classes": ["PlaywrightBrowserDO", "PlaywrightManagerDO"]
     }
@@ -100,10 +96,6 @@
         {
           "tag": "v3",
           "new_sqlite_classes": ["BrowserManagerDO", "BrowserDO"]
-        },
-        {
-          "tag": "v5",
-          "new_sqlite_classes": ["PlaywrightManagerDO", "PlaywrightBrowserDO"]
         },
         {
           "tag": "v6",
