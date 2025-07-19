@@ -15,7 +15,8 @@
 // --------------------------------------------------
 // Imports + types
 // --------------------------------------------------
-import * as cheerio from 'cheerio';
+// Lazy import to avoid heavy startup parsing
+// import * as cheerio from 'cheerio';
 import { z } from 'zod';
 
 export const SearchResultSchema = z.object({
@@ -151,13 +152,13 @@ async function ddg(query: string, limit: number, ip: string): Promise<SearchResu
     lastDdg = Date.now();
     const liteURL = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
     let html = await (await fetchRetry(liteURL)).text();
-    let results = parseDdgLite(html, limit);
+    let results = await parseDdgLite(html, limit);
 
     // Fallback to full site if lite variant returned none
     if (!results.length) {
       const fullURL = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=us-en&ia=web`;
       html = await (await fetchRetry(fullURL)).text();
-      results = parseDdgFull(html, limit);
+      results = await parseDdgFull(html, limit);
       if (!results.length) console.warn('DDG empty, html preview:', html.slice(0, 1000));
     }
     console.log(`DDG → ${results.length}`);
@@ -170,7 +171,8 @@ async function ddg(query: string, limit: number, ip: string): Promise<SearchResu
     unlock();
   }
 }
-function parseDdgLite(html: string, limit: number): SearchResult[] {
+async function parseDdgLite(html: string, limit: number): Promise<SearchResult[]> {
+  const cheerio = await import('cheerio');
   const $ = cheerio.load(html);
   const out: SearchResult[] = [];
   $('tr').each((_, el) => {
@@ -187,7 +189,8 @@ function parseDdgLite(html: string, limit: number): SearchResult[] {
   });
   return out;
 }
-function parseDdgFull(html: string, limit: number): SearchResult[] {
+async function parseDdgFull(html: string, limit: number): Promise<SearchResult[]> {
+  const cheerio = await import('cheerio');
   const $ = cheerio.load(html);
   const out: SearchResult[] = [];
   $('.result, .result__body').each((_, el) => {
@@ -211,6 +214,7 @@ async function startpage(query: string, limit: number, ip: string): Promise<Sear
     const html = await (
       await fetchRetry(`https://www.startpage.com/sp/search?query=${encodeURIComponent(query)}&cat=web&pl=opensearch`)
     ).text();
+    const cheerio = await import('cheerio');
     const $ = cheerio.load(html);
     const out: SearchResult[] = [];
     $('.w-gl__result,.result-item,.search-result,.result,article.result,[data-testid="result"]').each((_, el) => {
@@ -253,13 +257,13 @@ async function bing(query: string, limit: number, ip: string, retry = false): Pr
       await sleep(5000);
       return bing(query, limit, ip, true);
     }
-    let results = parseBing(html, limit);
+    let results = await parseBing(html, limit);
     if (!results.length) {
       console.warn('Primary Bing selector empty; trying fallback parser');
-      results = parseBingFallback(html, limit);
+      results = await parseBingFallback(html, limit);
       if (!results.length) {
         console.warn('Fallback parser empty; trying generic parser');
-        results = parseBingGeneric(html, limit);
+        results = await parseBingGeneric(html, limit);
         if (!results.length) console.warn('Bing empty, html preview:', html.slice(0, 1000));
       }
     }
@@ -270,7 +274,8 @@ async function bing(query: string, limit: number, ip: string, retry = false): Pr
     return [];
   }
 }
-function parseBing(html: string, limit: number): SearchResult[] {
+async function parseBing(html: string, limit: number): Promise<SearchResult[]> {
+  const cheerio = await import('cheerio');
   const $ = cheerio.load(html);
   const out: SearchResult[] = [];
   $('.b_algo').each((_, el) => {
@@ -286,7 +291,8 @@ function parseBing(html: string, limit: number): SearchResult[] {
   });
   return out;
 }
-function parseBingFallback(html: string, limit: number): SearchResult[] {
+async function parseBingFallback(html: string, limit: number): Promise<SearchResult[]> {
+  const cheerio = await import('cheerio');
   const $ = cheerio.load(html);
   const out: SearchResult[] = [];
   $('#b_results li').each((_, el) => {
@@ -303,7 +309,8 @@ function parseBingFallback(html: string, limit: number): SearchResult[] {
   return out;
 }
 // a very lenient generic parser – last‑ditch when Bing experiments strip IDs/classes
-function parseBingGeneric(html: string, limit: number): SearchResult[] {
+async function parseBingGeneric(html: string, limit: number): Promise<SearchResult[]> {
+  const cheerio = await import('cheerio');
   const $ = cheerio.load(html);
   const seen = new Set<string>();
   const out: SearchResult[] = [];

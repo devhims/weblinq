@@ -1,6 +1,6 @@
-// Add token counting import for Cloudflare Workers
-import { Tiktoken } from 'js-tiktoken/lite';
-import cl100k_base from 'js-tiktoken/ranks/cl100k_base';
+// Lazy imports to avoid heavy startup time
+// import { Tiktoken } from 'js-tiktoken/lite';
+// import cl100k_base from 'js-tiktoken/ranks/cl100k_base';
 
 import { pageGotoWithRetry, runWithBrowser } from './browser-utils';
 import { markdownV1 } from './markdown';
@@ -67,12 +67,18 @@ const SYSTEM_PROMPT_BUFFER = 500; // Reserve for system prompt
 const MAX_INPUT_TOKENS = MODEL_CONTEXT_LIMIT - MAX_OUTPUT_TOKENS - SYSTEM_PROMPT_BUFFER; // ~19,400 tokens
 
 /**
- * Count tokens in text using tiktoken for accurate token counting
+ * Count tokens in text using tiktoken for accurate token counting (lazy-loaded)
  * Uses cl100k_base encoding which is used by GPT-3.5/4 and similar models
  */
-function countTokens(text: string): number {
+async function countTokens(text: string): Promise<number> {
   try {
-    const encoder = new Tiktoken(cl100k_base);
+    // Lazy import to avoid heavy startup parsing
+    const [{ Tiktoken }, cl100k_base] = await Promise.all([
+      import('js-tiktoken/lite'),
+      import('js-tiktoken/ranks/cl100k_base'),
+    ]);
+
+    const encoder = new Tiktoken(cl100k_base.default);
     const tokens = encoder.encode(text);
     // Note: js-tiktoken lite doesn't have a free() method, it's garbage collected
     return tokens.length;
@@ -87,11 +93,11 @@ function countTokens(text: string): number {
  * Truncate content to fit within token limits while preserving structure
  * Prioritizes keeping the most important content at the beginning
  */
-function truncateContent(
+async function truncateContent(
   content: string,
   maxTokens: number,
-): { truncated: string; originalTokens: number; finalTokens: number } {
-  const originalTokens = countTokens(content);
+): Promise<{ truncated: string; originalTokens: number; finalTokens: number }> {
+  const originalTokens = await countTokens(content);
 
   if (originalTokens <= maxTokens) {
     return {
@@ -110,7 +116,7 @@ function truncateContent(
 
   // Add sections until we approach the token limit
   for (const section of sections) {
-    const sectionTokens = countTokens(section);
+    const sectionTokens = await countTokens(section);
 
     // If adding this section would exceed the limit
     if (currentTokens + sectionTokens > maxTokens) {
@@ -132,7 +138,7 @@ function truncateContent(
     currentTokens += sectionTokens;
   }
 
-  const finalTokens = countTokens(truncated);
+  const finalTokens = await countTokens(truncated);
 
   console.log(`Content truncated: ${originalTokens} → ${finalTokens} tokens`);
 
@@ -255,7 +261,11 @@ ${markdown}
     `.trim();
 
     // Truncate content to fit within model's context window
-    const { truncated: contentForAI, originalTokens, finalTokens } = truncateContent(rawContentForAI, MAX_INPUT_TOKENS);
+    const {
+      truncated: contentForAI,
+      originalTokens,
+      finalTokens,
+    } = await truncateContent(rawContentForAI, MAX_INPUT_TOKENS);
 
     if (originalTokens > finalTokens) {
       console.log(`⚠️  Content truncated for AI processing: ${originalTokens} → ${finalTokens} tokens`);

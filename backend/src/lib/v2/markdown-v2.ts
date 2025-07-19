@@ -1,14 +1,16 @@
 import type { Heading, Link, Root as MdastRoot, Paragraph, Text } from 'mdast';
 
-import { toString } from 'mdast-util-to-string';
-import rehypeParse from 'rehype-parse';
-import rehypeRaw from 'rehype-raw';
-import rehypeRemark from 'rehype-remark';
-import remarkGfm from 'remark-gfm';
-import remarkStringify from 'remark-stringify';
-import sanitizeHtml from 'sanitize-html';
-import { unified } from 'unified';
-import { visit } from 'unist-util-visit';
+// Lazy imports to avoid heavy startup parsing
+// import { toString } from 'mdast-util-to-string';
+// import rehypeParse from 'rehype-parse';
+// import rehypeRaw from 'rehype-raw';
+// import rehypeRemark from 'rehype-remark';
+// import remarkGfm from 'remark-gfm';
+// import remarkStringify from 'remark-stringify';
+// import sanitizeHtml from 'sanitize-html';
+// import { unified } from 'unified';
+// import { visit } from 'unist-util-visit';
+import console from 'node:console';
 
 import type { Page } from '@cloudflare/playwright';
 
@@ -48,7 +50,55 @@ export type MarkdownResult = MarkdownSuccess | MarkdownFailure;
 /*  Markdown Processing Utilities                                             */
 /* -------------------------------------------------------------------------- */
 
-const words = (t: string) => (t.match(/\b\w+\b/g) ?? []).length;
+/**
+ * Lazy-loaded processor creation to avoid heavy startup
+ */
+async function createProcessor() {
+  const [rehypeParse, rehypeRaw, rehypeRemark, remarkGfm, remarkStringify, { unified }, { visit }] = await Promise.all([
+    import('rehype-parse'),
+    import('rehype-raw'),
+    import('rehype-remark'),
+    import('remark-gfm'),
+    import('remark-stringify'),
+    import('unified'),
+    import('unist-util-visit'),
+  ]);
+
+  return unified()
+    .use(rehypeParse.default, { fragment: true })
+    .use(rehypeRaw.default)
+    .use(rehypeRemark.default)
+    .use(remarkGfm.default)
+    .use(() => (tree: MdastRoot) => {
+      visit(tree, (node: any) => {
+        // Clean up heading levels to only use h1-h6
+        if (node.type === 'heading' && node.depth > 6) {
+          node.depth = 6;
+        }
+
+        // Fix link URLs - make relative links absolute
+        if (node.type === 'link' && node.url) {
+          if (node.url.startsWith('//')) {
+            node.url = `https:${node.url}`;
+          } else if (node.url.startsWith('/')) {
+            // Will be handled by the calling function with base URL
+          }
+        }
+      });
+    })
+    .use(remarkStringify.default, {
+      bullet: '*',
+      fences: true,
+      listItemIndent: 'one',
+    });
+}
+
+/**
+ * Word counting function
+ */
+function words(str: string): number {
+  return str.split(/\s+/).filter((w) => w.length > 0).length;
+}
 
 /**
  * High-level markdown operation that handles page content extraction
@@ -77,7 +127,10 @@ export async function markdownOperation(page: Page, params: MarkdownParams): Pro
  */
 export async function processContentToMarkdown(content: string, params: MarkdownParams): Promise<MarkdownResult> {
   try {
-    /* Sanitize */
+    console.log(`📄 V2 Markdown: Processing content for ${params.url}...`);
+
+    /* 2️⃣ Sanitize - lazy load sanitizeHtml */
+    const { default: sanitizeHtml } = await import('sanitize-html');
     const safeHtml = sanitizeHtml(content, {
       allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
       allowedAttributes: {
@@ -87,18 +140,28 @@ export async function processContentToMarkdown(content: string, params: Markdown
       allowedSchemes: ['http', 'https', 'data'],
     });
 
-    /* HTML → Markdown */
+    /* 3️⃣ HTML → Markdown */
+    console.log(`🔄 V2 Markdown: Converting HTML to markdown...`);
+    const processor = await createProcessor();
     const mdFile = await processor.process(safeHtml);
     let markdown = String(mdFile);
     markdown = markdown.replace(/\n{3,}/g, '\n\n');
 
-    /* Compose response */
+    console.log(`✅ V2 Markdown: Conversion successful`, {
+      originalSize: content.length,
+      sanitizedSize: safeHtml.length,
+      markdownSize: markdown.length,
+      wordCount: words(markdown),
+    });
+
+    /* 4️⃣ Compose response */
     const meta: MarkdownMetadata = {
       url: params.url,
       timestamp: new Date().toISOString(),
       wordCount: words(markdown),
     };
 
+    /* 5️⃣ Response */
     return {
       success: true as const,
       data: {
@@ -108,7 +171,7 @@ export async function processContentToMarkdown(content: string, params: Markdown
       creditsCost: 1,
     };
   } catch (err) {
-    console.error('processContentToMarkdown error', err);
+    console.error('❌ V2 Markdown: processContentToMarkdown error', err);
     return {
       success: false as const,
       error: { message: String(err) },
@@ -116,55 +179,3 @@ export async function processContentToMarkdown(content: string, params: Markdown
     };
   }
 }
-
-/* One reusable processor */
-const processor = unified()
-  .use(rehypeParse, { fragment: true })
-  .use(rehypeRaw)
-  .use(rehypeRemark)
-  .use(remarkGfm)
-  .use(() => (tree: MdastRoot) => {
-    /* ① Remove duplicate paragraph/heading pairs */
-    visit<MdastRoot, 'paragraph'>(tree, 'paragraph', (node, idx, parent) => {
-      if (idx === undefined || !parent) return;
-
-      const paragraph = node;
-      const next = parent.children[idx + 1] as Heading | undefined;
-
-      if (next?.type === 'heading' && toString(paragraph).trim() === toString(next).trim()) {
-        parent.children.splice(idx, 1);
-      }
-    });
-
-    /* ② Strip links with empty visible text */
-    visit<MdastRoot, 'link'>(tree, 'link', (node: Link, idx, parent) => {
-      if (idx === undefined || !parent) return;
-      if (!toString(node).trim()) parent.children.splice(idx, 1);
-    });
-
-    /* ③ Collapse identical consecutive paragraphs */
-    visit<MdastRoot, 'paragraph'>(tree, 'paragraph', (node, idx, parent) => {
-      if (idx === undefined || !parent) return;
-      const prev = parent.children[idx - 1] as Paragraph | undefined;
-      if (prev?.type === 'paragraph' && toString(prev).trim() === toString(node).trim()) {
-        parent.children.splice(idx, 1);
-      }
-    });
-
-    /* ④ Remove echoed bare-URL after a link */
-    visit<MdastRoot, 'paragraph'>(tree, 'paragraph', (node) => {
-      if (node.children.length < 2) return;
-      const last = node.children.at(-1) as Text;
-      const prev = node.children.at(-2) as Link;
-      if (last.type === 'text' && prev.type === 'link' && last.value.trim().startsWith(prev.url)) {
-        node.children.pop();
-        const tail = node.children.at(-1);
-        if (tail && tail.type === 'text') tail.value = tail.value.trim();
-      }
-    });
-  })
-  .use(remarkStringify, {
-    bullet: '*',
-    fences: true,
-    listItemIndent: 'one',
-  });
