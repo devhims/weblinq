@@ -314,6 +314,9 @@ async function executeWithCache<T>(
   const user = c.get('user')!;
   const userId = user.id;
 
+  // Check if we're in development mode to disable caching
+  const isDevelopment = c.env.NODE_ENV === 'preview' || c.env.NODE_ENV === 'preview';
+
   // 2. Check credits for new operation
   const creditCheck = await checkCredits(c.env, userId, operation);
 
@@ -327,35 +330,40 @@ async function executeWithCache<T>(
     };
   }
 
-  // 1. Generate cache key and check cache first
+  // 1. Generate cache key and check cache first (skip in development mode)
   const cacheKey = generateCacheKey(operation, userId, cacheParams);
-  const cachedResult = await getCachedResult<T>(cacheKey, operation);
 
-  if (cachedResult) {
-    // Update credits remaining with current balance (cache might be stale)
-    try {
-      await deductCreditsForOperation(c.env, userId, operation, cacheParams);
-      const updatedBalance = creditCheck.balance - creditCheck.cost;
+  if (!isDevelopment) {
+    const cachedResult = await getCachedResult<T>(cacheKey, operation);
 
-      // Return cached result with updated credit information
-      return {
-        ...cachedResult,
-        creditsCost: creditCheck.cost,
-        creditsRemaining: updatedBalance,
-      };
-    } catch (error) {
-      console.warn('⚠️ Failed to deduct credits for cache hit:', error);
-      // Still return cached result but with warning
-      return {
-        ...cachedResult,
-        creditsCost: creditCheck.cost,
-        creditsRemaining: creditCheck.balance, // Use current balance as fallback
-      };
+    if (cachedResult) {
+      // Update credits remaining with current balance (cache might be stale)
+      try {
+        await deductCreditsForOperation(c.env, userId, operation, cacheParams);
+        const updatedBalance = creditCheck.balance - creditCheck.cost;
+
+        // Return cached result with updated credit information
+        return {
+          ...cachedResult,
+          creditsCost: creditCheck.cost,
+          creditsRemaining: updatedBalance,
+        };
+      } catch (error) {
+        console.warn('⚠️ Failed to deduct credits for cache hit:', error);
+        // Still return cached result but with warning
+        return {
+          ...cachedResult,
+          creditsCost: creditCheck.cost,
+          creditsRemaining: creditCheck.balance, // Use current balance as fallback
+        };
+      }
     }
+  } else {
+    console.log(`🧪 Development mode: Skipping cache for ${operation} operation`);
   }
 
   try {
-    console.log(`🚀 Executing ${operation} operation (cache miss)`);
+    console.log(`🚀 Executing ${operation} operation (${isDevelopment ? 'development mode' : 'cache miss'})`);
 
     // 3. Execute the operation
     const result = await operationFn();
@@ -376,20 +384,24 @@ async function executeWithCache<T>(
 
     const updatedBalance = creditCheck.balance - creditCheck.cost;
 
-    // 5. Cache the successful result in background
-    try {
-      if (c.executionCtx?.waitUntil) {
-        c.executionCtx.waitUntil(setCachedResult(cacheKey, operation, result.data, cacheParams));
-        console.log(`✅ Background caching initiated for ${operation}`);
-      } else {
-        // Fallback: cache asynchronously (non-blocking for user)
-        setCachedResult(cacheKey, operation, result.data, cacheParams).catch((error) => {
-          console.error(`❌ Background cache operation failed for ${operation}:`, error);
-        });
+    // 5. Cache the successful result in background (skip in development mode)
+    if (!isDevelopment) {
+      try {
+        if (c.executionCtx?.waitUntil) {
+          c.executionCtx.waitUntil(setCachedResult(cacheKey, operation, result.data, cacheParams));
+          console.log(`✅ Background caching initiated for ${operation}`);
+        } else {
+          // Fallback: cache asynchronously (non-blocking for user)
+          setCachedResult(cacheKey, operation, result.data, cacheParams).catch((error) => {
+            console.error(`❌ Background cache operation failed for ${operation}:`, error);
+          });
+        }
+      } catch (cacheError) {
+        console.error(`❌ Failed to initiate background caching for ${operation}:`, cacheError);
+        // Don't throw - caching failures shouldn't break the response
       }
-    } catch (cacheError) {
-      console.error(`❌ Failed to initiate background caching for ${operation}:`, cacheError);
-      // Don't throw - caching failures shouldn't break the response
+    } else {
+      console.log(`🧪 Development mode: Skipping cache storage for ${operation}`);
     }
 
     return {

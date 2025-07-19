@@ -16,7 +16,7 @@ import { linksOperation } from '@/lib/v2/links-v2';
 import { markdownOperation } from '@/lib/v2/markdown-v2';
 import { pdfOperation } from '@/lib/v2/pdf-v2';
 import { scrapeOperation } from '@/lib/v2/scrape-v2';
-import { screenshotOperation } from '@/lib/v2/screenshot-v2';
+// Note: screenshotOperation is now implemented directly in takeScreenshot method
 import { searchOperation } from '@/lib/v2/search-v2';
 import { connect, launch, limits, sessions } from '@cloudflare/playwright';
 
@@ -27,6 +27,98 @@ import { connect, launch, limits, sessions } from '@cloudflare/playwright';
 const KEEP_ALIVE_MS = 10 * 60 * 1000; // remote browser lifetime (launch param)
 
 /* -------------------------------------------------------------------------- */
+/*  Operation Configuration - Performance Optimizations                       */
+/* -------------------------------------------------------------------------- */
+
+type OperationType = 'screenshot' | 'content' | 'markdown' | 'links' | 'pdf' | 'scrape' | 'search' | 'navigate';
+
+interface OperationConfig {
+  requiresNavigation: boolean;
+  waitForNetwork: boolean;
+  waitForLoad: boolean;
+  waitForCSS: boolean;
+  waitForJS: boolean;
+  hardenPage: boolean;
+  maxTimeout: number;
+}
+
+/** Operation-specific configurations for optimal performance */
+const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
+  screenshot: {
+    requiresNavigation: true,
+    waitForNetwork: false, // Fast screenshots don't need network idle
+    waitForLoad: true, // Need basic loading for visual accuracy
+    waitForCSS: true, // Essential for proper styling
+    waitForJS: false, // Don't wait for JS execution
+    hardenPage: false, // Don't block resources for screenshots
+    maxTimeout: 15_000,
+  },
+  content: {
+    requiresNavigation: true,
+    waitForNetwork: false,
+    waitForLoad: true,
+    waitForCSS: false,
+    waitForJS: false,
+    hardenPage: true,
+    maxTimeout: 15_000,
+  },
+  markdown: {
+    requiresNavigation: true,
+    waitForNetwork: false,
+    waitForLoad: true,
+    waitForCSS: false,
+    waitForJS: false,
+    hardenPage: true,
+    maxTimeout: 15_000,
+  },
+  links: {
+    requiresNavigation: true,
+    waitForNetwork: false,
+    waitForLoad: true,
+    waitForCSS: false,
+    waitForJS: false,
+    hardenPage: true,
+    maxTimeout: 15_000,
+  },
+  pdf: {
+    requiresNavigation: true,
+    waitForNetwork: true, // PDFs benefit from full resource loading
+    waitForLoad: true,
+    waitForCSS: true,
+    waitForJS: true,
+    hardenPage: false,
+    maxTimeout: 30_000,
+  },
+  scrape: {
+    requiresNavigation: true,
+    waitForNetwork: false,
+    waitForLoad: true,
+    waitForCSS: false,
+    waitForJS: true, // Scraping might need JS-generated content
+    hardenPage: true,
+    maxTimeout: 20_000,
+  },
+  search: {
+    requiresNavigation: true,
+    waitForNetwork: true, // Search needs form submission
+    waitForLoad: true,
+    waitForCSS: false,
+    waitForJS: true,
+    hardenPage: true,
+    maxTimeout: 20_000,
+  },
+  navigate: {
+    requiresNavigation: true,
+    waitForNetwork: true,
+    waitForLoad: true,
+    waitForCSS: false,
+    waitForJS: false,
+    hardenPage: true,
+    maxTimeout: 15_000,
+  },
+};
+
+/* -------------------------------------------------------------------------- */
 /*  PlaywrightPoolDO                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -34,7 +126,113 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
   constructor(state: DurableObjectState, env: CloudflareBindings) {
     super(state, env);
 
-    console.log('🔧 PlaywrightPoolDO: Initialized with session reuse and modular markdown processing');
+    console.log('🔧 PlaywrightPoolDO: Initialized with session reuse and performance optimizations');
+  }
+
+  /* ----------------------------- Private Helpers ----------------------------- */
+
+  /** Smart navigation with operation-specific optimizations */
+  private async navigateOptimized(
+    page: Page,
+    url: string,
+    operationType: OperationType,
+    waitTime?: number,
+  ): Promise<void> {
+    const config = OPERATION_CONFIGS[operationType];
+    console.log(`🚀 Optimized navigation for ${operationType} to ${url}`);
+
+    // Basic navigation with minimal waiting first
+    await pageGotoWithRetry(page, url, {
+      waitUntil: 'domcontentloaded',
+      timeout: config.maxTimeout,
+    });
+
+    // Progressive enhancement based on operation needs
+    const promises: Promise<any>[] = [];
+
+    if (config.waitForLoad) {
+      // Cap load timeout for faster operations
+      const loadTimeout = operationType === 'screenshot' ? 5000 : config.maxTimeout;
+      promises.push(
+        page.waitForLoadState('load', { timeout: loadTimeout }).catch(() => {
+          console.log(`⚠️ Load timeout for ${operationType}, continuing...`);
+        }),
+      );
+    }
+
+    if (config.waitForNetwork) {
+      promises.push(
+        page.waitForLoadState('networkidle', { timeout: config.maxTimeout }).catch(() => {
+          console.log(`⚠️ Network idle timeout for ${operationType}, continuing...`);
+        }),
+      );
+    }
+
+    // Wait for essential resources in parallel
+    await Promise.all(promises);
+
+    // Operation-specific optimizations
+    if (config.waitForCSS && operationType === 'screenshot') {
+      // Fast CSS check for screenshots only
+      await page
+        .evaluate(async () => {
+          const styleSheets = Array.from(document.styleSheets);
+          const cssPromises = styleSheets.slice(0, 5).map(async (sheet) => {
+            // Only check first 5 stylesheets for speed
+            if (sheet.href) {
+              try {
+                const _rules = sheet.cssRules;
+                return _rules;
+              } catch {
+                await new Promise((resolve) => setTimeout(resolve, 50)); // Quick wait
+              }
+            }
+          });
+          await Promise.all(cssPromises);
+          await document.fonts.ready; // Ensure fonts loaded
+        })
+        .catch(() => {
+          console.log(`⚠️ CSS check failed for ${operationType}, continuing...`);
+        });
+    }
+
+    if (config.waitForJS && operationType !== 'screenshot') {
+      // Allow JS execution for non-screenshot operations
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    // Additional wait time if requested
+    if (waitTime && waitTime > 0) {
+      console.log(`⏳ Additional wait: ${waitTime}ms for ${operationType}`);
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+    }
+
+    console.log(`✅ Navigation optimized for ${operationType} completed`);
+  }
+
+  /** Optimized page preparation based on operation type */
+  private async preparePage(
+    page: Page,
+    operationType: OperationType,
+    viewport?: { width: number; height: number },
+  ): Promise<void> {
+    const config = OPERATION_CONFIGS[operationType];
+
+    if (config.hardenPage) {
+      await hardenPageAdvanced(page);
+    }
+
+    // Set appropriate timeouts based on operation
+    page.setDefaultTimeout(config.maxTimeout);
+    page.setDefaultNavigationTimeout(config.maxTimeout);
+
+    // Screenshot-specific optimizations
+    if (operationType === 'screenshot') {
+      // Set viewport early to avoid reflow
+      const viewportSize = viewport || { width: 1920, height: 1080 };
+      await page.setViewportSize(viewportSize);
+      console.log(`📏 Set viewport to ${viewportSize.width}x${viewportSize.height}`);
+    }
   }
 
   /* ----------------------------- Public RPCs ----------------------------- */
@@ -152,20 +350,11 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
       page = await browser.newPage();
-      await hardenPageAdvanced(page);
+      await this.preparePage(page, 'markdown');
 
       // Navigate to URL with retry logic
       console.log(`🔄 PlaywrightPoolDO: Navigating to ${params.url}...`);
-      await pageGotoWithRetry(page, params.url, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15_000,
-      });
-
-      // Wait if requested
-      if (params.waitTime && params.waitTime > 0) {
-        console.log(`⏳ PlaywrightPoolDO: Waiting ${params.waitTime}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, params.waitTime));
-      }
+      await this.navigateOptimized(page, params.url, 'markdown', params.waitTime);
 
       // Execute markdown operation
       console.log(`🔄 PlaywrightPoolDO: Executing markdown operation...`);
@@ -334,7 +523,7 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
     }
   }
 
-  /** Main RPC method to take screenshot from a URL using proper session reuse. */
+  /** Main RPC method to take screenshot from a URL using optimized navigation. */
   async takeScreenshot(params: ScreenshotParams): Promise<ScreenshotResult> {
     console.log(`📸 PlaywrightPoolDO: Screenshot request for ${params.url}`);
 
@@ -377,34 +566,73 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       const sessionId = browser.sessionId();
       console.log(`🎯 PlaywrightPoolDO: Using session ${sessionId} (${sessionReused ? 'reused' : 'new'})`);
 
-      // Create and prepare page
-      console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
+      // Create and prepare page for screenshots (optimized for speed and visual accuracy)
+      console.log(`🌐 PlaywrightPoolDO: Creating new page for screenshot...`);
       page = await browser.newPage();
-      await hardenPageAdvanced(page);
+      const viewport = {
+        width: params.viewport?.width || 1920,
+        height: params.viewport?.height || 1080,
+      };
+      await this.preparePage(page, 'screenshot', viewport);
 
-      // Navigate to URL with retry logic
+      // Navigate to URL with optimized strategy for screenshots
       console.log(`🔄 PlaywrightPoolDO: Navigating to ${params.url}...`);
-      await pageGotoWithRetry(page, params.url, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15_000,
-      });
+      await this.navigateOptimized(page, params.url, 'screenshot', params.waitTime);
 
-      // Wait if requested
-      if (params.waitTime && params.waitTime > 0) {
-        console.log(`⏳ PlaywrightPoolDO: Waiting ${params.waitTime}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, params.waitTime));
+      // Take screenshot using optimized approach
+      console.log(`📸 Taking screenshot with optimal settings...`);
+      const screenshotOptions = {
+        type: 'png' as const,
+        scale: 'css' as const, // Preserve CSS scaling - key for proper styling
+        fullPage: false, // Only visible area
+      };
+
+      const screenshot = await page.screenshot(screenshotOptions);
+      console.log(`✅ Screenshot captured, size: ${screenshot.byteLength} bytes`);
+
+      // Compose response metadata
+      const metadata = {
+        url: params.url,
+        timestamp: new Date().toISOString(),
+        viewport,
+        format: 'png' as const,
+        size: screenshot.byteLength,
+      };
+
+      // Convert to base64 if requested
+      if (params.base64) {
+        const uint8Array = new Uint8Array(screenshot);
+        const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
+        const result = {
+          success: true as const,
+          data: {
+            image: base64String,
+            metadata,
+          },
+          creditsCost: 1,
+        };
+        return result;
       }
 
-      // Execute screenshot operation
-      console.log(`🔄 PlaywrightPoolDO: Executing screenshot operation...`);
-      const result = await screenshotOperation(page, params);
-
-      if (result.success) {
-        console.log(`✅ PlaywrightPoolDO: Screenshot successful`);
+      // Return binary data (convert to ArrayBuffer)
+      let arrayBuffer: ArrayBuffer;
+      if (screenshot instanceof ArrayBuffer) {
+        arrayBuffer = screenshot;
       } else {
-        console.error(`❌ PlaywrightPoolDO: Screenshot failed: ${result.error.message}`);
+        arrayBuffer = new ArrayBuffer(screenshot.byteLength);
+        new Uint8Array(arrayBuffer).set(new Uint8Array(screenshot));
       }
 
+      const result = {
+        success: true as const,
+        data: {
+          image: arrayBuffer,
+          metadata,
+        },
+        creditsCost: 1,
+      };
+
+      console.log(`✅ PlaywrightPoolDO: Screenshot successful`);
       return result;
     } catch (error) {
       console.error(`💥 PlaywrightPoolDO: Screenshot failed for ${params.url}:`, error);
@@ -487,20 +715,11 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
       page = await browser.newPage();
-      await hardenPageAdvanced(page);
+      await this.preparePage(page, 'links');
 
       // Navigate to URL with retry logic
       console.log(`🔄 PlaywrightPoolDO: Navigating to ${params.url}...`);
-      await pageGotoWithRetry(page, params.url, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15_000,
-      });
-
-      // Wait if requested
-      if (params.waitTime && params.waitTime > 0) {
-        console.log(`⏳ PlaywrightPoolDO: Waiting ${params.waitTime}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, params.waitTime));
-      }
+      await this.navigateOptimized(page, params.url, 'links', params.waitTime);
 
       // Execute links operation
       console.log(`🔄 PlaywrightPoolDO: Executing links operation...`);
@@ -595,20 +814,11 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
       page = await browser.newPage();
-      await hardenPageAdvanced(page);
+      await this.preparePage(page, 'content');
 
       // Navigate to URL with retry logic
       console.log(`🔄 PlaywrightPoolDO: Navigating to ${params.url}...`);
-      await pageGotoWithRetry(page, params.url, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15_000,
-      });
-
-      // Wait if requested
-      if (params.waitTime && params.waitTime > 0) {
-        console.log(`⏳ PlaywrightPoolDO: Waiting ${params.waitTime}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, params.waitTime));
-      }
+      await this.navigateOptimized(page, params.url, 'content', params.waitTime);
 
       // Execute content operation
       console.log(`🔄 PlaywrightPoolDO: Executing content operation...`);
@@ -703,7 +913,7 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
       page = await browser.newPage();
-      await hardenPageAdvanced(page);
+      await this.preparePage(page, 'pdf');
 
       // Execute PDF operation (with navigation handled inside)
       console.log(`🔄 PlaywrightPoolDO: Executing PDF operation...`);
@@ -796,7 +1006,7 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
       page = await browser.newPage();
-      await hardenPageAdvanced(page);
+      await this.preparePage(page, 'scrape');
 
       // Execute scrape operation (with navigation handled inside)
       console.log(`🔄 PlaywrightPoolDO: Executing scrape operation...`);
@@ -889,7 +1099,7 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
       page = await browser.newPage();
-      await hardenPageAdvanced(page);
+      await this.preparePage(page, 'search');
 
       // Execute search operation (with navigation handled inside)
       console.log(`🔄 PlaywrightPoolDO: Executing search operation...`);

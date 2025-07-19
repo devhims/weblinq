@@ -21,6 +21,8 @@ interface ScreenshotMetadata {
     width: number;
     height: number;
   };
+  format: string;
+  size: number;
 }
 
 interface ScreenshotSuccess {
@@ -50,13 +52,23 @@ export type ScreenshotResult = ScreenshotSuccess | ScreenshotFailure;
  */
 export async function screenshotOperation(page: Page, params: ScreenshotParams): Promise<ScreenshotResult> {
   try {
-    // Set viewport
+    console.log(`📸 V2 Screenshot started for ${params.url}`);
+
+    // Set viewport (page is already hardened and navigated by PlaywrightPoolDO)
     const viewport = {
       width: params.viewport?.width || 1920,
       height: params.viewport?.height || 1080,
     };
     await page.setViewportSize(viewport);
     console.log(`📏 Set viewport to ${viewport.width}x${viewport.height}`);
+
+    // DON'T block any resources for screenshots - we want to capture everything
+    // including images, CSS, fonts for proper visual representation
+    // Note: Navigation is already handled by PlaywrightPoolDO with networkidle wait
+
+    // Ensure custom fonts are loaded for proper text rendering
+    console.log(`🔤 V2 Screenshot: Ensuring fonts are loaded...`);
+    await page.evaluate(() => document.fonts.ready);
 
     // Take screenshot
     console.log(`📸 Taking screenshot...`);
@@ -72,6 +84,8 @@ export async function screenshotOperation(page: Page, params: ScreenshotParams):
       url: params.url,
       timestamp: new Date().toISOString(),
       viewport,
+      format: 'png',
+      size: screenshot.byteLength,
     };
 
     // Convert to base64 if requested
@@ -106,7 +120,7 @@ export async function screenshotOperation(page: Page, params: ScreenshotParams):
       creditsCost: 1,
     };
   } catch (err) {
-    console.error('screenshotOperation error', err);
+    console.error('🚨 V2 Screenshot operation error:', err);
     return {
       success: false as const,
       error: { message: String(err) },

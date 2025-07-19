@@ -48,10 +48,15 @@ export async function pdfOperation(page: Page, params: PdfParams): Promise<PdfRe
   try {
     console.log(`📄 V2 PDF generation started for ${params.url}`);
 
-    // Set up request interception for faster loading (block heavy resources)
+    // Apply advanced hardening to avoid detection
+    await hardenPageAdvanced(page);
+
+    // Set up request interception for performance optimization
+    // Only block heavy media resources, but keep images and fonts for proper rendering
     await page.route('**/*', (route) => {
       const resourceType = route.request().resourceType();
-      const shouldAbort = ['image', 'media', 'font'].includes(resourceType);
+      // Only block heavy media resources that don't affect visual appearance
+      const shouldAbort = ['media'].includes(resourceType);
 
       if (shouldAbort) {
         route.abort();

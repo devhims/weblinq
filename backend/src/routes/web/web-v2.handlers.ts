@@ -132,25 +132,37 @@ async function setCachedV2Result<T>(
 
 /**
  * Convert binary data to base64 for JSON storage
+ * Only converts if the original request wanted binary (not base64)
  */
 function convertBinaryToBase64ForCache(data: any, wantsBase64?: boolean): any {
   if (!data || !data.data) return data;
 
   const result = { ...data };
 
+  // Handle screenshot data - only convert if the response was originally binary (not base64)
   if (result.data.image instanceof Uint8Array) {
     result.data = {
       ...result.data,
       image: Buffer.from(result.data.image).toString('base64'),
-      _imageBinary: !wantsBase64,
+      _imageBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
     };
   }
 
+  // Handle ArrayBuffer images (from V2 screenshot operation)
+  if (result.data.image instanceof ArrayBuffer) {
+    result.data = {
+      ...result.data,
+      image: Buffer.from(result.data.image).toString('base64'),
+      _imageBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
+    };
+  }
+
+  // Handle PDF data - only convert if the response was originally binary (not base64)
   if (result.data.pdf instanceof Uint8Array) {
     result.data = {
       ...result.data,
       pdf: Buffer.from(result.data.pdf).toString('base64'),
-      _pdfBinary: !wantsBase64,
+      _pdfBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
     };
   }
 
@@ -165,7 +177,9 @@ function convertBase64ToBinaryFromCache(data: any): any {
 
   const result = { ...data };
 
+  // Handle screenshot data
   if (result.data._imageBinary && typeof result.data.image === 'string') {
+    // Convert back to Uint8Array for V2 screenshot operations (will be converted to appropriate format in handler)
     result.data = {
       ...result.data,
       image: new Uint8Array(Buffer.from(result.data.image, 'base64')),
@@ -173,6 +187,7 @@ function convertBase64ToBinaryFromCache(data: any): any {
     delete result.data._imageBinary;
   }
 
+  // Handle PDF data
   if (result.data._pdfBinary && typeof result.data.pdf === 'string') {
     result.data = {
       ...result.data,
@@ -289,6 +304,9 @@ async function executeV2WithCache<T>(
   const user = c.get('user')!;
   const userId = user.id;
 
+  // Check if we're in development mode to disable caching
+  const isDevelopment = c.env.NODE_ENV === 'preview' || c.env.NODE_ENV === 'preview';
+
   // Check credits first
   const creditCheck = await checkV2Credits(c.env, userId, operation);
 
@@ -302,32 +320,38 @@ async function executeV2WithCache<T>(
     };
   }
 
-  // Generate cache key and check cache
+  // Generate cache key for both checking and storing
   const cacheKey = generateV2CacheKey(operation, userId, cacheParams);
-  const cachedResult = await getCachedV2Result<T>(cacheKey, operation);
 
-  if (cachedResult) {
-    try {
-      await deductV2Credits(c.env, userId, operation, cacheParams);
-      const updatedBalance = creditCheck.balance - creditCheck.cost;
+  // Skip cache in development mode for easier testing
+  if (!isDevelopment) {
+    const cachedResult = await getCachedV2Result<T>(cacheKey, operation);
 
-      return {
-        ...cachedResult,
-        creditsCost: creditCheck.cost,
-        creditsRemaining: updatedBalance,
-      };
-    } catch (error) {
-      console.warn('⚠️ V2 Failed to deduct credits for cache hit:', error);
-      return {
-        ...cachedResult,
-        creditsCost: creditCheck.cost,
-        creditsRemaining: creditCheck.balance,
-      };
+    if (cachedResult) {
+      try {
+        await deductV2Credits(c.env, userId, operation, cacheParams);
+        const updatedBalance = creditCheck.balance - creditCheck.cost;
+
+        return {
+          ...cachedResult,
+          creditsCost: creditCheck.cost,
+          creditsRemaining: updatedBalance,
+        };
+      } catch (error) {
+        console.warn('⚠️ V2 Failed to deduct credits for cache hit:', error);
+        return {
+          ...cachedResult,
+          creditsCost: creditCheck.cost,
+          creditsRemaining: creditCheck.balance,
+        };
+      }
     }
+  } else {
+    console.log(`🧪 V2 Development mode: Skipping cache for ${operation} operation`);
   }
 
   try {
-    console.log(`🚀 V2 Executing ${operation} operation (cache miss)`);
+    console.log(`🚀 V2 Executing ${operation} operation (${isDevelopment ? 'development mode' : 'cache miss'})`);
 
     const result = await operationFn();
 
@@ -344,18 +368,22 @@ async function executeV2WithCache<T>(
     await deductV2Credits(c.env, userId, operation, cacheParams);
     const updatedBalance = creditCheck.balance - creditCheck.cost;
 
-    // Cache the successful result in background
-    try {
-      if (c.executionCtx?.waitUntil) {
-        c.executionCtx.waitUntil(setCachedV2Result(cacheKey, operation, result.data, cacheParams));
-        console.log(`✅ V2 Background caching initiated for ${operation}`);
-      } else {
-        setCachedV2Result(cacheKey, operation, result.data, cacheParams).catch((error) => {
-          console.error(`❌ V2 Background cache operation failed for ${operation}:`, error);
-        });
+    // Cache the successful result in background (skip in development mode)
+    if (!isDevelopment) {
+      try {
+        if (c.executionCtx?.waitUntil) {
+          c.executionCtx.waitUntil(setCachedV2Result(cacheKey, operation, result.data, cacheParams));
+          console.log(`✅ V2 Background caching initiated for ${operation}`);
+        } else {
+          setCachedV2Result(cacheKey, operation, result.data, cacheParams).catch((error) => {
+            console.error(`❌ V2 Background cache operation failed for ${operation}:`, error);
+          });
+        }
+      } catch (cacheError) {
+        console.error(`❌ V2 Failed to initiate background caching for ${operation}:`, cacheError);
       }
-    } catch (cacheError) {
-      console.error(`❌ V2 Failed to initiate background caching for ${operation}:`, cacheError);
+    } else {
+      console.log(`🧪 V2 Development mode: Skipping cache storage for ${operation}`);
     }
 
     return {
@@ -593,12 +621,20 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
     }
 
     const imageData = result.data.image;
-    const imageBuffer =
-      imageData instanceof ArrayBuffer
-        ? new Uint8Array(imageData)
-        : imageData instanceof Uint8Array
-        ? imageData
-        : new Uint8Array();
+
+    // Handle different image data types (fresh result vs cached result)
+    let imageBuffer: Uint8Array;
+    if (imageData instanceof ArrayBuffer) {
+      imageBuffer = new Uint8Array(imageData);
+    } else if (imageData instanceof Uint8Array) {
+      imageBuffer = imageData;
+    } else if (typeof imageData === 'string') {
+      // This is a base64 string from cache that should be converted back to binary
+      imageBuffer = new Uint8Array(Buffer.from(imageData, 'base64'));
+    } else {
+      console.error('❌ V2 Screenshot: Unexpected image data type:', typeof imageData);
+      imageBuffer = new Uint8Array();
+    }
 
     // Binary response (default) - matches V1 structure
     if (wantsBinary) {
@@ -992,24 +1028,41 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
       );
     }
 
+    const pdfData = result.data.pdf;
+
+    // Handle different PDF data types (fresh result vs cached result)
+    let pdfBuffer: Uint8Array;
+    if (pdfData instanceof Uint8Array) {
+      pdfBuffer = pdfData;
+    } else if (typeof pdfData === 'string') {
+      // This is a base64 string from cache that should be converted back to binary
+      pdfBuffer = new Uint8Array(Buffer.from(pdfData, 'base64'));
+    } else {
+      console.error('❌ V2 PDF: Unexpected PDF data type:', typeof pdfData);
+      return c.json(
+        createStandardErrorResponse('Invalid PDF data format', ERROR_CODES.INTERNAL_SERVER_ERROR),
+        HttpStatusCodes.INTERNAL_SERVER_ERROR,
+      );
+    }
+
     // Binary response (default) - matches V1 structure
-    if (wantsBinary && result.data.pdf instanceof Uint8Array) {
+    if (wantsBinary) {
       console.log('✅ V2 PDF generation successful (binary)', {
         userId: user.id,
         url: body.url,
-        pdfSize: result.data.metadata?.size || result.data.pdf.length,
+        pdfSize: result.data.metadata?.size || pdfBuffer.length,
         creditsCost: result.creditsCost,
         creditsRemaining: result.creditsRemaining,
         fromCache: result.fromCache,
       });
 
-      const binaryBody = result.data.pdf as unknown as BodyInit;
+      const binaryBody = pdfBuffer as unknown as BodyInit;
 
       return new Response(binaryBody, {
         status: HttpStatusCodes.OK,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Length': (result.data.metadata?.size || result.data.pdf.length).toString(),
+          'Content-Length': (result.data.metadata?.size || pdfBuffer.length).toString(),
           'Content-Disposition': 'attachment; filename="page.pdf"',
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
@@ -1021,13 +1074,13 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
     }
 
     // Base64 JSON response (only when asked for) - matches V1 structure
-    if (wantsBase64 && result.data.pdf instanceof Uint8Array) {
-      const base64Pdf = Buffer.from(result.data.pdf).toString('base64');
+    if (wantsBase64) {
+      const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
 
       console.log('✅ V2 PDF generation successful (base64)', {
         userId: user.id,
         url: body.url,
-        pdfSize: result.data.metadata?.size || result.data.pdf.length,
+        pdfSize: result.data.metadata?.size || pdfBuffer.length,
         creditsCost: result.creditsCost,
         creditsRemaining: result.creditsRemaining,
         fromCache: result.fromCache,
