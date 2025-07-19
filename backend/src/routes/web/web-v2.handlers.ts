@@ -508,12 +508,21 @@ export const markdownV2: AppRouteHandler<MarkdownV2Route> = async (c: any) => {
       fromCache: result.fromCache,
     });
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-Engine': 'playwright-v2',
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    // Match V1 response structure with creditsCost in body
+    return c.json(
+      {
+        success: true,
+        data: result.data,
+        creditsCost: result.creditsCost,
+      },
+      HttpStatusCodes.OK,
+      {
+        'X-Credits-Cost': result.creditsCost.toString(),
+        'X-Credits-Remaining': result.creditsRemaining.toString(),
+        'X-Engine': 'playwright-v2',
+        'X-From-Cache': result.fromCache ? 'true' : 'false',
+      },
+    );
   } catch (error) {
     console.error('💥 V2 Markdown error:', error);
     await logV2CriticalError(c, 'markdownV2', error);
@@ -557,7 +566,7 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
           url: body.url,
           viewport: body.viewport,
           waitTime: body.waitTime || 0,
-          base64: false,
+          base64: false, // Always get binary from DO, convert as needed
         });
       },
       {
@@ -591,7 +600,7 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
         ? imageData
         : new Uint8Array();
 
-    // Binary response (default)
+    // Binary response (default) - matches V1 structure
     if (wantsBinary) {
       console.log('✅ V2 Screenshot successful (binary)', {
         userId: user.id,
@@ -605,19 +614,19 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
       return new Response(imageBuffer.buffer as ArrayBuffer, {
         status: HttpStatusCodes.OK,
         headers: {
-          'Content-Type': 'image/png',
+          'Content-Type': `image/${result.data.metadata?.format || 'png'}`,
           'Content-Length': imageBuffer.length.toString(),
-          'Content-Disposition': 'inline; filename="screenshot.png"',
+          'Content-Disposition': `inline; filename="screenshot.${result.data.metadata?.format || 'png'}"`,
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
           'X-Engine': 'playwright-v2',
           'X-From-Cache': result.fromCache ? 'true' : 'false',
-          'X-Metadata': JSON.stringify(result.data.metadata),
+          'X-Metadata': JSON.stringify(result.data.metadata || {}),
         },
       });
     }
 
-    // Base64 JSON response
+    // Base64 JSON response - matches V1 structure
     if (wantsBase64) {
       const base64Image = Buffer.from(imageBuffer).toString('base64');
 
@@ -635,7 +644,7 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
           success: true,
           data: {
             image: base64Image,
-            metadata: result.data.metadata,
+            metadata: result.data.metadata || {},
           },
           creditsCost: result.creditsCost,
         },
@@ -724,12 +733,21 @@ export const linksV2: AppRouteHandler<LinksV2Route> = async (c: any) => {
       fromCache: result.fromCache,
     });
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-Engine': 'playwright-v2',
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    // Links V2 - Match V1 response structure
+    return c.json(
+      {
+        success: true,
+        data: result.data,
+        creditsCost: result.creditsCost,
+      },
+      HttpStatusCodes.OK,
+      {
+        'X-Credits-Cost': result.creditsCost.toString(),
+        'X-Credits-Remaining': result.creditsRemaining.toString(),
+        'X-Engine': 'playwright-v2',
+        'X-From-Cache': result.fromCache ? 'true' : 'false',
+      },
+    );
   } catch (error) {
     console.error('💥 V2 Links error:', error);
     await logV2CriticalError(c, 'linksV2', error);
@@ -798,12 +816,21 @@ export const contentV2: AppRouteHandler<ContentV2Route> = async (c: any) => {
       fromCache: result.fromCache,
     });
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-Engine': 'playwright-v2',
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    // Content V2 - Match V1 response structure
+    return c.json(
+      {
+        success: true,
+        data: result.data,
+        creditsCost: result.creditsCost,
+      },
+      HttpStatusCodes.OK,
+      {
+        'X-Credits-Cost': result.creditsCost.toString(),
+        'X-Credits-Remaining': result.creditsRemaining.toString(),
+        'X-Engine': 'playwright-v2',
+        'X-From-Cache': result.fromCache ? 'true' : 'false',
+      },
+    );
   } catch (error) {
     console.error('💥 V2 Content error:', error);
     await logV2CriticalError(c, 'contentV2', error);
@@ -884,12 +911,21 @@ export const jsonExtractionV2: AppRouteHandler<JsonExtractionV2Route> = async (c
       creditsRemaining: result.creditsRemaining,
     });
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-Engine': 'playwright-v2',
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    // JSON Extraction V2 - Match V1 response structure
+    return c.json(
+      {
+        success: true,
+        data: result.data,
+        creditsCost: result.creditsCost,
+      },
+      HttpStatusCodes.OK,
+      {
+        'X-Credits-Cost': result.creditsCost.toString(),
+        'X-Credits-Remaining': result.creditsRemaining.toString(),
+        'X-Engine': 'playwright-v2',
+        'X-From-Cache': result.fromCache ? 'true' : 'false',
+      },
+    );
   } catch (error) {
     console.error('💥 V2 JSON extraction error:', error);
     await logV2CriticalError(c, 'jsonExtractionV2', error);
@@ -931,7 +967,7 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
         return await playwrightPoolDO.generatePdf({
           url: body.url,
           waitTime: body.waitTime || 0,
-          base64: false,
+          base64: false, // Always get binary from DO, convert as needed
         });
       },
       {
@@ -956,12 +992,12 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
       );
     }
 
-    // Binary response (default)
+    // Binary response (default) - matches V1 structure
     if (wantsBinary && result.data.pdf instanceof Uint8Array) {
       console.log('✅ V2 PDF generation successful (binary)', {
         userId: user.id,
         url: body.url,
-        pdfSize: result.data.metadata.size,
+        pdfSize: result.data.metadata?.size || result.data.pdf.length,
         creditsCost: result.creditsCost,
         creditsRemaining: result.creditsRemaining,
         fromCache: result.fromCache,
@@ -973,25 +1009,25 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
         status: HttpStatusCodes.OK,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Length': result.data.metadata.size.toString(),
+          'Content-Length': (result.data.metadata?.size || result.data.pdf.length).toString(),
           'Content-Disposition': 'attachment; filename="page.pdf"',
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
           'X-Engine': 'playwright-v2',
           'X-From-Cache': result.fromCache ? 'true' : 'false',
-          'X-Metadata': JSON.stringify(result.data.metadata),
+          'X-Metadata': JSON.stringify(result.data.metadata || {}),
         },
       });
     }
 
-    // Base64 JSON response (only when asked for)
+    // Base64 JSON response (only when asked for) - matches V1 structure
     if (wantsBase64 && result.data.pdf instanceof Uint8Array) {
       const base64Pdf = Buffer.from(result.data.pdf).toString('base64');
 
       console.log('✅ V2 PDF generation successful (base64)', {
         userId: user.id,
         url: body.url,
-        pdfSize: result.data.metadata.size,
+        pdfSize: result.data.metadata?.size || result.data.pdf.length,
         creditsCost: result.creditsCost,
         creditsRemaining: result.creditsRemaining,
         fromCache: result.fromCache,
@@ -1002,7 +1038,7 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
           success: true,
           data: {
             pdf: base64Pdf,
-            metadata: result.data.metadata,
+            metadata: result.data.metadata || {},
           },
           creditsCost: result.creditsCost,
         },
@@ -1016,8 +1052,25 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
       );
     }
 
+    // Fallback - matches V1 structure
     console.warn('⚠️ V2 PDF: unexpected response format logic');
-    return c.json({ success: false, error: 'Unexpected response format' }, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    return c.json(
+      {
+        success: true,
+        data: {
+          ...result.data,
+          metadata: result.data.metadata || {},
+        },
+        creditsCost: result.creditsCost,
+      },
+      HttpStatusCodes.OK,
+      {
+        'X-Credits-Cost': result.creditsCost.toString(),
+        'X-Credits-Remaining': result.creditsRemaining.toString(),
+        'X-Engine': 'playwright-v2',
+        'X-From-Cache': result.fromCache ? 'true' : 'false',
+      },
+    );
   } catch (error) {
     console.error('💥 V2 PDF error:', error);
     await logV2CriticalError(c, 'pdfV2', error);
@@ -1090,12 +1143,21 @@ export const scrapeV2: AppRouteHandler<ScrapeV2Route> = async (c: any) => {
       fromCache: result.fromCache,
     });
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-Engine': 'playwright-v2',
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    // Scrape V2 - Match V1 response structure
+    return c.json(
+      {
+        success: true,
+        data: result.data,
+        creditsCost: result.creditsCost,
+      },
+      HttpStatusCodes.OK,
+      {
+        'X-Credits-Cost': result.creditsCost.toString(),
+        'X-Credits-Remaining': result.creditsRemaining.toString(),
+        'X-Engine': 'playwright-v2',
+        'X-From-Cache': result.fromCache ? 'true' : 'false',
+      },
+    );
   } catch (error) {
     console.error('💥 V2 Scrape error:', error);
     await logV2CriticalError(c, 'scrapeV2', error);
@@ -1165,12 +1227,21 @@ export const searchV2: AppRouteHandler<SearchV2Route> = async (c: any) => {
       fromCache: result.fromCache,
     });
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-Engine': 'playwright-v2',
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    // Search V2 - Match V1 response structure
+    return c.json(
+      {
+        success: true,
+        data: result.data,
+        creditsCost: result.creditsCost,
+      },
+      HttpStatusCodes.OK,
+      {
+        'X-Credits-Cost': result.creditsCost.toString(),
+        'X-Credits-Remaining': result.creditsRemaining.toString(),
+        'X-Engine': 'playwright-v2',
+        'X-From-Cache': result.fromCache ? 'true' : 'false',
+      },
+    );
   } catch (error) {
     console.error('💥 V2 Search error:', error);
     await logV2CriticalError(c, 'searchV2', error);
