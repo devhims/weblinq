@@ -11,6 +11,49 @@ export function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Lightweight page preparation for screenshots - NO resource blocking for speed
+ * Based on playwright-mcp-main approach for fast visual captures
+ */
+export async function hardenPageForScreenshots(page: Page) {
+  // Minimal user agent without extensive fingerprinting
+  const UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+  await page.setExtraHTTPHeaders({
+    'User-Agent': UA,
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+  });
+
+  // NO resource blocking for screenshots - we want all images, CSS, fonts to load for visual accuracy
+  // This is the key difference from content extraction
+  console.log('📸 Screenshot mode: Allowing all resources for visual accuracy');
+}
+
+/**
+ * Fast navigation optimized for screenshots following playwright-mcp-main approach
+ */
+export async function navigateForScreenshot(page: Page, url: string, waitTime?: number): Promise<void> {
+  console.log(`🚀 Fast navigation for screenshot to ${url}`);
+
+  // Simple navigation - just domcontentloaded like playwright-mcp-main
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  // Cap load event to 5 seconds max (like playwright-mcp-main)
+  await page.waitForLoadState('load', { timeout: 5000 }).catch(() => {
+    console.log('⚠️ Load timeout after 5s, continuing with screenshot...');
+  });
+
+  // Optional additional wait
+  if (waitTime && waitTime > 0) {
+    console.log(`⏳ Additional wait: ${waitTime}ms`);
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
+  }
+
+  console.log('✅ Fast navigation completed');
+}
+
+/**
  * Advanced hardening function to evade modern bot detection systems for Playwright.
  * Addresses multiple fingerprinting vectors that basic methods miss.
  */

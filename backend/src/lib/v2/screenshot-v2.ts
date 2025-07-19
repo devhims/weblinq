@@ -12,6 +12,8 @@ export interface ScreenshotParams {
   };
   waitTime?: number;
   base64?: boolean;
+  fullPage?: boolean; // Add full page option
+  quality?: number; // Add quality option (1-100, only for JPEG)
 }
 
 interface ScreenshotMetadata {
@@ -23,6 +25,7 @@ interface ScreenshotMetadata {
   };
   format: string;
   size: number;
+  fullPage: boolean;
 }
 
 interface ScreenshotSuccess {
@@ -43,18 +46,18 @@ interface ScreenshotFailure {
 export type ScreenshotResult = ScreenshotSuccess | ScreenshotFailure;
 
 /* -------------------------------------------------------------------------- */
-/*  Screenshot Operation                                                      */
+/*  Screenshot Operation - Optimized for Speed                               */
 /* -------------------------------------------------------------------------- */
 
 /**
- * High-level screenshot operation that handles viewport setup and image capture.
- * Used by PlaywrightPoolDO.
+ * Fast screenshot operation optimized for speed following playwright-mcp-main approach.
+ * Assumes page is already navigated by PlaywrightPoolDO.
  */
 export async function screenshotOperation(page: Page, params: ScreenshotParams): Promise<ScreenshotResult> {
   try {
-    console.log(`📸 V2 Screenshot started for ${params.url}`);
+    console.log(`📸 Fast Screenshot started for ${params.url}`);
 
-    // Set viewport (page is already hardened and navigated by PlaywrightPoolDO)
+    // Set viewport (page is already navigated by PlaywrightPoolDO)
     const viewport = {
       width: params.viewport?.width || 1920,
       height: params.viewport?.height || 1080,
@@ -62,30 +65,26 @@ export async function screenshotOperation(page: Page, params: ScreenshotParams):
     await page.setViewportSize(viewport);
     console.log(`📏 Set viewport to ${viewport.width}x${viewport.height}`);
 
-    // DON'T block any resources for screenshots - we want to capture everything
-    // including images, CSS, fonts for proper visual representation
-    // Note: Navigation is already handled by PlaywrightPoolDO with networkidle wait
+    // Fast screenshot with optimized settings (like playwright-mcp-main)
+    console.log(`📸 Taking fast screenshot...`);
+    const screenshotOptions = {
+      type: 'jpeg' as const, // JPEG is much faster than PNG
+      quality: params.quality || 50, // Low quality for speed (like playwright-mcp-main)
+      scale: 'css' as const, // Preserve CSS scaling
+      fullPage: params.fullPage || false, // Viewport only by default for speed
+    };
 
-    // Ensure custom fonts are loaded for proper text rendering
-    console.log(`🔤 V2 Screenshot: Ensuring fonts are loaded...`);
-    await page.evaluate(() => document.fonts.ready);
-
-    // Take screenshot
-    console.log(`📸 Taking screenshot...`);
-    const screenshot = await page.screenshot({
-      type: 'png',
-      fullPage: false, // Only visible area
-    });
-
-    console.log(`✅ Screenshot captured, size: ${screenshot.byteLength} bytes`);
+    const screenshot = await page.screenshot(screenshotOptions);
+    console.log(`✅ Fast screenshot captured, size: ${screenshot.byteLength} bytes`);
 
     // Compose response metadata
     const metadata: ScreenshotMetadata = {
       url: params.url,
       timestamp: new Date().toISOString(),
       viewport,
-      format: 'png',
+      format: 'jpeg',
       size: screenshot.byteLength,
+      fullPage: screenshotOptions.fullPage,
     };
 
     // Convert to base64 if requested
@@ -120,7 +119,7 @@ export async function screenshotOperation(page: Page, params: ScreenshotParams):
       creditsCost: 1,
     };
   } catch (err) {
-    console.error('🚨 V2 Screenshot operation error:', err);
+    console.error('🚨 Fast Screenshot operation error:', err);
     return {
       success: false as const,
       error: { message: String(err) },

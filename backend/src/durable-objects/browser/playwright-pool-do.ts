@@ -10,13 +10,18 @@ import type { SearchParams, SearchResult } from '@/lib/v2/search-v2';
 import type { Browser, Page } from '@cloudflare/playwright';
 
 // Import browser utilities and operation handlers
-import { hardenPageAdvanced, pageGotoWithRetry } from '@/lib/v2/browser-utils-v2';
+import {
+  hardenPageAdvanced,
+  hardenPageForScreenshots,
+  navigateForScreenshot,
+  pageGotoWithRetry,
+} from '@/lib/v2/browser-utils-v2';
 import { contentOperation } from '@/lib/v2/content-v2';
 import { linksOperation } from '@/lib/v2/links-v2';
 import { markdownOperation } from '@/lib/v2/markdown-v2';
 import { pdfOperation } from '@/lib/v2/pdf-v2';
 import { scrapeOperation } from '@/lib/v2/scrape-v2';
-// Note: screenshotOperation is now implemented directly in takeScreenshot method
+import { screenshotOperation } from '@/lib/v2/screenshot-v2';
 import { searchOperation } from '@/lib/v2/search-v2';
 import { connect, launch, limits, sessions } from '@cloudflare/playwright';
 
@@ -48,10 +53,10 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
     requiresNavigation: true,
     waitForNetwork: false, // Fast screenshots don't need network idle
     waitForLoad: true, // Need basic loading for visual accuracy
-    waitForCSS: true, // Essential for proper styling
+    waitForCSS: false, // Skip CSS checks for speed - like playwright-mcp-main
     waitForJS: false, // Don't wait for JS execution
-    hardenPage: false, // Don't block resources for screenshots
-    maxTimeout: 15_000,
+    hardenPage: false, // Don't block resources for screenshots - key optimization
+    maxTimeout: 10_000, // Shorter timeout for speed
   },
   content: {
     requiresNavigation: true,
@@ -523,9 +528,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
     }
   }
 
-  /** Main RPC method to take screenshot from a URL using optimized navigation. */
+  /** Fast screenshot method using playwright-mcp-main optimization approach. */
   async takeScreenshot(params: ScreenshotParams): Promise<ScreenshotResult> {
-    console.log(`📸 PlaywrightPoolDO: Screenshot request for ${params.url}`);
+    console.log(`📸 PlaywrightPoolDO: Fast screenshot request for ${params.url}`);
 
     let browser: Browser | null = null;
     let page: Page | null = null;
@@ -566,76 +571,36 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       const sessionId = browser.sessionId();
       console.log(`🎯 PlaywrightPoolDO: Using session ${sessionId} (${sessionReused ? 'reused' : 'new'})`);
 
-      // Create and prepare page for screenshots (optimized for speed and visual accuracy)
-      console.log(`🌐 PlaywrightPoolDO: Creating new page for screenshot...`);
+      // Create and prepare page for fast screenshots
+      console.log(`🌐 PlaywrightPoolDO: Creating new page for fast screenshot...`);
       page = await browser.newPage();
+
+      // Use lightweight hardening for screenshots (no resource blocking)
+      await hardenPageForScreenshots(page);
+
+      // Set viewport early
       const viewport = {
         width: params.viewport?.width || 1920,
         height: params.viewport?.height || 1080,
       };
-      await this.preparePage(page, 'screenshot', viewport);
+      await page.setViewportSize(viewport);
 
-      // Navigate to URL with optimized strategy for screenshots
-      console.log(`🔄 PlaywrightPoolDO: Navigating to ${params.url}...`);
-      await this.navigateOptimized(page, params.url, 'screenshot', params.waitTime);
+      // Use fast navigation optimized for screenshots
+      await navigateForScreenshot(page, params.url, params.waitTime);
 
-      // Take screenshot using optimized approach
-      console.log(`📸 Taking screenshot with optimal settings...`);
-      const screenshotOptions = {
-        type: 'png' as const,
-        scale: 'css' as const, // Preserve CSS scaling - key for proper styling
-        fullPage: false, // Only visible area
-      };
+      // Execute fast screenshot operation with all optimizations
+      console.log(`🔄 PlaywrightPoolDO: Executing fast screenshot operation...`);
+      const result = await screenshotOperation(page, params);
 
-      const screenshot = await page.screenshot(screenshotOptions);
-      console.log(`✅ Screenshot captured, size: ${screenshot.byteLength} bytes`);
-
-      // Compose response metadata
-      const metadata = {
-        url: params.url,
-        timestamp: new Date().toISOString(),
-        viewport,
-        format: 'png' as const,
-        size: screenshot.byteLength,
-      };
-
-      // Convert to base64 if requested
-      if (params.base64) {
-        const uint8Array = new Uint8Array(screenshot);
-        const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
-        const result = {
-          success: true as const,
-          data: {
-            image: base64String,
-            metadata,
-          },
-          creditsCost: 1,
-        };
-        return result;
-      }
-
-      // Return binary data (convert to ArrayBuffer)
-      let arrayBuffer: ArrayBuffer;
-      if (screenshot instanceof ArrayBuffer) {
-        arrayBuffer = screenshot;
+      if (result.success) {
+        console.log(`✅ PlaywrightPoolDO: Fast screenshot successful. Size: ${result.data.metadata.size} bytes`);
       } else {
-        arrayBuffer = new ArrayBuffer(screenshot.byteLength);
-        new Uint8Array(arrayBuffer).set(new Uint8Array(screenshot));
+        console.error(`❌ PlaywrightPoolDO: Fast screenshot failed: ${result.error.message}`);
       }
 
-      const result = {
-        success: true as const,
-        data: {
-          image: arrayBuffer,
-          metadata,
-        },
-        creditsCost: 1,
-      };
-
-      console.log(`✅ PlaywrightPoolDO: Screenshot successful`);
       return result;
     } catch (error) {
-      console.error(`💥 PlaywrightPoolDO: Screenshot failed for ${params.url}:`, error);
+      console.error(`💥 PlaywrightPoolDO: Fast screenshot failed for ${params.url}:`, error);
       return {
         success: false as const,
         error: { message: String(error) },
@@ -646,7 +611,6 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       if (page && !page.isClosed()) {
         try {
           console.log(`🧹 PlaywrightPoolDO: Closing page...`);
-          // await page.unroute('**/*');
           await page.close();
         } catch (closeError) {
           console.warn('PlaywrightPoolDO: Error closing page:', closeError);
