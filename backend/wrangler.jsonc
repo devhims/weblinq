@@ -33,7 +33,11 @@
     "bindings": [
       { "name": "WEBLINQ_DURABLE_OBJECT", "class_name": "WebDurableObject" },
       { "name": "BROWSER_MANAGER_DO", "class_name": "BrowserManagerDO" },
-      { "name": "BROWSER_DO", "class_name": "BrowserDO" }
+      { "name": "BROWSER_DO", "class_name": "BrowserDO" },
+      {
+        "name": "PLAYWRIGHT_POOL_DO",
+        "class_name": "PlaywrightPoolDO"
+      }
     ]
   },
   "migrations": [
@@ -56,6 +60,10 @@
     {
       "tag": "v6",
       "deleted_classes": ["PlaywrightBrowserDO", "PlaywrightManagerDO"]
+    },
+    {
+      "tag": "v7",
+      "new_sqlite_classes": ["PlaywrightPoolDO"]
     }
   ],
   "env": {
@@ -72,7 +80,11 @@
         "bindings": [
           { "name": "WEBLINQ_DURABLE_OBJECT", "class_name": "WebDurableObject" },
           { "name": "BROWSER_MANAGER_DO", "class_name": "BrowserManagerDO" },
-          { "name": "BROWSER_DO", "class_name": "BrowserDO" }
+          { "name": "BROWSER_DO", "class_name": "BrowserDO" },
+          {
+            "name": "PLAYWRIGHT_POOL_DO",
+            "class_name": "PlaywrightPoolDO"
+          }
         ]
       },
       "r2_buckets": [
@@ -104,6 +116,10 @@
         {
           "tag": "v6",
           "deleted_classes": ["PlaywrightBrowserDO", "PlaywrightManagerDO"]
+        },
+        {
+          "tag": "v7",
+          "new_sqlite_classes": ["PlaywrightPoolDO"]
         }
       ]
     }

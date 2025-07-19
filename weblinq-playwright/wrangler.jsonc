@@ -32,6 +32,9 @@
 
   "vars": {
     "ENVIRONMENT": "development"
+  },
+  "observability": {
+    "enabled": true
   }
   // "kv_namespaces": [
   //   {
