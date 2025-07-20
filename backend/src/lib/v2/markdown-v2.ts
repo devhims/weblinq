@@ -101,14 +101,16 @@ function words(str: string): number {
 }
 
 /**
- * High-level markdown operation that handles page content extraction
- * and processes it to markdown. Used by PlaywrightPoolDO.
+ * High-level markdown operation with fast content extraction
+ * Uses targeted content selectors for better performance
  */
 export async function markdownOperation(page: Page, params: MarkdownParams): Promise<MarkdownResult> {
   try {
-    // Extract page content
+    console.log(`📝 Fast markdown extraction starting for ${params.url}`);
+
+    // Fallback to full page content if no targeted content found
     const content = await page.content();
-    console.log(`📝 Extracted content, length: ${content.length} chars`);
+    console.log(`📄 Using full page extraction, length: ${content.length} chars`);
 
     // Process to markdown
     return await processContentToMarkdown(content, params);

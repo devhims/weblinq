@@ -13,6 +13,7 @@ import type { Browser, Page } from '@cloudflare/playwright';
 import {
   hardenPageAdvanced,
   hardenPageForScreenshots,
+  navigateForMarkdown,
   navigateForScreenshot,
   pageGotoWithRetry,
 } from '@/lib/v2/browser-utils-v2';
@@ -70,11 +71,11 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
   markdown: {
     requiresNavigation: true,
     waitForNetwork: false,
-    waitForLoad: true,
+    waitForLoad: false, // Changed: Don't wait for load - use commit strategy
     waitForCSS: false,
     waitForJS: false,
     hardenPage: true,
-    maxTimeout: 15_000,
+    maxTimeout: 5_000, // Reduced: Much shorter timeout for speed
   },
   links: {
     requiresNavigation: true,
@@ -145,6 +146,12 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
   ): Promise<void> {
     const config = OPERATION_CONFIGS[operationType];
     console.log(`🚀 Optimized navigation for ${operationType} to ${url}`);
+
+    // Special fast path for markdown using ChatGPT recommendations
+    if (operationType === 'markdown') {
+      await navigateForMarkdown(page, url, waitTime);
+      return;
+    }
 
     // Basic navigation with minimal waiting first
     await pageGotoWithRetry(page, url, {

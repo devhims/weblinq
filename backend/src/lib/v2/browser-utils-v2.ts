@@ -351,8 +351,43 @@ export async function addHumanBehavior(page: Page) {
 }
 
 /**
+ * Fast navigation optimized for markdown extraction following ChatGPT recommendations
+ * Uses commit + Promise.any race for minimal latency
+ */
+export async function navigateForMarkdown(page: Page, url: string, waitTime?: number): Promise<void> {
+  console.log(`🚀 Fast markdown navigation to ${url}`);
+
+  const startTime = Date.now();
+
+  // Step 1: Use 'commit' for fastest initial navigation (ChatGPT recommendation #1)
+  await page.goto(url, { waitUntil: 'commit', timeout: 5_000 });
+
+  // Step 2: Race multiple readiness indicators (ChatGPT recommendation #4)
+  const CONTENT_SELECTORS = 'article,main,.post-content,.markdown-body,.content,.entry-content,[role="main"]';
+
+  await Promise.any([
+    page.waitForLoadState('domcontentloaded', { timeout: 3_000 }),
+    page.waitForFunction(() => document.readyState === 'interactive', { timeout: 2_000 }),
+    page.waitForSelector(CONTENT_SELECTORS, { timeout: 2_000 }).catch(() => null), // Don't fail if no content selectors
+  ]).catch(() => {
+    console.log('⚠️ All readiness checks timed out, proceeding with available content');
+  });
+
+  // Step 3: Optional additional wait
+  if (waitTime && waitTime > 0) {
+    console.log(`⏳ Additional wait: ${waitTime}ms`);
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
+  }
+
+  const endTime = Date.now();
+  const duration = endTime - startTime;
+  console.log(`✅ Fast markdown navigation completed in ${duration}ms`);
+}
+
+/**
  * Helper to retry page.goto() for transient network failures
  * Common failures: ERR_CONNECTION_CLOSED, ERR_NETWORK_CHANGED, timeouts
+ * Enhanced with commit option and fallback strategy
  */
 export async function pageGotoWithRetry(
   page: Page,
@@ -384,6 +419,19 @@ export async function pageGotoWithRetry(
         errorMessage.includes('net::ERR');
 
       if (!isRetryableError || attempt === maxAttempts) {
+        // If using 'commit' failed, try fallback to 'domcontentloaded'
+        if (waitUntil === 'commit' && attempt === maxAttempts) {
+          console.log('🔄 Commit failed, trying fallback to domcontentloaded...');
+          try {
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+            console.log(`✅ Fallback navigation successful for ${url}`);
+            return;
+          } catch (fallbackErr) {
+            console.error(`🚫 Both commit and domcontentloaded failed for ${url}`);
+            throw fallbackErr;
+          }
+        }
+
         console.error(`🚫 Page navigation failed after ${attempt} attempts for ${url}: ${errorMessage}`);
         throw err;
       }
