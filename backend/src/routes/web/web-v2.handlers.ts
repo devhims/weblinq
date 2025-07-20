@@ -98,24 +98,26 @@ async function setCachedV2Result<T>(
   try {
     const ttlSeconds = CACHE_TTL_SECONDS[operation];
 
-    let processedData = data;
-    if (operation === 'SCREENSHOT' || operation === 'PDF') {
-      const wantsBase64 = cacheParams?.base64 === true;
-      processedData = convertBinaryToBase64ForCache(data as any, wantsBase64) as T;
-    }
-
+    // Create the cache structure first
     const cacheData = {
       success: true,
-      data: processedData,
+      data,
       fromCache: true,
       cachedAt: Date.now(),
     };
+
+    // Then convert binary data to base64 for storage
+    let processedCacheData = cacheData;
+    if (operation === 'SCREENSHOT' || operation === 'PDF') {
+      const wantsBase64 = cacheParams?.base64 === true;
+      processedCacheData = convertBinaryToBase64ForCache(cacheData as any, wantsBase64);
+    }
 
     // Extract userId from cache key for tagging
     const userIdMatch = cacheKey.match(/\/([^/]+)\/[^/]+$/);
     const userId = userIdMatch ? userIdMatch[1] : 'unknown';
 
-    const response = new Response(JSON.stringify(cacheData), {
+    const response = new Response(JSON.stringify(processedCacheData), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
@@ -142,14 +144,16 @@ async function setCachedV2Result<T>(
  * Convert binary data to base64 for JSON storage
  * Only converts if the original request wanted binary (not base64)
  * V2 version handles ArrayBuffer from screenshot-v2.ts
+ * Works with cache structure: { success, data: { image, metadata }, ... }
  */
-function convertBinaryToBase64ForCache(data: any, wantsBase64?: boolean): any {
-  if (!data || !data.data) return data;
+function convertBinaryToBase64ForCache(cacheData: any, wantsBase64?: boolean): any {
+  if (!cacheData || !cacheData.data) return cacheData;
 
-  const result = { ...data };
+  const result = { ...cacheData };
 
   // Handle V2 screenshot data - ArrayBuffer from screenshot-v2.ts
   if (result.data.image instanceof ArrayBuffer) {
+    console.log('💾 V2 Cache: Converting ArrayBuffer to base64 for storage');
     result.data = {
       ...result.data,
       image: Buffer.from(result.data.image).toString('base64'),
@@ -183,25 +187,29 @@ function convertBinaryToBase64ForCache(data: any, wantsBase64?: boolean): any {
 /**
  * Convert base64 data back to binary for cached results
  * V2 version handles both ArrayBuffer and Uint8Array formats
+ * Handles full cache structure: { success, data: { image, metadata }, ... }
  */
-function convertBase64ToBinaryFromCache(data: any): any {
-  if (!data || !data.data) return data;
+function convertBase64ToBinaryFromCache(cacheResult: any): any {
+  if (!cacheResult || !cacheResult.data) return cacheResult;
 
-  const result = { ...data };
+  const result = { ...cacheResult };
 
   // Handle screenshot data - convert back to original format
   if (result.data._imageBinary && typeof result.data.image === 'string') {
+    console.log('🔄 V2 Cache: Converting base64 back to binary, format:', result.data._imageFormat);
     const buffer = Buffer.from(result.data.image, 'base64');
 
     // Convert back to original format based on flag
     if (result.data._imageFormat === 'arrayBuffer') {
       // V2 screenshot-v2.ts expects ArrayBuffer
+      console.log('🔄 V2 Cache: Restoring as ArrayBuffer');
       result.data = {
         ...result.data,
         image: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
       };
     } else {
       // Default to Uint8Array for compatibility
+      console.log('🔄 V2 Cache: Restoring as Uint8Array');
       result.data = {
         ...result.data,
         image: new Uint8Array(buffer),
@@ -253,10 +261,7 @@ async function getCachedV2Result<T>(cacheKey: string, operation: V2Operation): P
     let cachedData = (await cachedResponse.json()) as CreditAwareResult<T>;
 
     if (operation === 'SCREENSHOT' || operation === 'PDF') {
-      cachedData = {
-        ...cachedData,
-        data: convertBase64ToBinaryFromCache(cachedData.data as any) as T,
-      };
+      cachedData = convertBase64ToBinaryFromCache(cachedData as any) as CreditAwareResult<T>;
     }
 
     console.log(`✅ V2 Cache hit for ${operation} (Key: ${cacheKey})`);
@@ -652,14 +657,25 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
     // Handle different image data types (fresh result vs cached result)
     let imageBuffer: Uint8Array;
     if (imageData instanceof ArrayBuffer) {
+      console.log('🔧 V2 Screenshot: Converting ArrayBuffer to Uint8Array');
       imageBuffer = new Uint8Array(imageData);
     } else if (imageData instanceof Uint8Array) {
+      console.log('🔧 V2 Screenshot: Using existing Uint8Array');
       imageBuffer = imageData;
     } else if (typeof imageData === 'string') {
-      // This is a base64 string from cache that should be converted back to binary
+      console.log('🔧 V2 Screenshot: Converting base64 string from cache to Uint8Array');
       imageBuffer = new Uint8Array(Buffer.from(imageData, 'base64'));
     } else {
-      console.error('❌ V2 Screenshot: Unexpected image data type:', typeof imageData);
+      console.error(
+        '❌ V2 Screenshot: Unexpected image data type:',
+        typeof imageData,
+        'Constructor:',
+        imageData?.constructor?.name,
+      );
+      console.error(
+        '❌ V2 Screenshot: Image data sample:',
+        imageData ? JSON.stringify(imageData).substring(0, 200) : 'null',
+      );
       imageBuffer = new Uint8Array();
     }
 
