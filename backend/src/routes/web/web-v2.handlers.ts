@@ -87,6 +87,7 @@ function generateV2CacheKey(operation: V2Operation, userId: string, params: Reco
 
 /**
  * Store V2 result in Cloudflare Cache with custom TTL
+ * Adds Cache-Tag headers for user-specific purging
  */
 async function setCachedV2Result<T>(
   cacheKey: string,
@@ -110,11 +111,16 @@ async function setCachedV2Result<T>(
       cachedAt: Date.now(),
     };
 
+    // Extract userId from cache key for tagging
+    const userIdMatch = cacheKey.match(/\/([^/]+)\/[^/]+$/);
+    const userId = userIdMatch ? userIdMatch[1] : 'unknown';
+
     const response = new Response(JSON.stringify(cacheData), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': `max-age=${ttlSeconds}`,
+        'Cache-Tag': `user-${userId},operation-${operation.toLowerCase()},weblinq-v2`, // Add tags for selective purging
         'X-Operation': `v2-${operation}`,
         'X-Cached-At': new Date().toISOString(),
         'X-TTL-Seconds': ttlSeconds.toString(),
@@ -124,7 +130,9 @@ async function setCachedV2Result<T>(
     const cache = await caches.open('weblinq-v2-cache');
     await cache.put(cacheKey, response);
 
-    console.log(`💾 V2 Cached result for ${operation} (TTL: ${ttlSeconds}s, Key: ${cacheKey})`);
+    console.log(
+      `💾 V2 Cached result for ${operation} (TTL: ${ttlSeconds}s, Key: ${cacheKey}, Tags: user-${userId},operation-${operation.toLowerCase()},weblinq-v2)`,
+    );
   } catch (error) {
     console.error(`❌ V2 Error caching result for ${operation}:`, error);
   }

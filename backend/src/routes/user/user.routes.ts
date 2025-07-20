@@ -38,6 +38,19 @@ const emailVerificationSchema = z.object({
   email: z.string().email(),
 });
 
+// Schema for cache clear response
+const cacheClearSchema = z.object({
+  cleared: z.boolean(),
+  message: z.string(),
+  details: z.object({
+    v1CacheCleared: z.number(),
+    v2CacheCleared: z.number(),
+    totalCleared: z.number(),
+    method: z.enum(['global-api', 'local-cache']),
+    globalPurgeSuccess: z.boolean(),
+  }),
+});
+
 export const getMe = createRoute({
   path: '/me',
   method: 'get',
@@ -75,6 +88,21 @@ export const bootstrapCredits = createRoute({
   description: 'Assign initial credits to existing users who do not have credits yet.',
   responses: {
     [HttpStatusCodes.OK]: jsonContent(createStandardSuccessSchema(z.object({})), 'Credits bootstrapped successfully'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+  },
+});
+
+export const clearCache = createRoute({
+  path: '/clear-cache',
+  method: 'get',
+  tags,
+  security,
+  summary: 'Clear all cached data for the user',
+  description:
+    'Deletes all cached entries for web operations (V1 and V2) for the authenticated user. This includes cached results from screenshot, markdown, PDF, scraping, and other web operation endpoints.',
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(createStandardSuccessSchema(cacheClearSchema), 'Cache cleared successfully'),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
   },
@@ -126,5 +154,6 @@ export const verifyEmailToken = createRoute({
 export type GetMeRoute = typeof getMe;
 export type GetCreditsRoute = typeof getCredits;
 export type BootstrapCreditsRoute = typeof bootstrapCredits;
+export type ClearCacheRoute = typeof clearCache;
 export type VerifyEmailRoute = typeof verifyEmail;
 export type VerifyEmailTokenRoute = typeof verifyEmailToken;

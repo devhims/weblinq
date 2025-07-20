@@ -99,6 +99,7 @@ function generateCacheKey(operation: WebOperation, userId: string, params: Recor
  * Store result in Cloudflare Cache with custom TTL
  * Handles binary data by converting to base64 for JSON storage
  * Automatically detects base64 preference from cache parameters for binary operations
+ * Adds Cache-Tag headers for user-specific purging
  */
 async function setCachedResult<T>(
   cacheKey: string,
@@ -124,11 +125,16 @@ async function setCachedResult<T>(
       cachedAt: Date.now(),
     };
 
+    // Extract userId from cache key for tagging
+    const userIdMatch = cacheKey.match(/\/([^/]+)\/[^/]+$/);
+    const userId = userIdMatch ? userIdMatch[1] : 'unknown';
+
     const response = new Response(JSON.stringify(cacheData), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': `max-age=${ttlSeconds}`,
+        'Cache-Tag': `user-${userId},operation-${operation.toLowerCase()},weblinq-v1`, // Add tags for selective purging
         'X-Operation': operation,
         'X-Cached-At': new Date().toISOString(),
         'X-TTL-Seconds': ttlSeconds.toString(),
@@ -139,7 +145,9 @@ async function setCachedResult<T>(
     const cache = await caches.open('weblinq-cache');
     await cache.put(cacheKey, response);
 
-    console.log(`💾 Cached result for ${operation} (TTL: ${ttlSeconds}s, Key: ${cacheKey})`);
+    console.log(
+      `💾 Cached result for ${operation} (TTL: ${ttlSeconds}s, Key: ${cacheKey}, Tags: user-${userId},operation-${operation.toLowerCase()},weblinq-v1)`,
+    );
   } catch (error) {
     console.error(`❌ Error caching result for ${operation}:`, error);
     // Don't throw - caching failures shouldn't break operations
