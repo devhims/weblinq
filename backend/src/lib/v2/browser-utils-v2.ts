@@ -36,13 +36,14 @@ export async function hardenPageForScreenshots(page: Page) {
 export async function navigateForScreenshot(page: Page, url: string, waitTime?: number): Promise<void> {
   console.log(`🚀 Fast navigation for screenshot to ${url}`);
 
-  // Simple navigation - just domcontentloaded like playwright-mcp-main
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  const startTime = Date.now();
 
-  // Cap load event to 5 seconds max (like playwright-mcp-main)
-  await page.waitForLoadState('load', { timeout: 5000 }).catch(() => {
-    console.log('⚠️ Load timeout after 5s, continuing with screenshot...');
-  });
+  await page.goto(url, { waitUntil: 'commit' });
+
+  await Promise.any([
+    page.waitForLoadState('load', { timeout: 5000 }),
+    page.waitForFunction(() => document.readyState === 'interactive', { timeout: 3000 }),
+  ]);
 
   // Optional additional wait
   if (waitTime && waitTime > 0) {
@@ -51,6 +52,10 @@ export async function navigateForScreenshot(page: Page, url: string, waitTime?: 
   }
 
   console.log('✅ Fast navigation completed');
+
+  const endTime = Date.now();
+  const duration = endTime - startTime;
+  console.log(`🚀 Fast navigation completed in ${duration}ms`);
 }
 
 /**
