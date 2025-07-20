@@ -21,6 +21,32 @@ export const screenshotV2InputSchema = z.object({
   url: z.string().url('Must be a valid URL'),
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
   base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary Uint8Array'),
+
+  // Advanced screenshot options (matching V1 but optimized for Playwright)
+  screenshotOptions: z
+    .object({
+      captureBeyondViewport: z.boolean().optional(),
+      clip: z
+        .object({
+          height: z.number().int().min(1),
+          width: z.number().int().min(1),
+          x: z.number().int().min(0),
+          y: z.number().int().min(0),
+          scale: z.number().min(0.1).max(10).optional(),
+        })
+        .optional(),
+
+      encoding: z.enum(['binary', 'base64']).optional().default('binary'),
+      fromSurface: z.boolean().optional(),
+      fullPage: z.boolean().optional().default(true), // Default to full page like V1
+      omitBackground: z.boolean().optional(),
+      optimizeForSpeed: z.boolean().optional(),
+      quality: z.number().int().min(1).max(100).optional(),
+      type: z.enum(['png', 'jpeg', 'webp']).optional().default('png'), // Support all formats like V1
+    })
+    .optional()
+    .default({}),
+
   viewport: z
     .object({
       height: z.number().int().min(100).max(2160).default(1080),
@@ -117,6 +143,9 @@ const screenshotV2OutputSchema = createStandardSuccessSchema(
       size: z.number(),
       url: z.string(),
       timestamp: z.string(),
+      fullPage: z.boolean(),
+      type: z.enum(['png', 'jpeg', 'webp']),
+      quality: z.number().optional(),
       engine: z.literal('playwright-v2'),
     }),
   }),

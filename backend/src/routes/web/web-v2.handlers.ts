@@ -141,27 +141,30 @@ async function setCachedV2Result<T>(
 /**
  * Convert binary data to base64 for JSON storage
  * Only converts if the original request wanted binary (not base64)
+ * V2 version handles ArrayBuffer from screenshot-v2.ts
  */
 function convertBinaryToBase64ForCache(data: any, wantsBase64?: boolean): any {
   if (!data || !data.data) return data;
 
   const result = { ...data };
 
-  // Handle screenshot data - only convert if the response was originally binary (not base64)
-  if (result.data.image instanceof Uint8Array) {
-    result.data = {
-      ...result.data,
-      image: Buffer.from(result.data.image).toString('base64'),
-      _imageBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
-    };
-  }
-
-  // Handle ArrayBuffer images (from V2 screenshot operation)
+  // Handle V2 screenshot data - ArrayBuffer from screenshot-v2.ts
   if (result.data.image instanceof ArrayBuffer) {
     result.data = {
       ...result.data,
       image: Buffer.from(result.data.image).toString('base64'),
       _imageBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
+      _imageFormat: 'arrayBuffer', // Flag to indicate original format
+    };
+  }
+
+  // Handle V1-style screenshot data - Uint8Array (compatibility)
+  if (result.data.image instanceof Uint8Array) {
+    result.data = {
+      ...result.data,
+      image: Buffer.from(result.data.image).toString('base64'),
+      _imageBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
+      _imageFormat: 'uint8Array', // Flag to indicate original format
     };
   }
 
@@ -179,20 +182,34 @@ function convertBinaryToBase64ForCache(data: any, wantsBase64?: boolean): any {
 
 /**
  * Convert base64 data back to binary for cached results
+ * V2 version handles both ArrayBuffer and Uint8Array formats
  */
 function convertBase64ToBinaryFromCache(data: any): any {
   if (!data || !data.data) return data;
 
   const result = { ...data };
 
-  // Handle screenshot data
+  // Handle screenshot data - convert back to original format
   if (result.data._imageBinary && typeof result.data.image === 'string') {
-    // Convert back to Uint8Array for V2 screenshot operations (will be converted to appropriate format in handler)
-    result.data = {
-      ...result.data,
-      image: new Uint8Array(Buffer.from(result.data.image, 'base64')),
-    };
+    const buffer = Buffer.from(result.data.image, 'base64');
+
+    // Convert back to original format based on flag
+    if (result.data._imageFormat === 'arrayBuffer') {
+      // V2 screenshot-v2.ts expects ArrayBuffer
+      result.data = {
+        ...result.data,
+        image: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+      };
+    } else {
+      // Default to Uint8Array for compatibility
+      result.data = {
+        ...result.data,
+        image: new Uint8Array(buffer),
+      };
+    }
+
     delete result.data._imageBinary;
+    delete result.data._imageFormat;
   }
 
   // Handle PDF data
@@ -603,6 +620,7 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
           viewport: body.viewport,
           waitTime: body.waitTime || 0,
           base64: false, // Always get binary from DO, convert as needed
+          screenshotOptions: body.screenshotOptions, // Pass through all screenshot options
         });
       },
       {
@@ -610,6 +628,7 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
         viewport: body.viewport,
         waitTime: body.waitTime,
         base64: body.base64,
+        screenshotOptions: body.screenshotOptions, // Include in cache key
       },
     );
 
@@ -644,6 +663,9 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
       imageBuffer = new Uint8Array();
     }
 
+    // Get the format from metadata for proper Content-Type
+    const imageFormat = result.data.metadata?.type || result.data.metadata?.format || 'png';
+
     // Binary response (default) - matches V1 structure
     if (wantsBinary) {
       console.log('✅ V2 Screenshot successful (binary)', {
@@ -658,9 +680,9 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
       return new Response(imageBuffer.buffer as ArrayBuffer, {
         status: HttpStatusCodes.OK,
         headers: {
-          'Content-Type': `image/${result.data.metadata?.format || 'png'}`,
+          'Content-Type': `image/${imageFormat}`,
           'Content-Length': imageBuffer.length.toString(),
-          'Content-Disposition': `inline; filename="screenshot.${result.data.metadata?.format || 'png'}"`,
+          'Content-Disposition': `inline; filename="screenshot.${imageFormat}"`,
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
           'X-Engine': 'playwright-v2',
