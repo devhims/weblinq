@@ -360,7 +360,7 @@ export async function navigateForMarkdown(page: Page, url: string, waitTime?: nu
   const startTime = Date.now();
 
   // Step 1: Use 'commit' for fastest initial navigation (ChatGPT recommendation #1)
-  await page.goto(url, { waitUntil: 'commit', timeout: 5_000 });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 5_000 });
 
   // Step 2: Race multiple readiness indicators (ChatGPT recommendation #4)
   const CONTENT_SELECTORS = 'article,main,.post-content,.markdown-body,.content,.entry-content,[role="main"]';
