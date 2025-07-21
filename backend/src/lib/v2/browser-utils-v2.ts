@@ -39,7 +39,7 @@ export async function navigateForScreenshot(page: Page, url: string, waitTime?: 
 
   const startTime = Date.now();
 
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+  await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 });
 
   // await Promise.any([
   //   page.waitForLoadState('load', { timeout: 5000 }),

@@ -605,13 +605,6 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Use lightweight hardening for screenshots (no resource blocking)
       await hardenPageForScreenshots(page);
 
-      // Set viewport early
-      const viewport = {
-        width: params.viewport?.width || 1920,
-        height: params.viewport?.height || 1080,
-      };
-      await page.setViewportSize(viewport);
-
       // Use fast navigation optimized for screenshots
       await navigateForScreenshot(page, params.url, params.waitTime);
 
