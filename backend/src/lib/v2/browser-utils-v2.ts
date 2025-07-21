@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 
 import type { OperationType } from '@/lib/types';
-import type { Page } from '@cloudflare/playwright';
+import type { Page, Route } from '@cloudflare/playwright';
 
 // Note: Removed unused browser session management functions
 // All browser operations now go through PlaywrightPoolDO for consistency
@@ -26,13 +26,6 @@ export async function hardenPageForScreenshots(page: Page) {
     'Accept-Language': 'en-US,en;q=0.9',
   });
 
-  // Block analytics and ads
-  await page.route('**/*analytics*', (r) => r.abort());
-  await page.route('**/*ads*', (r) => r.abort());
-
-  // Block tracking
-  await page.route('**/*tracking*', (r) => r.abort());
-
   // NO resource blocking for screenshots - we want all images, CSS, fonts to load for visual accuracy
   // This is the key difference from content extraction
   console.log('📸 Screenshot mode: Allowing all resources for visual accuracy');
@@ -41,19 +34,34 @@ export async function hardenPageForScreenshots(page: Page) {
 /**
  * Fast navigation optimized for screenshots following playwright-mcp-main approach
  */
-export async function navigateForScreenshot(
-  page: Page,
-  url: string,
-  waitTime?: number,
-  opts = { maxNav: 15_000, maxIdle: 4_000 },
-): Promise<void> {
+export async function navigateForScreenshot(page: Page, url: string, waitTime?: number): Promise<void> {
   console.log(`🚀 Fast navigation for screenshot to ${url}`);
 
-  const startTime = Date.now();
+  const blockList = [/collect\.google-analytics\.com/];
 
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: opts.maxNav });
+  // 1 ▸ Abort only *known* trackers/ads — never blanket‑abort images
+  await page.route('**/*', (route: Route) => {
+    if (blockList.some((re) => re.test(route.request().url()))) return route.abort();
+    route.continue();
+  });
 
-  await page.waitForLoadState('networkidle', { timeout: 10_000 });
+  // 2 ▸ Navigate quickly (DOM only)
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 12_000 });
+
+  // 3 ▸ Short hydration wait (React, Next.js, etc.)
+  await Promise.race([
+    page.waitForSelector('#root,#__next', { timeout: 2_000 }).catch(() => {}),
+    page.waitForTimeout(2_000), // fallback if selector not found
+  ]);
+
+  // 4 ▸ Auto‑scroll to trigger lazy assets
+  await autoScroll(page, { step: 600, pause: 100 });
+
+  // 5 ▸ Wait for quiescence but never longer than idleTimeout
+  await Promise.race([page.waitForLoadState('networkidle', { timeout: 4_500 }), page.waitForTimeout(4_500)]);
+
+  // 6 ▸ Tiny paint delay for final image decode
+  await page.waitForTimeout(200);
 
   // Optional additional wait
   if (waitTime && waitTime > 0) {
@@ -62,10 +70,29 @@ export async function navigateForScreenshot(
   }
 
   console.log('✅ Fast navigation completed');
+}
 
-  const endTime = Date.now();
-  const duration = endTime - startTime;
-  console.log(`🚀 Fast navigation completed in ${duration}ms`);
+async function autoScroll(page: Page, { step, pause }: { step: number; pause: number }) {
+  await page.evaluate(
+    async ({ step, pause }) => {
+      const scrollOnce = () =>
+        new Promise<void>((resolve) => {
+          let total = 0;
+          const timer = setInterval(() => {
+            window.scrollBy(0, step);
+            total += step;
+            if (total >= document.body.scrollHeight) {
+              clearInterval(timer);
+              resolve();
+            }
+          }, pause);
+        });
+
+      await scrollOnce();
+      window.scrollTo(0, 0); // optional: return to top for nicer screenshots
+    },
+    { step, pause },
+  );
 }
 
 /**

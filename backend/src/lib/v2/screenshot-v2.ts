@@ -83,18 +83,6 @@ export async function screenshotOperation(page: Page, params: ScreenshotParams):
     await page.setViewportSize(viewport);
     console.log(`📏 Set viewport to ${viewport.width}x${viewport.height}`);
 
-    // Wait for images and dynamic content
-    await page.waitForFunction(
-      () => {
-        const images = document.querySelectorAll('img');
-        return Array.from(images).every((img) => img.complete || img.naturalHeight > 0);
-      },
-      { timeout: 8_000 },
-    );
-
-    // Wait for any lazy-loaded content
-    await page.waitForTimeout(2_000); // Brief pause for final renders
-
     // Extract screenshot options with V1-compatible defaults
     const options = params.screenshotOptions || {};
     const imageType = options.type || 'png'; // Default to PNG like V1
