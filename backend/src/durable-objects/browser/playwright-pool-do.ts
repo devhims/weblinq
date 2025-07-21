@@ -180,58 +180,58 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
     });
 
     // Progressive enhancement based on operation needs
-    // const promises: Promise<any>[] = [];
+    const promises: Promise<any>[] = [];
 
-    // if (config.waitForLoad) {
-    //   // Cap load timeout for faster operations
-    //   const loadTimeout = operationType === 'screenshot' ? 5000 : config.maxTimeout;
-    //   promises.push(
-    //     page.waitForLoadState('load', { timeout: loadTimeout }).catch(() => {
-    //       console.log(`⚠️ Load timeout for ${operationType}, continuing...`);
-    //     }),
-    //   );
-    // }
+    if (config.waitForLoad) {
+      // Cap load timeout for faster operations
+      const loadTimeout = operationType === 'screenshot' ? 5000 : config.maxTimeout;
+      promises.push(
+        page.waitForLoadState('load', { timeout: loadTimeout }).catch(() => {
+          console.log(`⚠️ Load timeout for ${operationType}, continuing...`);
+        }),
+      );
+    }
 
-    // if (config.waitForNetwork) {
-    //   promises.push(
-    //     page.waitForLoadState('networkidle', { timeout: config.maxTimeout }).catch(() => {
-    //       console.log(`⚠️ Network idle timeout for ${operationType}, continuing...`);
-    //     }),
-    //   );
-    // }
+    if (config.waitForNetwork) {
+      promises.push(
+        page.waitForLoadState('networkidle', { timeout: config.maxTimeout }).catch(() => {
+          console.log(`⚠️ Network idle timeout for ${operationType}, continuing...`);
+        }),
+      );
+    }
 
-    // // Wait for essential resources in parallel
-    // await Promise.all(promises);
+    // Wait for essential resources in parallel
+    await Promise.all(promises);
 
-    // // Operation-specific optimizations
-    // if (config.waitForCSS && operationType === 'screenshot') {
-    //   // Fast CSS check for screenshots only
-    //   await page
-    //     .evaluate(async () => {
-    //       const styleSheets = Array.from(document.styleSheets);
-    //       const cssPromises = styleSheets.slice(0, 5).map(async (sheet) => {
-    //         // Only check first 5 stylesheets for speed
-    //         if (sheet.href) {
-    //           try {
-    //             const _rules = sheet.cssRules;
-    //             return _rules;
-    //           } catch {
-    //             await new Promise((resolve) => setTimeout(resolve, 50)); // Quick wait
-    //           }
-    //         }
-    //       });
-    //       await Promise.all(cssPromises);
-    //       await document.fonts.ready; // Ensure fonts loaded
-    //     })
-    //     .catch(() => {
-    //       console.log(`⚠️ CSS check failed for ${operationType}, continuing...`);
-    //     });
-    // }
+    // Operation-specific optimizations
+    if (config.waitForCSS && operationType === 'screenshot') {
+      // Fast CSS check for screenshots only
+      await page
+        .evaluate(async () => {
+          const styleSheets = Array.from(document.styleSheets);
+          const cssPromises = styleSheets.slice(0, 5).map(async (sheet) => {
+            // Only check first 5 stylesheets for speed
+            if (sheet.href) {
+              try {
+                const _rules = sheet.cssRules;
+                return _rules;
+              } catch {
+                await new Promise((resolve) => setTimeout(resolve, 50)); // Quick wait
+              }
+            }
+          });
+          await Promise.all(cssPromises);
+          await document.fonts.ready; // Ensure fonts loaded
+        })
+        .catch(() => {
+          console.log(`⚠️ CSS check failed for ${operationType}, continuing...`);
+        });
+    }
 
-    // if (config.waitForJS && operationType !== 'screenshot') {
-    //   // Allow JS execution for non-screenshot operations
-    //   await new Promise((resolve) => setTimeout(resolve, 1000));
-    // }
+    if (config.waitForJS && operationType !== 'screenshot') {
+      // Allow JS execution for non-screenshot operations
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
 
     // Additional wait time if requested
     if (waitTime && waitTime > 0) {
