@@ -34,17 +34,23 @@ export async function hardenPageForScreenshots(page: Page) {
 /**
  * Fast navigation optimized for screenshots following playwright-mcp-main approach
  */
-export async function navigateForScreenshot(page: Page, url: string, waitTime?: number): Promise<void> {
+export async function navigateForScreenshot(
+  page: Page,
+  url: string,
+  waitTime?: number,
+  opts = { maxNav: 15_000, maxIdle: 4_000 },
+): Promise<void> {
   console.log(`🚀 Fast navigation for screenshot to ${url}`);
 
   const startTime = Date.now();
 
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 30_000 });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: opts.maxNav });
 
-  // await Promise.any([
-  //   page.waitForLoadState('load', { timeout: 5000 }),
-  //   page.waitForFunction(() => document.readyState === 'interactive', { timeout: 3000 }),
-  // ]);
+  // Short grace‑period – races guarantee we never exceed maxIdle
+  await Promise.race([
+    page.waitForLoadState('networkidle', { timeout: opts.maxIdle }),
+    page.waitForTimeout(Math.ceil(opts.maxIdle * 0.6)),
+  ]);
 
   // Optional additional wait
   if (waitTime && waitTime > 0) {
