@@ -26,6 +26,13 @@ export async function hardenPageForScreenshots(page: Page) {
     'Accept-Language': 'en-US,en;q=0.9',
   });
 
+  // Block analytics and ads
+  await page.route('**/*analytics*', (r) => r.abort());
+  await page.route('**/*ads*', (r) => r.abort());
+
+  // Block tracking
+  await page.route('**/*tracking*', (r) => r.abort());
+
   // NO resource blocking for screenshots - we want all images, CSS, fonts to load for visual accuracy
   // This is the key difference from content extraction
   console.log('📸 Screenshot mode: Allowing all resources for visual accuracy');
@@ -46,11 +53,7 @@ export async function navigateForScreenshot(
 
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: opts.maxNav });
 
-  // Short grace‑period – races guarantee we never exceed maxIdle
-  await Promise.race([
-    page.waitForLoadState('networkidle', { timeout: opts.maxIdle }),
-    page.waitForTimeout(Math.ceil(opts.maxIdle * 0.6)),
-  ]);
+  await page.waitForLoadState('networkidle', { timeout: 10_000 });
 
   // Optional additional wait
   if (waitTime && waitTime > 0) {
