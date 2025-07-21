@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 
+import type { OperationType } from '@/lib/types';
 import type { Page } from '@cloudflare/playwright';
 
 // Note: Removed unused browser session management functions
@@ -62,7 +63,7 @@ export async function navigateForScreenshot(page: Page, url: string, waitTime?: 
  * Advanced hardening function to evade modern bot detection systems for Playwright.
  * Addresses multiple fingerprinting vectors that basic methods miss.
  */
-export async function hardenPageAdvanced(page: Page) {
+export async function hardenPageAdvanced(page: Page, operationType: OperationType) {
   // Realistic user agent with proper Chrome version matching
   const UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -311,7 +312,7 @@ export async function hardenPageAdvanced(page: Page) {
       const resourceType = request.resourceType();
       const shouldAbort = ['image', 'media', 'font', 'stylesheet'].includes(resourceType);
 
-      if (shouldAbort) {
+      if (shouldAbort && operationType !== 'screenshot' && operationType !== 'pdf') {
         route.abort();
       } else {
         route.continue();
@@ -352,22 +353,23 @@ export async function addHumanBehavior(page: Page) {
 
 /**
  * Fast navigation optimized for markdown extraction following ChatGPT recommendations
- * Uses commit + Promise.any race for minimal latency
+ * Uses commit + Promise.any race for minimal latency with fallbacks for heavy pages
  */
 export async function navigateForMarkdown(page: Page, url: string, waitTime?: number): Promise<void> {
   console.log(`🚀 Fast markdown navigation to ${url}`);
 
   const startTime = Date.now();
 
-  // Step 1: Use 'commit' for fastest initial navigation (ChatGPT recommendation #1)
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
-
-  await Promise.any([
-    page.waitForLoadState('domcontentloaded', { timeout: 5_000 }),
-    page.waitForFunction(() => document.readyState === 'interactive', { timeout: 3_000 }),
-  ]).catch(() => {
-    console.log('⚠️ All readiness checks timed out, proceeding with available content');
-  });
+  try {
+    // Fallback to domcontentloaded for problematic pages
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+    console.log(`✅ Domcontentloaded fallback successful for ${url}`);
+  } catch (fallbackError) {
+    console.log(`⚠️ Domcontentloaded failed for ${url}: ${fallbackError}`);
+    // Final fallback to load for very heavy pages
+    // await page.goto(url, { waitUntil: 'load', timeout: 30_000 });
+    // console.log(`✅ Load fallback successful for ${url}`);
+  }
 
   // Step 3: Optional additional wait
   if (waitTime && waitTime > 0) {
@@ -378,6 +380,35 @@ export async function navigateForMarkdown(page: Page, url: string, waitTime?: nu
   const endTime = Date.now();
   const duration = endTime - startTime;
   console.log(`✅ Fast markdown navigation completed in ${duration}ms`);
+}
+
+/**
+ * Robust navigation for heavy pages that might fail with fast navigation
+ * Uses progressively more patient strategies
+ */
+export async function navigateForHeavyPages(page: Page, url: string, waitTime?: number): Promise<void> {
+  console.log(`🐌 Heavy page navigation to ${url}`);
+
+  const startTime = Date.now();
+
+  try {
+    // Start with load strategy for heavy pages
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    console.log(`✅ Load navigation successful for heavy page ${url}`);
+  } catch (error) {
+    console.error(`❌ Heavy page navigation failed for ${url}: ${error}`);
+    throw error;
+  }
+
+  // Additional wait time if requested
+  if (waitTime && waitTime > 0) {
+    console.log(`⏳ Additional wait for heavy page: ${waitTime}ms`);
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
+  }
+
+  const endTime = Date.now();
+  const duration = endTime - startTime;
+  console.log(`✅ Heavy page navigation completed in ${duration}ms`);
 }
 
 /**

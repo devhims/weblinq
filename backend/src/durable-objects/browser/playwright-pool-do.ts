@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 
+import type { OperationType } from '@/lib/types';
 import type { ContentParams, ContentResult } from '@/lib/v2/content-v2';
 import type { LinksParams, LinksResult } from '@/lib/v2/links-v2';
 import type { MarkdownParams, MarkdownResult } from '@/lib/v2/markdown-v2';
@@ -13,6 +14,7 @@ import type { Browser, Page } from '@cloudflare/playwright';
 import {
   hardenPageAdvanced,
   hardenPageForScreenshots,
+  navigateForHeavyPages,
   navigateForMarkdown,
   navigateForScreenshot,
   pageGotoWithRetry,
@@ -36,8 +38,6 @@ const KEEP_ALIVE_MS = 10 * 60 * 1000; // remote browser lifetime (launch param)
 /*  Operation Configuration - Performance Optimizations                       */
 /* -------------------------------------------------------------------------- */
 
-type OperationType = 'screenshot' | 'content' | 'markdown' | 'links' | 'pdf' | 'scrape' | 'search' | 'navigate';
-
 interface OperationConfig {
   requiresNavigation: boolean;
   waitForNetwork: boolean;
@@ -46,6 +46,7 @@ interface OperationConfig {
   waitForJS: boolean;
   hardenPage: boolean;
   maxTimeout: number;
+  waitUntil: 'commit' | 'domcontentloaded' | 'load' | 'networkidle';
 }
 
 /** Operation-specific configurations for optimal performance */
@@ -58,6 +59,7 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
     waitForJS: false, // Don't wait for JS execution
     hardenPage: false, // Don't block resources for screenshots - key optimization
     maxTimeout: 10_000, // Shorter timeout for speed
+    waitUntil: 'commit',
   },
   content: {
     requiresNavigation: true,
@@ -67,15 +69,17 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
     waitForJS: false,
     hardenPage: true,
     maxTimeout: 15_000,
+    waitUntil: 'domcontentloaded',
   },
   markdown: {
     requiresNavigation: true,
     waitForNetwork: false,
-    waitForLoad: false, // Changed: Don't wait for load - use commit strategy
+    waitForLoad: false, // Use commit strategy with fallbacks in navigateForMarkdown
     waitForCSS: false,
     waitForJS: false,
     hardenPage: true,
-    maxTimeout: 5_000, // Reduced: Much shorter timeout for speed
+    maxTimeout: 15_000, // Increased: More time for heavy pages with fallbacks
+    waitUntil: 'domcontentloaded',
   },
   links: {
     requiresNavigation: true,
@@ -85,6 +89,7 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
     waitForJS: false,
     hardenPage: true,
     maxTimeout: 15_000,
+    waitUntil: 'domcontentloaded',
   },
   pdf: {
     requiresNavigation: true,
@@ -94,6 +99,7 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
     waitForJS: true,
     hardenPage: false,
     maxTimeout: 30_000,
+    waitUntil: 'commit',
   },
   scrape: {
     requiresNavigation: true,
@@ -103,6 +109,7 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
     waitForJS: true, // Scraping might need JS-generated content
     hardenPage: true,
     maxTimeout: 20_000,
+    waitUntil: 'domcontentloaded',
   },
   search: {
     requiresNavigation: true,
@@ -112,6 +119,7 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
     waitForJS: true,
     hardenPage: true,
     maxTimeout: 20_000,
+    waitUntil: 'domcontentloaded',
   },
   navigate: {
     requiresNavigation: true,
@@ -121,6 +129,7 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
     waitForJS: false,
     hardenPage: true,
     maxTimeout: 15_000,
+    waitUntil: 'domcontentloaded',
   },
 };
 
@@ -147,71 +156,82 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
     const config = OPERATION_CONFIGS[operationType];
     console.log(`🚀 Optimized navigation for ${operationType} to ${url}`);
 
-    // Special fast path for markdown using ChatGPT recommendations
-    if (operationType === 'markdown') {
-      await navigateForMarkdown(page, url, waitTime);
-      return;
-    }
+    // Special fast path for markdown using ChatGPT recommendations with fallback
+    // if (operationType === 'markdown') {
+    //   try {
+    //     await navigateForMarkdown(page, url, waitTime);
+    //     return;
+    //   } catch (markdownNavError) {
+    //     console.log(`⚠️ Fast markdown navigation failed: ${markdownNavError}, trying heavy page fallback`);
+    //     try {
+    //       await navigateForHeavyPages(page, url, waitTime);
+    //       return;
+    //     } catch (heavyPageError) {
+    //       console.error(`❌ Both fast and heavy page navigation failed: ${heavyPageError}`);
+    //       throw heavyPageError;
+    //     }
+    //   }
+    // }
 
     // Basic navigation with minimal waiting first
     await pageGotoWithRetry(page, url, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: config.waitUntil,
       timeout: config.maxTimeout,
     });
 
     // Progressive enhancement based on operation needs
-    const promises: Promise<any>[] = [];
+    // const promises: Promise<any>[] = [];
 
-    if (config.waitForLoad) {
-      // Cap load timeout for faster operations
-      const loadTimeout = operationType === 'screenshot' ? 5000 : config.maxTimeout;
-      promises.push(
-        page.waitForLoadState('load', { timeout: loadTimeout }).catch(() => {
-          console.log(`⚠️ Load timeout for ${operationType}, continuing...`);
-        }),
-      );
-    }
+    // if (config.waitForLoad) {
+    //   // Cap load timeout for faster operations
+    //   const loadTimeout = operationType === 'screenshot' ? 5000 : config.maxTimeout;
+    //   promises.push(
+    //     page.waitForLoadState('load', { timeout: loadTimeout }).catch(() => {
+    //       console.log(`⚠️ Load timeout for ${operationType}, continuing...`);
+    //     }),
+    //   );
+    // }
 
-    if (config.waitForNetwork) {
-      promises.push(
-        page.waitForLoadState('networkidle', { timeout: config.maxTimeout }).catch(() => {
-          console.log(`⚠️ Network idle timeout for ${operationType}, continuing...`);
-        }),
-      );
-    }
+    // if (config.waitForNetwork) {
+    //   promises.push(
+    //     page.waitForLoadState('networkidle', { timeout: config.maxTimeout }).catch(() => {
+    //       console.log(`⚠️ Network idle timeout for ${operationType}, continuing...`);
+    //     }),
+    //   );
+    // }
 
-    // Wait for essential resources in parallel
-    await Promise.all(promises);
+    // // Wait for essential resources in parallel
+    // await Promise.all(promises);
 
-    // Operation-specific optimizations
-    if (config.waitForCSS && operationType === 'screenshot') {
-      // Fast CSS check for screenshots only
-      await page
-        .evaluate(async () => {
-          const styleSheets = Array.from(document.styleSheets);
-          const cssPromises = styleSheets.slice(0, 5).map(async (sheet) => {
-            // Only check first 5 stylesheets for speed
-            if (sheet.href) {
-              try {
-                const _rules = sheet.cssRules;
-                return _rules;
-              } catch {
-                await new Promise((resolve) => setTimeout(resolve, 50)); // Quick wait
-              }
-            }
-          });
-          await Promise.all(cssPromises);
-          await document.fonts.ready; // Ensure fonts loaded
-        })
-        .catch(() => {
-          console.log(`⚠️ CSS check failed for ${operationType}, continuing...`);
-        });
-    }
+    // // Operation-specific optimizations
+    // if (config.waitForCSS && operationType === 'screenshot') {
+    //   // Fast CSS check for screenshots only
+    //   await page
+    //     .evaluate(async () => {
+    //       const styleSheets = Array.from(document.styleSheets);
+    //       const cssPromises = styleSheets.slice(0, 5).map(async (sheet) => {
+    //         // Only check first 5 stylesheets for speed
+    //         if (sheet.href) {
+    //           try {
+    //             const _rules = sheet.cssRules;
+    //             return _rules;
+    //           } catch {
+    //             await new Promise((resolve) => setTimeout(resolve, 50)); // Quick wait
+    //           }
+    //         }
+    //       });
+    //       await Promise.all(cssPromises);
+    //       await document.fonts.ready; // Ensure fonts loaded
+    //     })
+    //     .catch(() => {
+    //       console.log(`⚠️ CSS check failed for ${operationType}, continuing...`);
+    //     });
+    // }
 
-    if (config.waitForJS && operationType !== 'screenshot') {
-      // Allow JS execution for non-screenshot operations
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+    // if (config.waitForJS && operationType !== 'screenshot') {
+    //   // Allow JS execution for non-screenshot operations
+    //   await new Promise((resolve) => setTimeout(resolve, 1000));
+    // }
 
     // Additional wait time if requested
     if (waitTime && waitTime > 0) {
@@ -231,7 +251,7 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
     const config = OPERATION_CONFIGS[operationType];
 
     if (config.hardenPage) {
-      await hardenPageAdvanced(page);
+      await hardenPageAdvanced(page, operationType);
     }
 
     // Set appropriate timeouts based on operation
@@ -465,7 +485,7 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       // Get a page and navigate
       page = await browser.newPage();
-      await hardenPageAdvanced(page); // Apply security hardening
+      await hardenPageAdvanced(page, 'navigate'); // Apply security hardening
 
       console.log(`🌐 PlaywrightPoolDO: Navigating to ${params.url}...`);
       await pageGotoWithRetry(page, params.url, { waitUntil: 'domcontentloaded', timeout: 15_000 });

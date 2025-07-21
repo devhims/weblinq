@@ -388,7 +388,7 @@ async function executeV2WithCache<T>(
     if (!result.success) {
       return {
         success: false,
-        error: result.error,
+        error: result.error.message,
         creditsCost: creditCheck.cost,
         creditsRemaining: creditCheck.balance,
         fromCache: false,

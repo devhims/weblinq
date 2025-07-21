@@ -1,4 +1,4 @@
-import type { Heading, Link, Root as MdastRoot, Paragraph, Text } from 'mdast';
+import type { Root as MdastRoot } from 'mdast';
 
 // Lazy imports to avoid heavy startup parsing
 // import { toString } from 'mdast-util-to-string';
@@ -101,16 +101,25 @@ function words(str: string): number {
 }
 
 /**
- * High-level markdown operation with fast content extraction
- * Uses targeted content selectors for better performance
+ * High-level markdown operation with fast content extraction and robust fallbacks
+ * Uses targeted content selectors for better performance with fallbacks for heavy pages
  */
 export async function markdownOperation(page: Page, params: MarkdownParams): Promise<MarkdownResult> {
   try {
     console.log(`📝 Fast markdown extraction starting for ${params.url}`);
 
-    // Fallback to full page content if no targeted content found
-    const content = await page.content();
-    console.log(`📄 Using full page extraction, length: ${content.length} chars`);
+    let content = '';
+    try {
+      content = (await Promise.race([
+        page.content(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('page.content() timeout')), 15000)),
+      ])) as string;
+
+      console.log(`📄 Using full page extraction, length: ${content.length} chars`);
+    } catch (fullPageError) {
+      console.error(`❌ Full page content extraction failed: ${fullPageError}`);
+      throw new Error(`Failed to extract content: ${fullPageError}`);
+    }
 
     // Process to markdown
     return await processContentToMarkdown(content, params);
