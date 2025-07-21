@@ -46,19 +46,11 @@ export async function navigateForScreenshot(page: Page, url: string, waitTime?: 
   });
 
   // 2 ▸ Navigate quickly (DOM only)
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 12_000 });
-
-  // 3 ▸ Short hydration wait (React, Next.js, etc.)
-  await Promise.race([
-    page.waitForSelector('#root,#__next', { timeout: 2_000 }).catch(() => {}),
-    page.waitForTimeout(2_000), // fallback if selector not found
-  ]);
-
-  // 4 ▸ Auto‑scroll to trigger lazy assets
-  await autoScroll(page, { step: 600, pause: 100 });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20_000 });
 
   // 5 ▸ Wait for quiescence but never longer than idleTimeout
-  await Promise.race([page.waitForLoadState('networkidle', { timeout: 4_500 }), page.waitForTimeout(4_500)]);
+
+  // await page.waitForLoadState('networkidle', { timeout: 10_000 });
 
   // 6 ▸ Tiny paint delay for final image decode
   await page.waitForTimeout(200);
@@ -70,29 +62,6 @@ export async function navigateForScreenshot(page: Page, url: string, waitTime?: 
   }
 
   console.log('✅ Fast navigation completed');
-}
-
-async function autoScroll(page: Page, { step, pause }: { step: number; pause: number }) {
-  await page.evaluate(
-    async ({ step, pause }) => {
-      const scrollOnce = () =>
-        new Promise<void>((resolve) => {
-          let total = 0;
-          const timer = setInterval(() => {
-            window.scrollBy(0, step);
-            total += step;
-            if (total >= document.body.scrollHeight) {
-              clearInterval(timer);
-              resolve();
-            }
-          }, pause);
-        });
-
-      await scrollOnce();
-      window.scrollTo(0, 0); // optional: return to top for nicer screenshots
-    },
-    { step, pause },
-  );
 }
 
 /**
