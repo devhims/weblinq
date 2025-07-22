@@ -60,7 +60,7 @@ export async function screenshotV1(env: CloudflareBindings, params: ScreenshotPa
       await page.setViewport(viewportConfig);
 
       // Navigate to the page with retry logic for better resilience
-      await pageGotoWithRetry(page, params.url, { waitUntil: 'domcontentloaded', timeout: 7_500 });
+      await pageGotoWithRetry(page, params.url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
 
       // Wait for additional time if specified
       if (params.waitTime && params.waitTime > 0) {

@@ -159,26 +159,20 @@ async function setCachedResult<T>(
  * Only converts if the original request wanted binary (not base64)
  */
 function convertBinaryToBase64ForCache(data: any, wantsBase64?: boolean): any {
-  if (!data || !data.data) return data;
+  if (!data) return data;
 
   const result = { ...data };
 
   // Handle screenshot data - only convert if the response was originally binary (not base64)
-  if (result.data.image instanceof Uint8Array) {
-    result.data = {
-      ...result.data,
-      image: Buffer.from(result.data.image).toString('base64'),
-      _imageBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
-    };
+  if (result.image instanceof Uint8Array) {
+    result.image = Buffer.from(result.image).toString('base64');
+    result._imageBinary = !wantsBase64; // Flag to indicate this should be converted back to binary
   }
 
   // Handle PDF data - only convert if the response was originally binary (not base64)
-  if (result.data.pdf instanceof Uint8Array) {
-    result.data = {
-      ...result.data,
-      pdf: Buffer.from(result.data.pdf).toString('base64'),
-      _pdfBinary: !wantsBase64, // Flag to indicate this should be converted back to binary
-    };
+  if (result.pdf instanceof Uint8Array) {
+    result.pdf = Buffer.from(result.pdf).toString('base64');
+    result._pdfBinary = !wantsBase64; // Flag to indicate this should be converted back to binary
   }
 
   return result;
@@ -188,26 +182,20 @@ function convertBinaryToBase64ForCache(data: any, wantsBase64?: boolean): any {
  * Convert base64 data back to binary for cached results
  */
 function convertBase64ToBinaryFromCache(data: any): any {
-  if (!data || !data.data) return data;
+  if (!data) return data;
 
   const result = { ...data };
 
   // Handle screenshot data
-  if (result.data._imageBinary && typeof result.data.image === 'string') {
-    result.data = {
-      ...result.data,
-      image: new Uint8Array(Buffer.from(result.data.image, 'base64')),
-    };
-    delete result.data._imageBinary;
+  if (result._imageBinary && typeof result.image === 'string') {
+    result.image = new Uint8Array(Buffer.from(result.image, 'base64'));
+    delete result._imageBinary;
   }
 
   // Handle PDF data
-  if (result.data._pdfBinary && typeof result.data.pdf === 'string') {
-    result.data = {
-      ...result.data,
-      pdf: new Uint8Array(Buffer.from(result.data.pdf, 'base64')),
-    };
-    delete result.data._pdfBinary;
+  if (result._pdfBinary && typeof result.pdf === 'string') {
+    result.pdf = new Uint8Array(Buffer.from(result.pdf, 'base64'));
+    delete result._pdfBinary;
   }
 
   return result;
@@ -586,16 +574,16 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     let permanentUrl: string | undefined;
     let fileId: string | undefined;
 
-    if (!result.fromCache && result.data?.data?.image instanceof Uint8Array) {
+    if (!result.fromCache && result.data?.image instanceof Uint8Array) {
       try {
         const webDO = getWebDurableObject(c, user.id);
         await webDO.initializeUser(user.id);
         const stored = await webDO.storeFileAndCreatePermanentUrl(
-          result.data.data.image,
+          result.data.image,
           body.url,
           'screenshot',
-          result.data.data.metadata,
-          result.data.data.metadata.format,
+          result.data.metadata,
+          result.data.metadata.format,
         );
         permanentUrl = stored.permanentUrl;
         fileId = stored.fileId;
@@ -609,18 +597,18 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     /* ------------------------------------------------------------------ */
 
     // 3a.  Binary (default path)
-    if (wantsBinary && result.data?.data?.image instanceof Uint8Array) {
-      const binaryBody = result.data.data.image.buffer as ArrayBuffer; // <- Cast via ArrayBuffer
+    if (wantsBinary && result.data?.image instanceof Uint8Array) {
+      const binaryBody = result.data.image.buffer as ArrayBuffer; // <- Cast via ArrayBuffer
       return new Response(binaryBody, {
         status: HttpStatusCodes.OK,
         headers: {
-          'Content-Type': `image/${result.data.data.metadata.format}`,
-          'Content-Length': result.data.data.metadata.size.toString(),
-          'Content-Disposition': `inline; filename="screenshot.${result.data.data.metadata.format}"`,
+          'Content-Type': `image/${result.data.metadata.format}`,
+          'Content-Length': result.data.metadata.size.toString(),
+          'Content-Disposition': `inline; filename="screenshot.${result.data.metadata.format}"`,
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
           'X-From-Cache': result.fromCache ? 'true' : 'false',
-          'X-Metadata': JSON.stringify(result.data.data.metadata),
+          'X-Metadata': JSON.stringify(result.data.metadata),
           'X-Permanent-Url': permanentUrl ?? '',
           'X-File-Id': fileId ?? '',
         },
@@ -628,13 +616,13 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     }
 
     // 3b.  Base-64 envelope (only when asked for)
-    if (wantsBase64 && result.data?.data?.image instanceof Uint8Array) {
-      const base64Image = Buffer.from(result.data.data.image).toString('base64');
+    if (wantsBase64 && result.data?.image instanceof Uint8Array) {
+      const base64Image = Buffer.from(result.data.image).toString('base64');
       return c.json(
         {
           ...result,
           data: {
-            ...result.data.data,
+            ...result.data,
             image: base64Image,
             permanentUrl,
             fileId,
@@ -646,7 +634,7 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
 
     /* 3c. Fallback – should never hit this with current logic            */
     console.warn('⚠️ unexpected data type for screenshot response');
-    return c.json({ ...result, data: { ...result.data?.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
+    return c.json({ ...result, data: { ...result.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Screenshot error:', error);
     await logCriticalError(c, 'screenshot', error);
@@ -1049,15 +1037,15 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     let permanentUrl: string | undefined;
     let fileId: string | undefined;
 
-    if (!result.fromCache && result.data?.data?.pdf instanceof Uint8Array) {
+    if (!result.fromCache && result.data?.pdf instanceof Uint8Array) {
       try {
         const webDO = getWebDurableObject(c, user.id);
         await webDO.initializeUser(user.id);
         const stored = await webDO.storeFileAndCreatePermanentUrl(
-          result.data.data.pdf,
+          result.data.pdf,
           body.url,
           'pdf',
-          result.data.data.metadata,
+          result.data.metadata,
           'pdf',
         );
         permanentUrl = stored.permanentUrl;
@@ -1072,19 +1060,19 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     /* ------------------------------------------------------------------ */
 
     // 3a. Binary  (default)
-    if (wantsBinary && result.data?.data?.pdf instanceof Uint8Array) {
-      const binaryBody = result.data.data.pdf as unknown as BodyInit; // safe cast
+    if (wantsBinary && result.data?.pdf instanceof Uint8Array) {
+      const binaryBody = result.data.pdf as unknown as BodyInit; // safe cast
 
       return new Response(binaryBody, {
         status: HttpStatusCodes.OK,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Length': result.data.data.metadata.size.toString(),
+          'Content-Length': result.data.metadata.size.toString(),
           'Content-Disposition': 'attachment; filename="page.pdf"',
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
           'X-From-Cache': result.fromCache ? 'true' : 'false',
-          'X-Metadata': JSON.stringify(result.data.data.metadata),
+          'X-Metadata': JSON.stringify(result.data.metadata),
           'X-Permanent-Url': permanentUrl ?? '',
           'X-File-Id': fileId ?? '',
         },
@@ -1092,14 +1080,14 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     }
 
     // 3b. Base-64  (only when asked for)
-    if (wantsBase64 && result.data?.data?.pdf instanceof Uint8Array) {
-      const base64Pdf = Buffer.from(result.data.data.pdf).toString('base64');
+    if (wantsBase64 && result.data?.pdf instanceof Uint8Array) {
+      const base64Pdf = Buffer.from(result.data.pdf).toString('base64');
 
       return c.json(
         {
           ...result,
           data: {
-            ...result.data.data,
+            ...result.data,
             pdf: base64Pdf,
             permanentUrl,
             fileId,
@@ -1110,7 +1098,7 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     }
 
     /* 3c. Fallback – should never hit */
-    return c.json({ ...result, data: { ...result.data?.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
+    return c.json({ ...result, data: { ...result.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('PDF error:', error);
     await logCriticalError(c, 'pdf', error);

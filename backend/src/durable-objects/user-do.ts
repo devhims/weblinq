@@ -762,6 +762,33 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       // 2. Execute the operation
       const result = await operationFn();
 
+      // Check if the result is already in the expected format (has success property)
+      // This handles v1 functions that return { success, data, error } format
+      if (typeof result === 'object' && result !== null && 'success' in result) {
+        const typedResult = result as any;
+
+        if (typedResult.success) {
+          // 3. Deduct credits in background for successful operations
+          this.ctx.waitUntil(this.deductCreditsAsync(operation, metadata));
+
+          return {
+            success: true,
+            data: typedResult.data,
+            creditsCost: creditCheck.cost,
+            creditsRemaining: creditCheck.balance - creditCheck.cost,
+          };
+        } else {
+          // Operation failed - don't deduct credits
+          return {
+            success: false,
+            error: typedResult.error?.message || typedResult.error || 'Operation failed',
+            creditsCost: 0,
+            creditsRemaining: creditCheck.balance,
+          };
+        }
+      }
+
+      // For functions that return raw data (no success wrapper)
       // 3. Deduct credits in background (non-blocking)
       this.ctx.waitUntil(this.deductCreditsAsync(operation, metadata));
 
@@ -769,14 +796,14 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
         success: true,
         data: result,
         creditsCost: creditCheck.cost,
-        creditsRemaining: creditCheck.balance - creditCheck.cost, // Estimated remaining balance
+        creditsRemaining: creditCheck.balance - creditCheck.cost,
       };
     } catch (error) {
       // If operation fails, don't deduct credits
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Operation failed',
-        creditsCost: creditCheck.cost,
+        creditsCost: 0,
         creditsRemaining: creditCheck.balance,
       };
     }

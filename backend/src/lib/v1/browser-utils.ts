@@ -341,7 +341,7 @@ export async function pageGotoWithRetry(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       await page.goto(url, { waitUntil, timeout });
-      await page.waitForSelector('main article', { timeout: 3_000 });
+
       console.log(`✅ Page navigation successful on attempt ${attempt}/${maxAttempts} for ${url}`);
       return;
     } catch (err) {
