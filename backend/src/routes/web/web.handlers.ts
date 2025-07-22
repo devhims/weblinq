@@ -683,11 +683,7 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Markdown error:', error);
     await logCriticalError(c, 'markdown', error);
@@ -746,11 +742,7 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('JSON extraction error:', error);
     await logCriticalError(c, 'json_extraction', error);
@@ -799,11 +791,7 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Content error:', error);
     await logCriticalError(c, 'content', error);
@@ -853,11 +841,7 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Scrape error:', error);
     await logCriticalError(c, 'scrape', error);
@@ -907,11 +891,7 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Links error:', error);
     await logCriticalError(c, 'links', error);
@@ -961,11 +941,7 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
       return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
 
-    return c.json(result.data, HttpStatusCodes.OK, {
-      'X-Credits-Cost': result.creditsCost.toString(),
-      'X-Credits-Remaining': result.creditsRemaining.toString(),
-      'X-From-Cache': result.fromCache ? 'true' : 'false',
-    });
+    return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Search error:', error);
     await logCriticalError(c, 'search', error);

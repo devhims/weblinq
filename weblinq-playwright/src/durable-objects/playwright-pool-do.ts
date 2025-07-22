@@ -194,7 +194,7 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Navigate to URL with retry logic
       console.log(`🔄 PlaywrightPoolDO: Navigating to ${params.url}...`);
       await pageGotoWithRetry(page, params.url, {
-        waitUntil: 'domcontentloaded',
+        waitUntil: 'commit',
         timeout: 15_000,
       });
 
@@ -332,7 +332,7 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Navigate to URL with retry logic
       console.log(`🔄 PlaywrightPoolDO: Navigating to ${params.url}...`);
       await pageGotoWithRetry(page, params.url, {
-        waitUntil: 'domcontentloaded',
+        waitUntil: 'commit',
         timeout: 15_000,
       });
 

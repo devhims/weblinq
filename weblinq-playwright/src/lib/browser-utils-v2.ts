@@ -271,16 +271,16 @@ export async function hardenPageAdvanced(page: Page) {
         return;
       }
 
-      const resourceType = request.resourceType();
-      const shouldAbort = ['image', 'media', 'font', 'stylesheet'].includes(
-        resourceType,
-      );
+      // const resourceType = request.resourceType();
+      // const shouldAbort = ['image', 'media', 'font', 'stylesheet'].includes(
+      //   resourceType,
+      // );
 
-      if (shouldAbort) {
-        route.abort();
-      } else {
-        route.continue();
-      }
+      // if (shouldAbort) {
+      //   route.abort();
+      // } else {
+      //   route.continue();
+      // }
     } catch (error) {
       console.warn('Error in route handler:', error);
       // Try to continue the route if possible
