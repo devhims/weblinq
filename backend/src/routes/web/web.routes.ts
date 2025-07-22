@@ -55,8 +55,8 @@ export const screenshotInputSchema = z.object({
   // Viewport configuration
   viewport: z
     .object({
-      height: z.number().int().min(100).max(2160).default(1080),
-      width: z.number().int().min(100).max(3840).default(1920),
+      height: z.number().int().min(100).max(2160).default(800),
+      width: z.number().int().min(100).max(3840).default(1280),
       deviceScaleFactor: z.number().min(0.1).max(10).optional().default(1),
       hasTouch: z.boolean().optional().default(false),
       isLandscape: z.boolean().optional().default(false),

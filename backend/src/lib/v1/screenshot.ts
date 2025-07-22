@@ -41,8 +41,8 @@ export type ScreenshotResult = ScreenshotSuccess | ScreenshotFailure;
 export async function screenshotV1(env: CloudflareBindings, params: ScreenshotParams): Promise<ScreenshotResult> {
   try {
     const viewportConfig = {
-      width: params.viewport?.width ?? 1366,
-      height: params.viewport?.height ?? 768,
+      width: params.viewport?.width ?? 1280,
+      height: params.viewport?.height ?? 800,
       deviceScaleFactor: params.viewport?.deviceScaleFactor,
       hasTouch: params.viewport?.hasTouch,
       isLandscape: params.viewport?.isLandscape,

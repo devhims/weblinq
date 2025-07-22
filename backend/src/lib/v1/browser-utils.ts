@@ -287,6 +287,22 @@ export async function hardenPageAdvanced(page: Page) {
   });
 }
 
+export async function hardenPage(page: Page) {
+  // Minimal user agent without extensive fingerprinting
+  const UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+  await page.setExtraHTTPHeaders({
+    'User-Agent': UA,
+    Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+  });
+
+  // NO resource blocking for screenshots - we want all images, CSS, fonts to load for visual accuracy
+  // This is the key difference from content extraction
+  console.log('Allowing all resources for visual accuracy');
+}
+
 /**
  * Add human-like behavior patterns after page load
  */
@@ -320,7 +336,7 @@ export async function pageGotoWithRetry(
   options: { waitUntil?: 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2'; timeout?: number } = {},
   maxAttempts = 3,
 ): Promise<void> {
-  const { waitUntil = 'networkidle2', timeout = 30_000 } = options;
+  const { waitUntil = 'domcontentloaded', timeout = 30_000 } = options;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -458,7 +474,7 @@ export async function runWithBrowser<T>(
 
     // 2. Prepare page
     page = await browser.newPage();
-    await hardenPageAdvanced(page);
+    await hardenPage(page);
     // await addHumanBehavior(page);
 
     // 3. Execute payload with timeout race
