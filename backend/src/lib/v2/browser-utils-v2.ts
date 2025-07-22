@@ -37,23 +37,8 @@ export async function hardenPageForScreenshots(page: Page) {
 export async function navigateForScreenshot(page: Page, url: string, waitTime?: number): Promise<void> {
   console.log(`🚀 Fast navigation for screenshot to ${url}`);
 
-  const blockList = [/collect\.google-analytics\.com/];
-
-  // 1 ▸ Abort only *known* trackers/ads — never blanket‑abort images
-  await page.route('**/*', (route: Route) => {
-    if (blockList.some((re) => re.test(route.request().url()))) return route.abort();
-    route.continue();
-  });
-
   // 2 ▸ Navigate quickly (DOM only)
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20_000 });
-
-  // 5 ▸ Wait for quiescence but never longer than idleTimeout
-
-  // await page.waitForLoadState('networkidle', { timeout: 10_000 });
-
-  // 6 ▸ Tiny paint delay for final image decode
-  await page.waitForTimeout(200);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
 
   // Optional additional wait
   if (waitTime && waitTime > 0) {

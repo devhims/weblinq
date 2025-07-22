@@ -58,8 +58,8 @@ const OPERATION_CONFIGS: Record<OperationType, OperationConfig> = {
     waitForCSS: false, // Skip CSS checks for speed - like playwright-mcp-main
     waitForJS: false, // Don't wait for JS execution
     hardenPage: false, // Don't block resources for screenshots - key optimization
-    maxTimeout: 10_000, // Shorter timeout for speed
-    waitUntil: 'commit',
+    maxTimeout: 15_000, // Shorter timeout for speed
+    waitUntil: 'domcontentloaded',
   },
   content: {
     requiresNavigation: true,
@@ -203,7 +203,10 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
     // Wait for essential resources in parallel
     await Promise.all(promises);
 
-    // Operation-specific optimizations
+    // Operation-specific optimizations - REMOVED CSS check due to JS evaluation errors
+    // The playwright-mcp-main approach doesn't use manual CSS checking
+    // and it was causing "ReferenceError: s is not defined" errors
+    /*
     if (config.waitForCSS && operationType === 'screenshot') {
       // Fast CSS check for screenshots only
       await page
@@ -227,6 +230,7 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
           console.log(`⚠️ CSS check failed for ${operationType}, continuing...`);
         });
     }
+    */
 
     if (config.waitForJS && operationType !== 'screenshot') {
       // Allow JS execution for non-screenshot operations

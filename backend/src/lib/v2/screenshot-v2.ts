@@ -77,8 +77,8 @@ export async function screenshotOperation(page: Page, params: ScreenshotParams):
 
     // Set viewport (page is already navigated by PlaywrightPoolDO)
     const viewport = {
-      width: params.viewport?.width || 1920,
-      height: params.viewport?.height || 1080,
+      width: params.viewport?.width || 1280,
+      height: params.viewport?.height || 800,
     };
     await page.setViewportSize(viewport);
     console.log(`📏 Set viewport to ${viewport.width}x${viewport.height}`);

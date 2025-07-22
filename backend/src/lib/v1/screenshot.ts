@@ -59,8 +59,17 @@ export async function screenshotV1(env: CloudflareBindings, params: ScreenshotPa
       // Configure viewport first
       await page.setViewport(viewportConfig);
 
-      // Navigate to the page with retry logic for better resilience
-      await pageGotoWithRetry(page, params.url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      // Use networkidle2 for better React/SPA support, but keep original timeout
+      await pageGotoWithRetry(page, params.url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 30_000,
+      });
+
+      // Simple scroll to trigger lazy loading - most effective single improvement
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+        window.scrollTo(0, 0);
+      });
 
       // Wait for additional time if specified
       if (params.waitTime && params.waitTime > 0) {

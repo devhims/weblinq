@@ -475,7 +475,6 @@ export async function runWithBrowser<T>(
     // 2. Prepare page
     page = await browser.newPage();
     await hardenPage(page);
-    // await addHumanBehavior(page);
 
     // 3. Execute payload with timeout race
     const result = await Promise.race([
