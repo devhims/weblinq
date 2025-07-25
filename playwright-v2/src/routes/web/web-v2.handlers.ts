@@ -4,7 +4,6 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { AppRouteHandler } from '@/lib/types';
 
-import { deductCredits, getUserCredits, logError } from '@/db/queries';
 import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
 import { jsonExtractionV2 as jsonExtractionV2Function } from '@/lib/v2/json-extraction-v2';
 
@@ -68,7 +67,11 @@ interface CreditAwareResult<T> {
 /**
  * Generate a cache key for V2 operations
  */
-function generateV2CacheKey(operation: V2Operation, userId: string, params: Record<string, any>): string {
+function generateV2CacheKey(
+  operation: V2Operation,
+  userId: string,
+  params: Record<string, any>,
+): string {
   const normalizedParams = { ...params };
   delete normalizedParams.userId;
 
@@ -80,7 +83,10 @@ function generateV2CacheKey(operation: V2Operation, userId: string, params: Reco
     }, {} as Record<string, any>);
 
   const paramString = JSON.stringify(sortedParams);
-  const paramHash = createHash('sha256').update(paramString).digest('hex').substring(0, 16);
+  const paramHash = createHash('sha256')
+    .update(paramString)
+    .digest('hex')
+    .substring(0, 16);
 
   return `https://cache.weblinq.internal/v2/${operation.toLowerCase()}/${userId}/${paramHash}`;
 }
@@ -110,7 +116,10 @@ async function setCachedV2Result<T>(
     let processedCacheData = cacheData;
     if (operation === 'SCREENSHOT' || operation === 'PDF') {
       const wantsBase64 = cacheParams?.base64 === true;
-      processedCacheData = convertBinaryToBase64ForCache(cacheData as any, wantsBase64);
+      processedCacheData = convertBinaryToBase64ForCache(
+        cacheData as any,
+        wantsBase64,
+      );
     }
 
     // Extract userId from cache key for tagging
@@ -146,7 +155,10 @@ async function setCachedV2Result<T>(
  * V2 version handles ArrayBuffer from screenshot-v2.ts
  * Works with cache structure: { success, data: { image, metadata }, ... }
  */
-function convertBinaryToBase64ForCache(cacheData: any, wantsBase64?: boolean): any {
+function convertBinaryToBase64ForCache(
+  cacheData: any,
+  wantsBase64?: boolean,
+): any {
   if (!cacheData || !cacheData.data) return cacheData;
 
   const result = { ...cacheData };
@@ -196,7 +208,10 @@ function convertBase64ToBinaryFromCache(cacheResult: any): any {
 
   // Handle screenshot data - convert back to original format
   if (result.data._imageBinary && typeof result.data.image === 'string') {
-    console.log('🔄 V2 Cache: Converting base64 back to binary, format:', result.data._imageFormat);
+    console.log(
+      '🔄 V2 Cache: Converting base64 back to binary, format:',
+      result.data._imageFormat,
+    );
     const buffer = Buffer.from(result.data.image, 'base64');
 
     // Convert back to original format based on flag
@@ -205,7 +220,10 @@ function convertBase64ToBinaryFromCache(cacheResult: any): any {
       console.log('🔄 V2 Cache: Restoring as ArrayBuffer');
       result.data = {
         ...result.data,
-        image: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+        image: buffer.buffer.slice(
+          buffer.byteOffset,
+          buffer.byteOffset + buffer.byteLength,
+        ),
       };
     } else {
       // Default to Uint8Array for compatibility
@@ -235,7 +253,10 @@ function convertBase64ToBinaryFromCache(cacheResult: any): any {
 /**
  * Get cached V2 result from Cloudflare Cache
  */
-async function getCachedV2Result<T>(cacheKey: string, operation: V2Operation): Promise<CreditAwareResult<T> | null> {
+async function getCachedV2Result<T>(
+  cacheKey: string,
+  operation: V2Operation,
+): Promise<CreditAwareResult<T> | null> {
   try {
     const cache = await caches.open('weblinq-v2-cache');
     const cachedResponse = await cache.match(cacheKey);
@@ -261,7 +282,9 @@ async function getCachedV2Result<T>(cacheKey: string, operation: V2Operation): P
     let cachedData = (await cachedResponse.json()) as CreditAwareResult<T>;
 
     if (operation === 'SCREENSHOT' || operation === 'PDF') {
-      cachedData = convertBase64ToBinaryFromCache(cachedData as any) as CreditAwareResult<T>;
+      cachedData = convertBase64ToBinaryFromCache(
+        cachedData as any,
+      ) as CreditAwareResult<T>;
     }
 
     console.log(`✅ V2 Cache hit for ${operation} (Key: ${cacheKey})`);
@@ -275,52 +298,57 @@ async function getCachedV2Result<T>(cacheKey: string, operation: V2Operation): P
 /**
  * Check if user has sufficient credits for a V2 operation
  */
-async function checkV2Credits(
-  env: CloudflareBindings,
-  userId: string,
-  operation: V2Operation,
-): Promise<{ hasCredits: boolean; balance: number; cost: number }> {
-  const cost = CREDIT_COSTS[operation];
+// async function checkV2Credits(
+//   env: CloudflareBindings,
+//   userId: string,
+//   operation: V2Operation,
+// ): Promise<{ hasCredits: boolean; balance: number; cost: number }> {
+//   const cost = CREDIT_COSTS[operation];
 
-  try {
-    const credits = await getUserCredits(env, userId);
-    return {
-      hasCredits: credits.balance >= cost,
-      balance: credits.balance,
-      cost,
-    };
-  } catch (error) {
-    console.error(`❌ V2 Failed to check credits for user ${userId}:`, error);
-    throw new Error('Failed to check credit balance');
-  }
-}
+//   try {
+//     const credits = await getUserCredits(env, userId);
+//     return {
+//       hasCredits: credits.balance >= cost,
+//       balance: credits.balance,
+//       cost,
+//     };
+//   } catch (error) {
+//     console.error(`❌ V2 Failed to check credits for user ${userId}:`, error);
+//     throw new Error('Failed to check credit balance');
+//   }
+// }
 
 /**
  * Deduct credits for a V2 operation
  */
-async function deductV2Credits(
-  env: CloudflareBindings,
-  userId: string,
-  operation: V2Operation,
-  metadata?: Record<string, any>,
-): Promise<void> {
-  const cost = CREDIT_COSTS[operation];
+// async function deductV2Credits(
+//   env: CloudflareBindings,
+//   userId: string,
+//   operation: V2Operation,
+//   metadata?: Record<string, any>,
+// ): Promise<void> {
+//   const cost = CREDIT_COSTS[operation];
 
-  try {
-    await deductCredits(env, userId, cost, `${operation.toLowerCase()}V2`, {
-      operation,
-      version: 'v2',
-      engine: 'playwright',
-      cost,
-      timestamp: new Date().toISOString(),
-      ...metadata,
-    });
-    console.log(`✅ V2 Deducted ${cost} credits for ${operation} operation (user: ${userId})`);
-  } catch (error) {
-    console.error(`❌ V2 Failed to deduct credits for ${operation} operation (user: ${userId}):`, error);
-    throw error;
-  }
-}
+//   try {
+//     await deductCredits(env, userId, cost, `${operation.toLowerCase()}V2`, {
+//       operation,
+//       version: 'v2',
+//       engine: 'playwright',
+//       cost,
+//       timestamp: new Date().toISOString(),
+//       ...metadata,
+//     });
+//     console.log(
+//       `✅ V2 Deducted ${cost} credits for ${operation} operation (user: ${userId})`,
+//     );
+//   } catch (error) {
+//     console.error(
+//       `❌ V2 Failed to deduct credits for ${operation} operation (user: ${userId}):`,
+//       error,
+//     );
+//     throw error;
+//   }
+// }
 
 /**
  * Execute a V2 web operation with Cloudflare Cache API integration and credit management
@@ -331,24 +359,25 @@ async function executeV2WithCache<T>(
   operationFn: () => Promise<any>,
   cacheParams: Record<string, any>,
 ): Promise<CreditAwareResult<T>> {
-  const user = c.get('user')!;
-  const userId = user.id;
+  // const user = c.get('user')!;
+  const userId = 'user-123'; //  user.id
 
   // Check if we're in development mode to disable caching
-  const isDevelopment = c.env.NODE_ENV === 'preview' || c.env.NODE_ENV === 'preview';
+  const isDevelopment =
+    c.env.NODE_ENV === 'preview' || c.env.NODE_ENV === 'preview';
 
   // Check credits first
-  const creditCheck = await checkV2Credits(c.env, userId, operation);
+  // const creditCheck = await checkV2Credits(c.env, userId, operation);
 
-  if (!creditCheck.hasCredits) {
-    return {
-      success: false,
-      error: `Insufficient credits. Required: ${creditCheck.cost}, Available: ${creditCheck.balance}`,
-      creditsCost: creditCheck.cost,
-      creditsRemaining: creditCheck.balance,
-      fromCache: false,
-    };
-  }
+  // if (!creditCheck.hasCredits) {
+  //   return {
+  //     success: false,
+  //     error: `Insufficient credits. Required: ${creditCheck.cost}, Available: ${creditCheck.balance}`,
+  //     creditsCost: creditCheck.cost,
+  //     creditsRemaining: creditCheck.balance,
+  //     fromCache: false,
+  //   };
+  // }
 
   // Generate cache key for both checking and storing
   const cacheKey = generateV2CacheKey(operation, userId, cacheParams);
@@ -357,31 +386,37 @@ async function executeV2WithCache<T>(
   if (!isDevelopment) {
     const cachedResult = await getCachedV2Result<T>(cacheKey, operation);
 
-    if (cachedResult) {
-      try {
-        await deductV2Credits(c.env, userId, operation, cacheParams);
-        const updatedBalance = creditCheck.balance - creditCheck.cost;
+    // if (cachedResult) {
+    //   try {
+    //     await deductV2Credits(c.env, userId, operation, cacheParams);
+    //     const updatedBalance = creditCheck.balance - creditCheck.cost;
 
-        return {
-          ...cachedResult,
-          creditsCost: creditCheck.cost,
-          creditsRemaining: updatedBalance,
-        };
-      } catch (error) {
-        console.warn('⚠️ V2 Failed to deduct credits for cache hit:', error);
-        return {
-          ...cachedResult,
-          creditsCost: creditCheck.cost,
-          creditsRemaining: creditCheck.balance,
-        };
-      }
-    }
+    //     return {
+    //       ...cachedResult,
+    //       creditsCost: creditCheck.cost,
+    //       creditsRemaining: updatedBalance,
+    //     };
+    //   } catch (error) {
+    //     console.warn('⚠️ V2 Failed to deduct credits for cache hit:', error);
+    //     return {
+    //       ...cachedResult,
+    //       creditsCost: creditCheck.cost,
+    //       creditsRemaining: creditCheck.balance,
+    //     };
+    //   }
+    // }
   } else {
-    console.log(`🧪 V2 Development mode: Skipping cache for ${operation} operation`);
+    console.log(
+      `🧪 V2 Development mode: Skipping cache for ${operation} operation`,
+    );
   }
 
   try {
-    console.log(`🚀 V2 Executing ${operation} operation (${isDevelopment ? 'development mode' : 'cache miss'})`);
+    console.log(
+      `🚀 V2 Executing ${operation} operation (${
+        isDevelopment ? 'development mode' : 'cache miss'
+      })`,
+    );
 
     const result = await operationFn();
 
@@ -389,38 +424,57 @@ async function executeV2WithCache<T>(
       return {
         success: false,
         error: result.error.message,
-        creditsCost: creditCheck.cost,
-        creditsRemaining: creditCheck.balance,
+        // creditsCost: creditCheck.cost,
+        // creditsRemaining: creditCheck.balance,
+        creditsCost: 0,
+        creditsRemaining: 1000,
         fromCache: false,
       };
     }
 
-    await deductV2Credits(c.env, userId, operation, cacheParams);
-    const updatedBalance = creditCheck.balance - creditCheck.cost;
+    // await deductV2Credits(c.env, userId, operation, cacheParams);
+    // const updatedBalance = creditCheck.balance - creditCheck.cost;
 
     // Cache the successful result in background (skip in development mode)
     if (!isDevelopment) {
       try {
         if (c.executionCtx?.waitUntil) {
-          c.executionCtx.waitUntil(setCachedV2Result(cacheKey, operation, result.data, cacheParams));
+          c.executionCtx.waitUntil(
+            setCachedV2Result(cacheKey, operation, result.data, cacheParams),
+          );
           console.log(`✅ V2 Background caching initiated for ${operation}`);
         } else {
-          setCachedV2Result(cacheKey, operation, result.data, cacheParams).catch((error) => {
-            console.error(`❌ V2 Background cache operation failed for ${operation}:`, error);
+          setCachedV2Result(
+            cacheKey,
+            operation,
+            result.data,
+            cacheParams,
+          ).catch((error) => {
+            console.error(
+              `❌ V2 Background cache operation failed for ${operation}:`,
+              error,
+            );
           });
         }
       } catch (cacheError) {
-        console.error(`❌ V2 Failed to initiate background caching for ${operation}:`, cacheError);
+        console.error(
+          `❌ V2 Failed to initiate background caching for ${operation}:`,
+          cacheError,
+        );
       }
     } else {
-      console.log(`🧪 V2 Development mode: Skipping cache storage for ${operation}`);
+      console.log(
+        `🧪 V2 Development mode: Skipping cache storage for ${operation}`,
+      );
     }
 
     return {
       success: true,
       data: result.data,
-      creditsCost: creditCheck.cost,
-      creditsRemaining: updatedBalance,
+      // creditsCost: creditCheck.cost,
+      // creditsRemaining: updatedBalance,
+      creditsCost: 0,
+      creditsRemaining: 1000,
       fromCache: false,
     };
   } catch (error) {
@@ -428,8 +482,10 @@ async function executeV2WithCache<T>(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Operation failed',
-      creditsCost: creditCheck.cost,
-      creditsRemaining: creditCheck.balance,
+      // creditsCost: creditCheck.cost,
+      // creditsRemaining: creditCheck.balance,
+      creditsCost: 0,
+      creditsRemaining: 1000,
       fromCache: false,
     };
   }
@@ -451,7 +507,13 @@ function extractRequestContext(c: any, body?: any) {
   };
 }
 
-async function logV2OperationFailure(c: any, operation: string, result: any, body?: any, targetUrl?: string) {
+async function logV2OperationFailure(
+  c: any,
+  operation: string,
+  result: any,
+  body?: any,
+  targetUrl?: string,
+) {
   const errorMessage = result.error || `V2 ${operation} operation failed`;
   const errorCode = result.error?.includes('Insufficient credits')
     ? 'INSUFFICIENT_CREDITS'
@@ -462,49 +524,52 @@ async function logV2OperationFailure(c: any, operation: string, result: any, bod
 
   const context = extractRequestContext(c, body);
 
-  await logError(c.env, {
-    ...context,
-    source: 'web_v2_handler',
-    operation,
-    level: 'error',
-    message: errorMessage,
-    statusCode,
-    errorCode,
-    url: targetUrl || context.url,
-    context: {
-      requestBody: body,
-      playwrightPoolResult: result,
-      version: 'v2',
-      engine: 'playwright',
-    },
-  });
+  // await logError(c.env, {
+  //   ...context,
+  //   source: 'web_v2_handler',
+  //   operation,
+  //   level: 'error',
+  //   message: errorMessage,
+  //   statusCode,
+  //   errorCode,
+  //   url: targetUrl || context.url,
+  //   context: {
+  //     requestBody: body,
+  //     playwrightPoolResult: result,
+  //     version: 'v2',
+  //     engine: 'playwright',
+  //   },
+  // });
 }
 
 async function logV2CriticalError(c: any, operation: string, error: unknown) {
-  const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+  const errorMessage =
+    error instanceof Error ? error.message : 'Internal server error';
   const context = extractRequestContext(c);
 
-  await logError(c.env, {
-    ...context,
-    source: 'web_v2_handler',
-    operation,
-    level: 'critical',
-    message: errorMessage,
-    error: error instanceof Error ? error : undefined,
-    statusCode: HttpStatusCodes.INTERNAL_SERVER_ERROR,
-    errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
-    context: {
-      version: 'v2',
-      engine: 'playwright',
-    },
-  });
+  // await logError(c.env, {
+  //   ...context,
+  //   source: 'web_v2_handler',
+  //   operation,
+  //   level: 'critical',
+  //   message: errorMessage,
+  //   error: error instanceof Error ? error : undefined,
+  //   statusCode: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+  //   errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+  //   context: {
+  //     version: 'v2',
+  //     engine: 'playwright',
+  //   },
+  // });
 }
 
 /**
  * Get PlaywrightPoolDO instance for a user
  */
 function getPlaywrightPoolDO(c: any, userId: string) {
-  const playwrightPoolId = c.env.PLAYWRIGHT_POOL_DO.idFromName(`playwright-pool-${userId}`);
+  const playwrightPoolId = c.env.PLAYWRIGHT_POOL_DO.idFromName(
+    `playwright-pool-${userId}`,
+  );
   return c.env.PLAYWRIGHT_POOL_DO.get(playwrightPoolId);
 }
 
@@ -517,11 +582,11 @@ function getPlaywrightPoolDO(c: any, userId: string) {
  */
 export const markdownV2: AppRouteHandler<MarkdownV2Route> = async (c: any) => {
   try {
-    const user = c.get('user')!;
+    // const user = c.get('user')!;
     const body = c.req.valid('json');
 
     console.log('📄 V2 Markdown extraction request', {
-      userId: user.id,
+      // userId: user.id,
       url: body.url,
       waitTime: body.waitTime,
     });
@@ -530,7 +595,7 @@ export const markdownV2: AppRouteHandler<MarkdownV2Route> = async (c: any) => {
       c,
       'MARKDOWN',
       async () => {
-        const playwrightPoolDO = getPlaywrightPoolDO(c, user.id);
+        const playwrightPoolDO = getPlaywrightPoolDO(c, body.userId); //user.id
         return await playwrightPoolDO.extractMarkdown({
           url: body.url,
           waitTime: body.waitTime || 0,
@@ -552,13 +617,16 @@ export const markdownV2: AppRouteHandler<MarkdownV2Route> = async (c: any) => {
         );
       }
       return c.json(
-        createStandardErrorResponse(result.error!, ERROR_CODES.INTERNAL_SERVER_ERROR),
+        createStandardErrorResponse(
+          result.error!,
+          ERROR_CODES.INTERNAL_SERVER_ERROR,
+        ),
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
       );
     }
 
     console.log('✅ V2 Markdown extraction successful', {
-      userId: user.id,
+      // userId: user.id,
       url: body.url,
       wordCount: result.data.metadata.wordCount,
       creditsCost: result.creditsCost,
@@ -598,17 +666,20 @@ export const markdownV2: AppRouteHandler<MarkdownV2Route> = async (c: any) => {
 /**
  * V2 Screenshot endpoint using PlaywrightPoolDO with caching
  */
-export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) => {
+export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (
+  c: any,
+) => {
   try {
-    const user = c.get('user')!;
+    //const user = c.get('user')!;
     const body = c.req.valid('json');
 
     const acceptHdr = c.req.header('Accept') ?? '';
-    const wantsBase64 = body.base64 === true || acceptHdr.includes('application/json');
+    const wantsBase64 =
+      body.base64 === true || acceptHdr.includes('application/json');
     const wantsBinary = !wantsBase64;
 
     console.log('📸 V2 Screenshot request', {
-      userId: user.id,
+      // userId: user.id,
       url: body.url,
       wantsBase64,
       viewport: body.viewport,
@@ -619,7 +690,7 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
       c,
       'SCREENSHOT',
       async () => {
-        const playwrightPoolDO = getPlaywrightPoolDO(c, user.id);
+        const playwrightPoolDO = getPlaywrightPoolDO(c, body.userId); //user.id
         return await playwrightPoolDO.takeScreenshot({
           url: body.url,
           viewport: body.viewport,
@@ -647,7 +718,10 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
         );
       }
       return c.json(
-        createStandardErrorResponse(result.error!, ERROR_CODES.INTERNAL_SERVER_ERROR),
+        createStandardErrorResponse(
+          result.error!,
+          ERROR_CODES.INTERNAL_SERVER_ERROR,
+        ),
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
       );
     }
@@ -663,7 +737,9 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
       console.log('🔧 V2 Screenshot: Using existing Uint8Array');
       imageBuffer = imageData;
     } else if (typeof imageData === 'string') {
-      console.log('🔧 V2 Screenshot: Converting base64 string from cache to Uint8Array');
+      console.log(
+        '🔧 V2 Screenshot: Converting base64 string from cache to Uint8Array',
+      );
       imageBuffer = new Uint8Array(Buffer.from(imageData, 'base64'));
     } else {
       console.error(
@@ -680,12 +756,13 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
     }
 
     // Get the format from metadata for proper Content-Type
-    const imageFormat = result.data.metadata?.type || result.data.metadata?.format || 'png';
+    const imageFormat =
+      result.data.metadata?.type || result.data.metadata?.format || 'png';
 
     // Binary response (default) - matches V1 structure
     if (wantsBinary) {
       console.log('✅ V2 Screenshot successful (binary)', {
-        userId: user.id,
+        // userId: user.id,
         url: body.url,
         size: imageBuffer.length,
         creditsCost: result.creditsCost,
@@ -713,7 +790,7 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
       const base64Image = Buffer.from(imageBuffer).toString('base64');
 
       console.log('✅ V2 Screenshot successful (base64)', {
-        userId: user.id,
+        // userId: user.id,
         url: body.url,
         size: imageBuffer.length,
         creditsCost: result.creditsCost,
@@ -741,7 +818,10 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
     }
 
     console.warn('⚠️ V2 Screenshot: unexpected response format logic');
-    return c.json({ success: false, error: 'Unexpected response format' }, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+    return c.json(
+      { success: false, error: 'Unexpected response format' },
+      HttpStatusCodes.INTERNAL_SERVER_ERROR,
+    );
   } catch (error) {
     console.error('💥 V2 Screenshot error:', error);
     await logV2CriticalError(c, 'screenshotV2', error);
@@ -761,11 +841,11 @@ export const screenshotV2: AppRouteHandler<ScreenshotV2Route> = async (c: any) =
  */
 export const linksV2: AppRouteHandler<LinksV2Route> = async (c: any) => {
   try {
-    const user = c.get('user')!;
+    // const user = c.get('user')!;
     const body = c.req.valid('json');
 
     console.log('🔗 V2 Links extraction request', {
-      userId: user.id,
+      // userId: user.id,
       url: body.url,
       includeExternal: body.includeExternal,
       waitTime: body.waitTime,
@@ -775,7 +855,7 @@ export const linksV2: AppRouteHandler<LinksV2Route> = async (c: any) => {
       c,
       'LINKS',
       async () => {
-        const playwrightPoolDO = getPlaywrightPoolDO(c, user.id);
+        const playwrightPoolDO = getPlaywrightPoolDO(c, body.userId); //user.id
         return await playwrightPoolDO.extractLinks({
           url: body.url,
           includeExternal: body.includeExternal,
@@ -799,13 +879,16 @@ export const linksV2: AppRouteHandler<LinksV2Route> = async (c: any) => {
         );
       }
       return c.json(
-        createStandardErrorResponse(result.error!, ERROR_CODES.INTERNAL_SERVER_ERROR),
+        createStandardErrorResponse(
+          result.error!,
+          ERROR_CODES.INTERNAL_SERVER_ERROR,
+        ),
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
       );
     }
 
     console.log('✅ V2 Links extraction successful', {
-      userId: user.id,
+      // userId: user.id,
       url: body.url,
       totalLinks: result.data.metadata.totalLinks,
       internalLinks: result.data.metadata.internalLinks,
@@ -849,11 +932,11 @@ export const linksV2: AppRouteHandler<LinksV2Route> = async (c: any) => {
  */
 export const contentV2: AppRouteHandler<ContentV2Route> = async (c: any) => {
   try {
-    const user = c.get('user')!;
+    // const user = c.get('user')!;
     const body = c.req.valid('json');
 
     console.log('📄 V2 Content extraction request', {
-      userId: user.id,
+      //userId: user.id,
       url: body.url,
       waitTime: body.waitTime,
     });
@@ -862,7 +945,7 @@ export const contentV2: AppRouteHandler<ContentV2Route> = async (c: any) => {
       c,
       'CONTENT',
       async () => {
-        const playwrightPoolDO = getPlaywrightPoolDO(c, user.id);
+        const playwrightPoolDO = getPlaywrightPoolDO(c, body.userId); //user.id
         return await playwrightPoolDO.extractContent({
           url: body.url,
           waitTime: body.waitTime || 0,
@@ -884,13 +967,16 @@ export const contentV2: AppRouteHandler<ContentV2Route> = async (c: any) => {
         );
       }
       return c.json(
-        createStandardErrorResponse(result.error!, ERROR_CODES.INTERNAL_SERVER_ERROR),
+        createStandardErrorResponse(
+          result.error!,
+          ERROR_CODES.INTERNAL_SERVER_ERROR,
+        ),
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
       );
     }
 
     console.log('✅ V2 Content extraction successful', {
-      userId: user.id,
+      // userId: user.id,
       url: body.url,
       contentSize: result.data.content.length,
       creditsCost: result.creditsCost,
@@ -930,13 +1016,15 @@ export const contentV2: AppRouteHandler<ContentV2Route> = async (c: any) => {
 /**
  * V2 JSON extraction endpoint using PlaywrightPoolDO
  */
-export const jsonExtractionV2: AppRouteHandler<JsonExtractionV2Route> = async (c: any) => {
+export const jsonExtractionV2: AppRouteHandler<JsonExtractionV2Route> = async (
+  c: any,
+) => {
   try {
-    const user = c.get('user')!;
+    //const user = c.get('user')!;
     const body = c.req.valid('json');
 
     console.log('🤖 V2 JSON extraction request', {
-      userId: user.id,
+      //userId: user.id,
       url: body.url,
       responseType: body.responseType || 'json',
       hasPrompt: !!body.prompt,
@@ -951,7 +1039,7 @@ export const jsonExtractionV2: AppRouteHandler<JsonExtractionV2Route> = async (c
       c,
       'JSON_EXTRACTION',
       async () => {
-        const playwrightPoolDO = getPlaywrightPoolDO(c, user.id);
+        const playwrightPoolDO = getPlaywrightPoolDO(c, body.userId); //user.id
         return await jsonExtractionV2Function(playwrightPoolDO, c.env, {
           url: body.url,
           waitTime: body.waitTime,
@@ -979,13 +1067,16 @@ export const jsonExtractionV2: AppRouteHandler<JsonExtractionV2Route> = async (c
         );
       }
       return c.json(
-        createStandardErrorResponse(result.error!, ERROR_CODES.INTERNAL_SERVER_ERROR),
+        createStandardErrorResponse(
+          result.error!,
+          ERROR_CODES.INTERNAL_SERVER_ERROR,
+        ),
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
       );
     }
 
     console.log('✅ V2 JSON extraction successful', {
-      userId: user.id,
+      // userId: user.id,
       url: body.url,
       responseType: body.responseType || 'json',
       fieldsExtracted: result.data.metadata?.fieldsExtracted,
@@ -1027,15 +1118,16 @@ export const jsonExtractionV2: AppRouteHandler<JsonExtractionV2Route> = async (c
  */
 export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
   try {
-    const user = c.get('user')!;
+    //const user = c.get('user')!;
     const body = c.req.valid('json');
 
     const acceptHdr = c.req.header('Accept') ?? '';
-    const wantsBase64 = body.base64 === true || acceptHdr.includes('application/json');
+    const wantsBase64 =
+      body.base64 === true || acceptHdr.includes('application/json');
     const wantsBinary = !wantsBase64;
 
     console.log('📄 V2 PDF generation request', {
-      userId: user.id,
+      //userId: user.id,
       url: body.url,
       wantsBase64,
       waitTime: body.waitTime,
@@ -1045,7 +1137,7 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
       c,
       'PDF',
       async () => {
-        const playwrightPoolDO = getPlaywrightPoolDO(c, user.id);
+        const playwrightPoolDO = getPlaywrightPoolDO(c, body.userId); //user.id
         return await playwrightPoolDO.generatePdf({
           url: body.url,
           waitTime: body.waitTime || 0,
@@ -1069,7 +1161,10 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
         );
       }
       return c.json(
-        createStandardErrorResponse(result.error!, ERROR_CODES.INTERNAL_SERVER_ERROR),
+        createStandardErrorResponse(
+          result.error!,
+          ERROR_CODES.INTERNAL_SERVER_ERROR,
+        ),
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
       );
     }
@@ -1086,7 +1181,10 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
     } else {
       console.error('❌ V2 PDF: Unexpected PDF data type:', typeof pdfData);
       return c.json(
-        createStandardErrorResponse('Invalid PDF data format', ERROR_CODES.INTERNAL_SERVER_ERROR),
+        createStandardErrorResponse(
+          'Invalid PDF data format',
+          ERROR_CODES.INTERNAL_SERVER_ERROR,
+        ),
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
       );
     }
@@ -1094,7 +1192,7 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
     // Binary response (default) - matches V1 structure
     if (wantsBinary) {
       console.log('✅ V2 PDF generation successful (binary)', {
-        userId: user.id,
+        // userId: user.id,
         url: body.url,
         pdfSize: result.data.metadata?.size || pdfBuffer.length,
         creditsCost: result.creditsCost,
@@ -1108,7 +1206,9 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
         status: HttpStatusCodes.OK,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Length': (result.data.metadata?.size || pdfBuffer.length).toString(),
+          'Content-Length': (
+            result.data.metadata?.size || pdfBuffer.length
+          ).toString(),
           'Content-Disposition': 'attachment; filename="page.pdf"',
           'X-Credits-Cost': result.creditsCost.toString(),
           'X-Credits-Remaining': result.creditsRemaining.toString(),
@@ -1124,7 +1224,7 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
       const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
 
       console.log('✅ V2 PDF generation successful (base64)', {
-        userId: user.id,
+        // userId: user.id,
         url: body.url,
         pdfSize: result.data.metadata?.size || pdfBuffer.length,
         creditsCost: result.creditsCost,
@@ -1189,11 +1289,11 @@ export const pdfV2: AppRouteHandler<PdfV2Route> = async (c: any) => {
  */
 export const scrapeV2: AppRouteHandler<ScrapeV2Route> = async (c: any) => {
   try {
-    const user = c.get('user')!;
+    //const user = c.get('user')!;
     const body = c.req.valid('json');
 
     console.log('🔍 V2 Scrape request', {
-      userId: user.id,
+      //userId: user.id,
       url: body.url,
       elementCount: body.elements.length,
       waitTime: body.waitTime,
@@ -1203,7 +1303,7 @@ export const scrapeV2: AppRouteHandler<ScrapeV2Route> = async (c: any) => {
       c,
       'SCRAPE',
       async () => {
-        const playwrightPoolDO = getPlaywrightPoolDO(c, user.id);
+        const playwrightPoolDO = getPlaywrightPoolDO(c, body.userId); //user.id
         return await playwrightPoolDO.scrapeElements({
           url: body.url,
           elements: body.elements,
@@ -1228,13 +1328,16 @@ export const scrapeV2: AppRouteHandler<ScrapeV2Route> = async (c: any) => {
         );
       }
       return c.json(
-        createStandardErrorResponse(result.error!, ERROR_CODES.INTERNAL_SERVER_ERROR),
+        createStandardErrorResponse(
+          result.error!,
+          ERROR_CODES.INTERNAL_SERVER_ERROR,
+        ),
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
       );
     }
 
     console.log('✅ V2 Scrape successful', {
-      userId: user.id,
+      //userId: user.id,
       url: body.url,
       elementsFound: result.data.metadata.elementsFound,
       creditsCost: result.creditsCost,
@@ -1276,12 +1379,12 @@ export const scrapeV2: AppRouteHandler<ScrapeV2Route> = async (c: any) => {
  */
 export const searchV2: AppRouteHandler<SearchV2Route> = async (c: any) => {
   try {
-    const user = c.get('user')!;
+    //const user = c.get('user')!;
     const body = c.req.valid('json');
     const _clientIp = c.req.header('CF-Connecting-IP') || 'unknown';
 
     console.log('🔍 V2 Search request', {
-      userId: user.id,
+      //userId: user.id,
       query: body.query,
       limit: body.limit,
     });
@@ -1290,7 +1393,7 @@ export const searchV2: AppRouteHandler<SearchV2Route> = async (c: any) => {
       c,
       'SEARCH',
       async () => {
-        const playwrightPoolDO = getPlaywrightPoolDO(c, user.id);
+        const playwrightPoolDO = getPlaywrightPoolDO(c, body.userId); //user.id
         return await playwrightPoolDO.searchWeb({
           query: body.query,
           limit: body.limit || 10,
@@ -1303,7 +1406,13 @@ export const searchV2: AppRouteHandler<SearchV2Route> = async (c: any) => {
     );
 
     if (!result.success) {
-      await logV2OperationFailure(c, 'searchV2', result, body, `search:${body.query}`);
+      await logV2OperationFailure(
+        c,
+        'searchV2',
+        result,
+        body,
+        `search:${body.query}`,
+      );
 
       if (result.error?.includes('Insufficient credits')) {
         return c.json(
@@ -1312,13 +1421,16 @@ export const searchV2: AppRouteHandler<SearchV2Route> = async (c: any) => {
         );
       }
       return c.json(
-        createStandardErrorResponse(result.error!, ERROR_CODES.INTERNAL_SERVER_ERROR),
+        createStandardErrorResponse(
+          result.error!,
+          ERROR_CODES.INTERNAL_SERVER_ERROR,
+        ),
         HttpStatusCodes.INTERNAL_SERVER_ERROR,
       );
     }
 
     console.log('✅ V2 Search successful', {
-      userId: user.id,
+      //userId: user.id,
       query: body.query,
       resultsFound: result.data.metadata.totalResults,
       creditsCost: result.creditsCost,

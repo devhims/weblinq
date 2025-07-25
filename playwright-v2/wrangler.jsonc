@@ -7,6 +7,9 @@
   "browser": {
     "binding": "PLAYWRIGHT_BROWSER"
   },
+  "ai": {
+    "binding": "AI"
+  },
   "durable_objects": {
     "bindings": [
       {

@@ -2,7 +2,10 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import { jsonContent, jsonContentRequired } from 'stoker/openapi/helpers';
 import { createErrorSchema } from 'stoker/openapi/schemas';
 
-import { createStandardSuccessSchema, StandardErrorSchema } from '@/lib/response-utils';
+import {
+  createStandardSuccessSchema,
+  StandardErrorSchema,
+} from '@/lib/response-utils';
 import { createRoute, z } from '@hono/zod-openapi';
 
 const tags = ['Web V2', 'Playwright'];
@@ -11,7 +14,10 @@ const tags = ['Web V2', 'Playwright'];
 const security = [{ bearerAuth: [] }];
 
 // Binary schema helper
-const binarySchema = z.string().openapi({ type: 'string', format: 'binary' }).describe('Raw bytes; default response.');
+const binarySchema = z
+  .string()
+  .openapi({ type: 'string', format: 'binary' })
+  .describe('Raw bytes; default response.');
 
 /* ========================================================================== */
 /*  V2 Input Schemas - Reuse from V1 but optimized for Playwright            */
@@ -20,7 +26,11 @@ const binarySchema = z.string().openapi({ type: 'string', format: 'binary' }).de
 export const screenshotV2InputSchema = z.object({
   url: z.string().url('Must be a valid URL'),
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
-  base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary Uint8Array'),
+  base64: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Return base64 string instead of binary Uint8Array'),
 
   // Advanced screenshot options (matching V1 but optimized for Playwright)
   screenshotOptions: z
@@ -45,7 +55,11 @@ export const screenshotV2InputSchema = z.object({
       type: z.enum(['png', 'jpeg', 'webp']).optional().default('png'), // Support all formats like V1
     })
     .optional()
-    .default({}),
+    .default({
+      encoding: 'binary',
+      fullPage: true,
+      type: 'png',
+    }),
 
   viewport: z
     .object({
@@ -78,7 +92,6 @@ export const scrapeV2InputSchema = z.object({
     }),
   ),
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
-  headers: z.record(z.string()).optional(),
 });
 
 export const linksV2InputSchema = z.object({
@@ -114,10 +127,15 @@ export const jsonExtractionV2InputSchema = z
     message: "Text responses require a 'prompt'",
     path: ['prompt'],
   })
-  .refine((data) => data.responseType !== 'json' || data.prompt || data.response_format, {
-    message: "JSON responses require either 'prompt' or 'response_format' (or both)",
-    path: ['responseType'],
-  })
+  .refine(
+    (data) =>
+      data.responseType !== 'json' || data.prompt || data.response_format,
+    {
+      message:
+        "JSON responses require either 'prompt' or 'response_format' (or both)",
+      path: ['responseType'],
+    },
+  )
   .refine((data) => data.responseType !== 'text' || !data.response_format, {
     message: "Schema-based 'response_format' is only valid for JSON responses",
     path: ['response_format'],
@@ -126,7 +144,11 @@ export const jsonExtractionV2InputSchema = z
 export const pdfV2InputSchema = z.object({
   url: z.string().url('Must be a valid URL'),
   waitTime: z.number().int().min(0).max(5000).optional().default(0),
-  base64: z.boolean().optional().default(false).describe('Return base64 string instead of binary Uint8Array'),
+  base64: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Return base64 string instead of binary Uint8Array'),
 });
 
 /* ========================================================================== */
@@ -135,7 +157,10 @@ export const pdfV2InputSchema = z.object({
 
 const screenshotV2OutputSchema = createStandardSuccessSchema(
   z.object({
-    image: z.string().describe('Base-64 image. Present only when `"base64": true`.').optional(),
+    image: z
+      .string()
+      .describe('Base-64 image. Present only when `"base64": true`.')
+      .optional(),
     metadata: z.object({
       width: z.number(),
       height: z.number(),
@@ -263,7 +288,10 @@ const jsonExtractionV2OutputSchema = createStandardSuccessSchema(
 
 const pdfV2OutputSchema = createStandardSuccessSchema(
   z.object({
-    pdf: z.string().describe('Base-64 PDF. Present only when `"base64": true`.').optional(),
+    pdf: z
+      .string()
+      .describe('Base-64 PDF. Present only when `"base64": true`.')
+      .optional(),
     metadata: z.object({
       size: z.number(),
       url: z.string(),
@@ -283,16 +311,35 @@ export const markdownV2 = createRoute({
   tags,
   security,
   summary: 'Extract markdown from a web page (V2 - Playwright)',
-  description: 'Convert web page content to markdown format using Playwright engine with session reuse and caching',
+  description:
+    'Convert web page content to markdown format using Playwright engine with session reuse and caching',
   request: {
-    body: jsonContentRequired(markdownV2InputSchema, 'Markdown extraction parameters'),
+    body: jsonContentRequired(
+      markdownV2InputSchema,
+      'Markdown extraction parameters',
+    ),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(markdownV2OutputSchema, 'Markdown extracted successfully'),
-    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(markdownV2InputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
-    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(StandardErrorSchema, 'Insufficient credits'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+    [HttpStatusCodes.OK]: jsonContent(
+      markdownV2OutputSchema,
+      'Markdown extracted successfully',
+    ),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(markdownV2InputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      StandardErrorSchema,
+      'Authentication required',
+    ),
+    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(
+      StandardErrorSchema,
+      'Insufficient credits',
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      StandardErrorSchema,
+      'Internal server error',
+    ),
   },
 });
 
@@ -302,7 +349,8 @@ export const screenshotV2 = createRoute({
   tags,
   security,
   summary: 'Capture screenshot of a web page (V2 - Playwright)',
-  description: 'Capture a screenshot using Playwright engine with session reuse and caching',
+  description:
+    'Capture a screenshot using Playwright engine with session reuse and caching',
   request: {
     body: jsonContentRequired(screenshotV2InputSchema, 'Screenshot parameters'),
   },
@@ -318,10 +366,22 @@ export const screenshotV2 = createRoute({
         },
       },
     },
-    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(screenshotV2InputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
-    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(StandardErrorSchema, 'Insufficient credits'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(screenshotV2InputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      StandardErrorSchema,
+      'Authentication required',
+    ),
+    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(
+      StandardErrorSchema,
+      'Insufficient credits',
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      StandardErrorSchema,
+      'Internal server error',
+    ),
   },
 });
 
@@ -331,16 +391,32 @@ export const linksV2 = createRoute({
   tags,
   security,
   summary: 'Extract links from a web page (V2 - Playwright)',
-  description: 'Get all links using Playwright engine with session reuse and caching',
+  description:
+    'Get all links using Playwright engine with session reuse and caching',
   request: {
     body: jsonContentRequired(linksV2InputSchema, 'Link extraction parameters'),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(linksV2OutputSchema, 'Links extracted successfully'),
-    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(linksV2InputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
-    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(StandardErrorSchema, 'Insufficient credits'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+    [HttpStatusCodes.OK]: jsonContent(
+      linksV2OutputSchema,
+      'Links extracted successfully',
+    ),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(linksV2InputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      StandardErrorSchema,
+      'Authentication required',
+    ),
+    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(
+      StandardErrorSchema,
+      'Insufficient credits',
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      StandardErrorSchema,
+      'Internal server error',
+    ),
   },
 });
 
@@ -350,16 +426,35 @@ export const contentV2 = createRoute({
   tags,
   security,
   summary: 'Get raw HTML content from a web page (V2 - Playwright)',
-  description: 'Retrieve raw HTML content using Playwright engine with session reuse and caching',
+  description:
+    'Retrieve raw HTML content using Playwright engine with session reuse and caching',
   request: {
-    body: jsonContentRequired(contentV2InputSchema, 'Content extraction parameters'),
+    body: jsonContentRequired(
+      contentV2InputSchema,
+      'Content extraction parameters',
+    ),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(contentV2OutputSchema, 'HTML content retrieved successfully'),
-    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(contentV2InputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
-    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(StandardErrorSchema, 'Insufficient credits'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+    [HttpStatusCodes.OK]: jsonContent(
+      contentV2OutputSchema,
+      'HTML content retrieved successfully',
+    ),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(contentV2InputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      StandardErrorSchema,
+      'Authentication required',
+    ),
+    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(
+      StandardErrorSchema,
+      'Insufficient credits',
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      StandardErrorSchema,
+      'Internal server error',
+    ),
   },
 });
 
@@ -369,7 +464,8 @@ export const pdfV2 = createRoute({
   tags,
   security,
   summary: 'Generate PDF from a web page (V2 - Playwright)',
-  description: 'Convert web pages to PDF using Playwright engine with session reuse and caching',
+  description:
+    'Convert web pages to PDF using Playwright engine with session reuse and caching',
   request: {
     body: jsonContentRequired(pdfV2InputSchema, 'PDF generation parameters'),
   },
@@ -385,10 +481,22 @@ export const pdfV2 = createRoute({
         },
       },
     },
-    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(pdfV2InputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
-    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(StandardErrorSchema, 'Insufficient credits'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(pdfV2InputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      StandardErrorSchema,
+      'Authentication required',
+    ),
+    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(
+      StandardErrorSchema,
+      'Insufficient credits',
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      StandardErrorSchema,
+      'Internal server error',
+    ),
   },
 });
 
@@ -398,16 +506,35 @@ export const scrapeV2 = createRoute({
   tags,
   security,
   summary: 'Scrape specific elements from a web page (V2 - Playwright)',
-  description: 'Extract specific DOM elements using CSS selectors with Playwright engine, session reuse and caching',
+  description:
+    'Extract specific DOM elements using CSS selectors with Playwright engine, session reuse and caching',
   request: {
-    body: jsonContentRequired(scrapeV2InputSchema, 'Element scraping parameters'),
+    body: jsonContentRequired(
+      scrapeV2InputSchema,
+      'Element scraping parameters',
+    ),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(scrapeV2OutputSchema, 'Elements scraped successfully'),
-    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(scrapeV2InputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
-    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(StandardErrorSchema, 'Insufficient credits'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+    [HttpStatusCodes.OK]: jsonContent(
+      scrapeV2OutputSchema,
+      'Elements scraped successfully',
+    ),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(scrapeV2InputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      StandardErrorSchema,
+      'Authentication required',
+    ),
+    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(
+      StandardErrorSchema,
+      'Insufficient credits',
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      StandardErrorSchema,
+      'Internal server error',
+    ),
   },
 });
 
@@ -417,16 +544,32 @@ export const searchV2 = createRoute({
   tags,
   security,
   summary: 'Search the web (V2 - Playwright)',
-  description: 'Perform web search using Playwright engine with parallel search, session reuse and caching',
+  description:
+    'Perform web search using Playwright engine with parallel search, session reuse and caching',
   request: {
     body: jsonContentRequired(searchV2InputSchema, 'Web search parameters'),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(searchV2OutputSchema, 'Search completed successfully'),
-    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(createErrorSchema(searchV2InputSchema), 'Validation error'),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
-    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(StandardErrorSchema, 'Insufficient credits'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+    [HttpStatusCodes.OK]: jsonContent(
+      searchV2OutputSchema,
+      'Search completed successfully',
+    ),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(searchV2InputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      StandardErrorSchema,
+      'Authentication required',
+    ),
+    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(
+      StandardErrorSchema,
+      'Insufficient credits',
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      StandardErrorSchema,
+      'Internal server error',
+    ),
   },
 });
 
@@ -439,17 +582,32 @@ export const jsonExtractionV2 = createRoute({
   description:
     'Extract structured data (JSON) or natural language text from a web page using Playwright engine with session reuse and caching',
   request: {
-    body: jsonContentRequired(jsonExtractionV2InputSchema, 'JSON extraction parameters'),
+    body: jsonContentRequired(
+      jsonExtractionV2InputSchema,
+      'JSON extraction parameters',
+    ),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(jsonExtractionV2OutputSchema, 'Data extracted successfully'),
+    [HttpStatusCodes.OK]: jsonContent(
+      jsonExtractionV2OutputSchema,
+      'Data extracted successfully',
+    ),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(jsonExtractionV2InputSchema),
       'Validation error',
     ),
-    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
-    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(StandardErrorSchema, 'Insufficient credits'),
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      StandardErrorSchema,
+      'Authentication required',
+    ),
+    [HttpStatusCodes.PAYMENT_REQUIRED]: jsonContent(
+      StandardErrorSchema,
+      'Insufficient credits',
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
+      StandardErrorSchema,
+      'Internal server error',
+    ),
   },
 });
 

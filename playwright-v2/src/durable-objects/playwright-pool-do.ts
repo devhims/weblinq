@@ -6,7 +6,10 @@ import type { LinksParams, LinksResult } from '@/lib/v2/links-v2';
 import type { MarkdownParams, MarkdownResult } from '@/lib/v2/markdown-v2';
 import type { PdfParams, PdfResult } from '@/lib/v2/pdf-v2';
 import type { ScrapeParams, ScrapeResult } from '@/lib/v2/scrape-v2';
-import type { ScreenshotParams, ScreenshotResult } from '@/lib/v2/screenshot-v2';
+import type {
+  ScreenshotParams,
+  ScreenshotResult,
+} from '@/lib/v2/screenshot-v2';
 import type { SearchParams, SearchResult } from '@/lib/v2/search-v2';
 import type { Browser, Page } from '@cloudflare/playwright';
 
@@ -141,7 +144,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
   constructor(state: DurableObjectState, env: CloudflareBindings) {
     super(state, env);
 
-    console.log('🔧 PlaywrightPoolDO: Initialized with session reuse and performance optimizations');
+    console.log(
+      '🔧 PlaywrightPoolDO: Initialized with session reuse and performance optimizations',
+    );
   }
 
   /* ----------------------------- Private Helpers ----------------------------- */
@@ -184,7 +189,8 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
     if (config.waitForLoad) {
       // Cap load timeout for faster operations
-      const loadTimeout = operationType === 'screenshot' ? 5000 : config.maxTimeout;
+      const loadTimeout =
+        operationType === 'screenshot' ? 5000 : config.maxTimeout;
       promises.push(
         page.waitForLoadState('load', { timeout: loadTimeout }).catch(() => {
           console.log(`⚠️ Load timeout for ${operationType}, continuing...`);
@@ -194,9 +200,13 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
     if (config.waitForNetwork) {
       promises.push(
-        page.waitForLoadState('networkidle', { timeout: config.maxTimeout }).catch(() => {
-          console.log(`⚠️ Network idle timeout for ${operationType}, continuing...`);
-        }),
+        page
+          .waitForLoadState('networkidle', { timeout: config.maxTimeout })
+          .catch(() => {
+            console.log(
+              `⚠️ Network idle timeout for ${operationType}, continuing...`,
+            );
+          }),
       );
     }
 
@@ -267,7 +277,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Set viewport early to avoid reflow
       const viewportSize = viewport || { width: 1920, height: 1080 };
       await page.setViewportSize(viewportSize);
-      console.log(`📏 Set viewport to ${viewportSize.width}x${viewportSize.height}`);
+      console.log(
+        `📏 Set viewport to ${viewportSize.width}x${viewportSize.height}`,
+      );
     }
   }
 
@@ -279,8 +291,10 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
     reason?: string;
   }> {
     try {
-      console.log('📊 PlaywrightPoolDO: Checking limits before launching new session...');
-      const currentLimits = await limits(this.env.BROWSER);
+      console.log(
+        '📊 PlaywrightPoolDO: Checking limits before launching new session...',
+      );
+      const currentLimits = await limits(this.env.PLAYWRIGHT_BROWSER);
 
       console.log(`📈 PlaywrightPoolDO: Current limits:`, {
         maxConcurrentSessions: currentLimits.maxConcurrentSessions,
@@ -290,7 +304,10 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       });
 
       // Check if we're at the concurrent session limit
-      if (currentLimits.activeSessions.length >= currentLimits.maxConcurrentSessions) {
+      if (
+        currentLimits.activeSessions.length >=
+        currentLimits.maxConcurrentSessions
+      ) {
         return {
           canLaunch: false,
           reason: `At max concurrent sessions limit (${currentLimits.maxConcurrentSessions})`,
@@ -318,17 +335,28 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
   private async getAvailableSession(): Promise<string | null> {
     try {
       console.log('🔍 PlaywrightPoolDO: Checking for available sessions...');
-      const activeSessions = await sessions(this.env.BROWSER);
-      console.log(`📊 PlaywrightPoolDO: Found ${activeSessions.length} total sessions`);
+      const activeSessions = await sessions(this.env.PLAYWRIGHT_BROWSER);
+      console.log(
+        `📊 PlaywrightPoolDO: Found ${activeSessions.length} total sessions`,
+      );
 
       // Filter sessions without active connections (available for reuse)
-      const availableSessions = activeSessions.filter((session) => !session.connectionId);
-      console.log(`🆓 PlaywrightPoolDO: Found ${availableSessions.length} available sessions`);
+      const availableSessions = activeSessions.filter(
+        (session) => !session.connectionId,
+      );
+      console.log(
+        `🆓 PlaywrightPoolDO: Found ${availableSessions.length} available sessions`,
+      );
 
       if (availableSessions.length > 0) {
         // Pick a random available session
-        const randomSession = availableSessions[Math.floor(Math.random() * availableSessions.length)];
-        console.log(`🎯 PlaywrightPoolDO: Selected session ${randomSession.sessionId} for reuse`);
+        const randomSession =
+          availableSessions[
+            Math.floor(Math.random() * availableSessions.length)
+          ];
+        console.log(
+          `🎯 PlaywrightPoolDO: Selected session ${randomSession.sessionId} for reuse`,
+        );
         return randomSession.sessionId;
       }
 
@@ -342,7 +370,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
   /** Main RPC method to extract markdown from a URL using proper session reuse. */
   async extractMarkdown(params: MarkdownParams): Promise<MarkdownResult> {
-    console.log(`📄 PlaywrightPoolDO: Markdown extraction request for ${params.url}`);
+    console.log(
+      `📄 PlaywrightPoolDO: Markdown extraction request for ${params.url}`,
+    );
 
     let browser: Browser | null = null;
     let page: Page | null = null;
@@ -354,12 +384,22 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       if (availableSessionId) {
         try {
-          console.log(`🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`);
-          browser = await connect(this.env.BROWSER, availableSessionId);
+          console.log(
+            `🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`,
+          );
+          browser = await connect(
+            this.env.PLAYWRIGHT_BROWSER,
+            availableSessionId,
+          );
           sessionReused = true;
-          console.log(`✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`);
+          console.log(
+            `✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`,
+          );
         } catch (connectError) {
-          console.warn(`⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`, connectError);
+          console.warn(
+            `⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`,
+            connectError,
+          );
           // Continue to launch new session
         }
       }
@@ -369,19 +409,31 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         const limitsCheck = await this.canLaunchNewSession();
 
         if (!limitsCheck.canLaunch) {
-          console.error(`🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`);
-          throw new Error(`Browser session limit reached: ${limitsCheck.reason}`);
+          console.error(
+            `🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`,
+          );
+          throw new Error(
+            `Browser session limit reached: ${limitsCheck.reason}`,
+          );
         }
 
-        console.log('🚀 PlaywrightPoolDO: Launching new browser session within limits...');
-        browser = await launch(this.env.BROWSER, {
+        console.log(
+          '🚀 PlaywrightPoolDO: Launching new browser session within limits...',
+        );
+        browser = await launch(this.env.PLAYWRIGHT_BROWSER, {
           keep_alive: KEEP_ALIVE_MS, // 10 minutes
         });
-        console.log(`✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`);
+        console.log(
+          `✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`,
+        );
       }
 
       const sessionId = browser.sessionId();
-      console.log(`🎯 PlaywrightPoolDO: Using session ${sessionId} (${sessionReused ? 'reused' : 'new'})`);
+      console.log(
+        `🎯 PlaywrightPoolDO: Using session ${sessionId} (${
+          sessionReused ? 'reused' : 'new'
+        })`,
+      );
 
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
@@ -390,7 +442,12 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       // Navigate to URL with retry logic
       console.log(`🔄 PlaywrightPoolDO: Navigating to ${params.url}...`);
-      await this.navigateOptimized(page, params.url, 'markdown', params.waitTime);
+      await this.navigateOptimized(
+        page,
+        params.url,
+        'markdown',
+        params.waitTime,
+      );
 
       // Execute markdown operation
       console.log(`🔄 PlaywrightPoolDO: Executing markdown operation...`);
@@ -401,12 +458,17 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
           `✅ PlaywrightPoolDO: Markdown extraction successful. Word count: ${result.data.metadata.wordCount}`,
         );
       } else {
-        console.error(`❌ PlaywrightPoolDO: Markdown processing failed: ${result.error.message}`);
+        console.error(
+          `❌ PlaywrightPoolDO: Markdown processing failed: ${result.error.message}`,
+        );
       }
 
       return result;
     } catch (error) {
-      console.error(`💥 PlaywrightPoolDO: Markdown extraction failed for ${params.url}:`, error);
+      console.error(
+        `💥 PlaywrightPoolDO: Markdown extraction failed for ${params.url}:`,
+        error,
+      );
       return {
         success: false as const,
         error: { message: String(error) },
@@ -432,7 +494,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
             })`,
           );
           await browser.close();
-          console.log(`✅ PlaywrightPoolDO: Browser session closed successfully`);
+          console.log(
+            `✅ PlaywrightPoolDO: Browser session closed successfully`,
+          );
         } catch (closeError) {
           console.warn('PlaywrightPoolDO: Error closing browser:', closeError);
         }
@@ -441,7 +505,10 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
   }
 
   /** Helper method to extract structured data (title, meta description, JSON-LD) from a page */
-  async extractStructuredData(params: { url: string; waitTime?: number }): Promise<{
+  async extractStructuredData(params: {
+    url: string;
+    waitTime?: number;
+  }): Promise<{
     success: boolean;
     data?: {
       title: string;
@@ -451,7 +518,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
     };
     error?: { message: string };
   }> {
-    console.log(`🔍 PlaywrightPoolDO: Structured data extraction request for ${params.url}`);
+    console.log(
+      `🔍 PlaywrightPoolDO: Structured data extraction request for ${params.url}`,
+    );
 
     let browser: Browser | null = null;
     let page: Page | null = null;
@@ -463,12 +532,22 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       if (availableSessionId) {
         try {
-          console.log(`🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`);
-          browser = await connect(this.env.BROWSER, availableSessionId);
+          console.log(
+            `🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`,
+          );
+          browser = await connect(
+            this.env.PLAYWRIGHT_BROWSER,
+            availableSessionId,
+          );
           sessionReused = true;
-          console.log(`✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`);
+          console.log(
+            `✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`,
+          );
         } catch (connectError) {
-          console.warn(`⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`, connectError);
+          console.warn(
+            `⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`,
+            connectError,
+          );
           // Continue to launch new session
         }
       }
@@ -478,13 +557,21 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         const limitsCheck = await this.canLaunchNewSession();
 
         if (!limitsCheck.canLaunch) {
-          console.error(`🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`);
-          throw new Error(`Browser session limit reached: ${limitsCheck.reason}`);
+          console.error(
+            `🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`,
+          );
+          throw new Error(
+            `Browser session limit reached: ${limitsCheck.reason}`,
+          );
         }
 
         console.log('🚀 PlaywrightPoolDO: Launching new browser session...');
-        browser = await launch(this.env.BROWSER, { keep_alive: KEEP_ALIVE_MS });
-        console.log(`✅ PlaywrightPoolDO: New session launched with ID: ${browser.sessionId()}`);
+        browser = await launch(this.env.PLAYWRIGHT_BROWSER, {
+          keep_alive: KEEP_ALIVE_MS,
+        });
+        console.log(
+          `✅ PlaywrightPoolDO: New session launched with ID: ${browser.sessionId()}`,
+        );
       }
 
       // Get a page and navigate
@@ -492,7 +579,10 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       await hardenPageAdvanced(page, 'navigate'); // Apply security hardening
 
       console.log(`🌐 PlaywrightPoolDO: Navigating to ${params.url}...`);
-      await pageGotoWithRetry(page, params.url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+      await pageGotoWithRetry(page, params.url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 15_000,
+      });
 
       // Wait for optional delay
       if (params.waitTime && params.waitTime > 0) {
@@ -503,10 +593,15 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       // Extract structured data
       const structuredData = await page.evaluate(() => {
         const title = document.title || '';
-        const metaDescription = document.querySelector('meta[name="description"]')?.getAttribute('content') || '';
+        const metaDescription =
+          document
+            .querySelector('meta[name="description"]')
+            ?.getAttribute('content') || '';
 
         // Extract JSON-LD structured data
-        const jsonLdElements = document.querySelectorAll('script[type="application/ld+json"]');
+        const jsonLdElements = document.querySelectorAll(
+          'script[type="application/ld+json"]',
+        );
         const structuredData: any[] = [];
 
         jsonLdElements.forEach((element) => {
@@ -526,22 +621,30 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         };
       });
 
-      console.log(`✅ PlaywrightPoolDO: Structured data extraction completed for ${params.url}`, {
-        hasTitle: !!structuredData.title,
-        hasDescription: !!structuredData.metaDescription,
-        structuredDataCount: structuredData.structuredData.length,
-        sessionReused,
-      });
+      console.log(
+        `✅ PlaywrightPoolDO: Structured data extraction completed for ${params.url}`,
+        {
+          hasTitle: !!structuredData.title,
+          hasDescription: !!structuredData.metaDescription,
+          structuredDataCount: structuredData.structuredData.length,
+          sessionReused,
+        },
+      );
 
       return {
         success: true,
         data: structuredData,
       };
     } catch (error) {
-      console.error(`❌ PlaywrightPoolDO: Structured data extraction failed for ${params.url}:`, error);
+      console.error(
+        `❌ PlaywrightPoolDO: Structured data extraction failed for ${params.url}:`,
+        error,
+      );
       return {
         success: false,
-        error: { message: error instanceof Error ? error.message : String(error) },
+        error: {
+          message: error instanceof Error ? error.message : String(error),
+        },
       };
     } finally {
       // Always close the page, but keep the browser session for reuse
@@ -550,7 +653,10 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
           await page.close();
           console.log('🧹 PlaywrightPoolDO: Page closed successfully');
         } catch (pageCloseError) {
-          console.warn('⚠️ PlaywrightPoolDO: Failed to close page:', pageCloseError);
+          console.warn(
+            '⚠️ PlaywrightPoolDO: Failed to close page:',
+            pageCloseError,
+          );
         }
       }
 
@@ -561,7 +667,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
   /** Fast screenshot method using playwright-mcp-main optimization approach. */
   async takeScreenshot(params: ScreenshotParams): Promise<ScreenshotResult> {
-    console.log(`📸 PlaywrightPoolDO: Fast screenshot request for ${params.url}`);
+    console.log(
+      `📸 PlaywrightPoolDO: Fast screenshot request for ${params.url}`,
+    );
 
     let browser: Browser | null = null;
     let page: Page | null = null;
@@ -573,12 +681,22 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       if (availableSessionId) {
         try {
-          console.log(`🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`);
-          browser = await connect(this.env.BROWSER, availableSessionId);
+          console.log(
+            `🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`,
+          );
+          browser = await connect(
+            this.env.PLAYWRIGHT_BROWSER,
+            availableSessionId,
+          );
           sessionReused = true;
-          console.log(`✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`);
+          console.log(
+            `✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`,
+          );
         } catch (connectError) {
-          console.warn(`⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`, connectError);
+          console.warn(
+            `⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`,
+            connectError,
+          );
           // Continue to launch new session
         }
       }
@@ -588,22 +706,36 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         const limitsCheck = await this.canLaunchNewSession();
 
         if (!limitsCheck.canLaunch) {
-          console.error(`🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`);
-          throw new Error(`Browser session limit reached: ${limitsCheck.reason}`);
+          console.error(
+            `🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`,
+          );
+          throw new Error(
+            `Browser session limit reached: ${limitsCheck.reason}`,
+          );
         }
 
-        console.log('🚀 PlaywrightPoolDO: Launching new browser session within limits...');
-        browser = await launch(this.env.BROWSER, {
+        console.log(
+          '🚀 PlaywrightPoolDO: Launching new browser session within limits...',
+        );
+        browser = await launch(this.env.PLAYWRIGHT_BROWSER, {
           keep_alive: KEEP_ALIVE_MS, // 10 minutes
         });
-        console.log(`✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`);
+        console.log(
+          `✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`,
+        );
       }
 
       const sessionId = browser.sessionId();
-      console.log(`🎯 PlaywrightPoolDO: Using session ${sessionId} (${sessionReused ? 'reused' : 'new'})`);
+      console.log(
+        `🎯 PlaywrightPoolDO: Using session ${sessionId} (${
+          sessionReused ? 'reused' : 'new'
+        })`,
+      );
 
       // Create and prepare page for fast screenshots
-      console.log(`🌐 PlaywrightPoolDO: Creating new page for fast screenshot...`);
+      console.log(
+        `🌐 PlaywrightPoolDO: Creating new page for fast screenshot...`,
+      );
       page = await browser.newPage();
 
       // Use lightweight hardening for screenshots (no resource blocking)
@@ -613,18 +745,27 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       await navigateForScreenshot(page, params.url, params.waitTime);
 
       // Execute fast screenshot operation with all optimizations
-      console.log(`🔄 PlaywrightPoolDO: Executing fast screenshot operation...`);
+      console.log(
+        `🔄 PlaywrightPoolDO: Executing fast screenshot operation...`,
+      );
       const result = await screenshotOperation(page, params);
 
       if (result.success) {
-        console.log(`✅ PlaywrightPoolDO: Fast screenshot successful. Size: ${result.data.metadata.size} bytes`);
+        console.log(
+          `✅ PlaywrightPoolDO: Fast screenshot successful. Size: ${result.data.metadata.size} bytes`,
+        );
       } else {
-        console.error(`❌ PlaywrightPoolDO: Fast screenshot failed: ${result.error.message}`);
+        console.error(
+          `❌ PlaywrightPoolDO: Fast screenshot failed: ${result.error.message}`,
+        );
       }
 
       return result;
     } catch (error) {
-      console.error(`💥 PlaywrightPoolDO: Fast screenshot failed for ${params.url}:`, error);
+      console.error(
+        `💥 PlaywrightPoolDO: Fast screenshot failed for ${params.url}:`,
+        error,
+      );
       return {
         success: false as const,
         error: { message: String(error) },
@@ -649,7 +790,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
             })`,
           );
           await browser.close();
-          console.log(`✅ PlaywrightPoolDO: Browser session closed successfully`);
+          console.log(
+            `✅ PlaywrightPoolDO: Browser session closed successfully`,
+          );
         } catch (closeError) {
           console.warn('PlaywrightPoolDO: Error closing browser:', closeError);
         }
@@ -659,7 +802,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
   /** Main RPC method to extract links from a URL using proper session reuse. */
   async extractLinks(params: LinksParams): Promise<LinksResult> {
-    console.log(`🔗 PlaywrightPoolDO: Links extraction request for ${params.url}`);
+    console.log(
+      `🔗 PlaywrightPoolDO: Links extraction request for ${params.url}`,
+    );
 
     let browser: Browser | null = null;
     let page: Page | null = null;
@@ -671,12 +816,22 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       if (availableSessionId) {
         try {
-          console.log(`🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`);
-          browser = await connect(this.env.BROWSER, availableSessionId);
+          console.log(
+            `🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`,
+          );
+          browser = await connect(
+            this.env.PLAYWRIGHT_BROWSER,
+            availableSessionId,
+          );
           sessionReused = true;
-          console.log(`✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`);
+          console.log(
+            `✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`,
+          );
         } catch (connectError) {
-          console.warn(`⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`, connectError);
+          console.warn(
+            `⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`,
+            connectError,
+          );
           // Continue to launch new session
         }
       }
@@ -686,19 +841,31 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         const limitsCheck = await this.canLaunchNewSession();
 
         if (!limitsCheck.canLaunch) {
-          console.error(`🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`);
-          throw new Error(`Browser session limit reached: ${limitsCheck.reason}`);
+          console.error(
+            `🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`,
+          );
+          throw new Error(
+            `Browser session limit reached: ${limitsCheck.reason}`,
+          );
         }
 
-        console.log('🚀 PlaywrightPoolDO: Launching new browser session within limits...');
-        browser = await launch(this.env.BROWSER, {
+        console.log(
+          '🚀 PlaywrightPoolDO: Launching new browser session within limits...',
+        );
+        browser = await launch(this.env.PLAYWRIGHT_BROWSER, {
           keep_alive: KEEP_ALIVE_MS, // 10 minutes
         });
-        console.log(`✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`);
+        console.log(
+          `✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`,
+        );
       }
 
       const sessionId = browser.sessionId();
-      console.log(`🎯 PlaywrightPoolDO: Using session ${sessionId} (${sessionReused ? 'reused' : 'new'})`);
+      console.log(
+        `🎯 PlaywrightPoolDO: Using session ${sessionId} (${
+          sessionReused ? 'reused' : 'new'
+        })`,
+      );
 
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
@@ -718,12 +885,17 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
           `✅ PlaywrightPoolDO: Links extraction successful. Total links: ${result.data.metadata.totalLinks}`,
         );
       } else {
-        console.error(`❌ PlaywrightPoolDO: Links processing failed: ${result.error.message}`);
+        console.error(
+          `❌ PlaywrightPoolDO: Links processing failed: ${result.error.message}`,
+        );
       }
 
       return result;
     } catch (error) {
-      console.error(`💥 PlaywrightPoolDO: Links extraction failed for ${params.url}:`, error);
+      console.error(
+        `💥 PlaywrightPoolDO: Links extraction failed for ${params.url}:`,
+        error,
+      );
       return {
         success: false as const,
         error: { message: String(error) },
@@ -748,7 +920,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
             })`,
           );
           await browser.close();
-          console.log(`✅ PlaywrightPoolDO: Browser session closed successfully`);
+          console.log(
+            `✅ PlaywrightPoolDO: Browser session closed successfully`,
+          );
         } catch (closeError) {
           console.warn('PlaywrightPoolDO: Error closing browser:', closeError);
         }
@@ -758,7 +932,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
   /** Main RPC method to extract HTML content from a URL using proper session reuse. */
   async extractContent(params: ContentParams): Promise<ContentResult> {
-    console.log(`📄 PlaywrightPoolDO: Content extraction request for ${params.url}`);
+    console.log(
+      `📄 PlaywrightPoolDO: Content extraction request for ${params.url}`,
+    );
 
     let browser: Browser | null = null;
     let page: Page | null = null;
@@ -770,12 +946,22 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       if (availableSessionId) {
         try {
-          console.log(`🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`);
-          browser = await connect(this.env.BROWSER, availableSessionId);
+          console.log(
+            `🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`,
+          );
+          browser = await connect(
+            this.env.PLAYWRIGHT_BROWSER,
+            availableSessionId,
+          );
           sessionReused = true;
-          console.log(`✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`);
+          console.log(
+            `✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`,
+          );
         } catch (connectError) {
-          console.warn(`⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`, connectError);
+          console.warn(
+            `⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`,
+            connectError,
+          );
           // Continue to launch new session
         }
       }
@@ -785,19 +971,31 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         const limitsCheck = await this.canLaunchNewSession();
 
         if (!limitsCheck.canLaunch) {
-          console.error(`🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`);
-          throw new Error(`Browser session limit reached: ${limitsCheck.reason}`);
+          console.error(
+            `🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`,
+          );
+          throw new Error(
+            `Browser session limit reached: ${limitsCheck.reason}`,
+          );
         }
 
-        console.log('🚀 PlaywrightPoolDO: Launching new browser session within limits...');
-        browser = await launch(this.env.BROWSER, {
+        console.log(
+          '🚀 PlaywrightPoolDO: Launching new browser session within limits...',
+        );
+        browser = await launch(this.env.PLAYWRIGHT_BROWSER, {
           keep_alive: KEEP_ALIVE_MS, // 10 minutes
         });
-        console.log(`✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`);
+        console.log(
+          `✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`,
+        );
       }
 
       const sessionId = browser.sessionId();
-      console.log(`🎯 PlaywrightPoolDO: Using session ${sessionId} (${sessionReused ? 'reused' : 'new'})`);
+      console.log(
+        `🎯 PlaywrightPoolDO: Using session ${sessionId} (${
+          sessionReused ? 'reused' : 'new'
+        })`,
+      );
 
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
@@ -806,7 +1004,12 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       // Navigate to URL with retry logic
       console.log(`🔄 PlaywrightPoolDO: Navigating to ${params.url}...`);
-      await this.navigateOptimized(page, params.url, 'content', params.waitTime);
+      await this.navigateOptimized(
+        page,
+        params.url,
+        'content',
+        params.waitTime,
+      );
 
       // Execute content operation
       console.log(`🔄 PlaywrightPoolDO: Executing content operation...`);
@@ -817,12 +1020,17 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
           `✅ PlaywrightPoolDO: Content extraction successful. Content size: ${result.data.content.length} chars`,
         );
       } else {
-        console.error(`❌ PlaywrightPoolDO: Content processing failed: ${result.error.message}`);
+        console.error(
+          `❌ PlaywrightPoolDO: Content processing failed: ${result.error.message}`,
+        );
       }
 
       return result;
     } catch (error) {
-      console.error(`💥 PlaywrightPoolDO: Content extraction failed for ${params.url}:`, error);
+      console.error(
+        `💥 PlaywrightPoolDO: Content extraction failed for ${params.url}:`,
+        error,
+      );
       return {
         success: false as const,
         error: { message: String(error) },
@@ -847,7 +1055,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
             })`,
           );
           await browser.close();
-          console.log(`✅ PlaywrightPoolDO: Browser session closed successfully`);
+          console.log(
+            `✅ PlaywrightPoolDO: Browser session closed successfully`,
+          );
         } catch (closeError) {
           console.warn('PlaywrightPoolDO: Error closing browser:', closeError);
         }
@@ -857,7 +1067,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
   /** Main RPC method to generate PDF from a URL using proper session reuse. */
   async generatePdf(params: PdfParams): Promise<PdfResult> {
-    console.log(`📄 PlaywrightPoolDO: PDF generation request for ${params.url}`);
+    console.log(
+      `📄 PlaywrightPoolDO: PDF generation request for ${params.url}`,
+    );
 
     let browser: Browser | null = null;
     let page: Page | null = null;
@@ -869,12 +1081,22 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       if (availableSessionId) {
         try {
-          console.log(`🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`);
-          browser = await connect(this.env.BROWSER, availableSessionId);
+          console.log(
+            `🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`,
+          );
+          browser = await connect(
+            this.env.PLAYWRIGHT_BROWSER,
+            availableSessionId,
+          );
           sessionReused = true;
-          console.log(`✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`);
+          console.log(
+            `✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`,
+          );
         } catch (connectError) {
-          console.warn(`⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`, connectError);
+          console.warn(
+            `⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`,
+            connectError,
+          );
           // Continue to launch new session
         }
       }
@@ -884,19 +1106,31 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         const limitsCheck = await this.canLaunchNewSession();
 
         if (!limitsCheck.canLaunch) {
-          console.error(`🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`);
-          throw new Error(`Browser session limit reached: ${limitsCheck.reason}`);
+          console.error(
+            `🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`,
+          );
+          throw new Error(
+            `Browser session limit reached: ${limitsCheck.reason}`,
+          );
         }
 
-        console.log('🚀 PlaywrightPoolDO: Launching new browser session within limits...');
-        browser = await launch(this.env.BROWSER, {
+        console.log(
+          '🚀 PlaywrightPoolDO: Launching new browser session within limits...',
+        );
+        browser = await launch(this.env.PLAYWRIGHT_BROWSER, {
           keep_alive: KEEP_ALIVE_MS, // 10 minutes
         });
-        console.log(`✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`);
+        console.log(
+          `✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`,
+        );
       }
 
       const sessionId = browser.sessionId();
-      console.log(`🎯 PlaywrightPoolDO: Using session ${sessionId} (${sessionReused ? 'reused' : 'new'})`);
+      console.log(
+        `🎯 PlaywrightPoolDO: Using session ${sessionId} (${
+          sessionReused ? 'reused' : 'new'
+        })`,
+      );
 
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
@@ -908,14 +1142,21 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       const result = await pdfOperation(page, params);
 
       if (result.success) {
-        console.log(`✅ PlaywrightPoolDO: PDF generation successful. Size: ${result.data.metadata.size} bytes`);
+        console.log(
+          `✅ PlaywrightPoolDO: PDF generation successful. Size: ${result.data.metadata.size} bytes`,
+        );
       } else {
-        console.error(`❌ PlaywrightPoolDO: PDF generation failed: ${result.error.message}`);
+        console.error(
+          `❌ PlaywrightPoolDO: PDF generation failed: ${result.error.message}`,
+        );
       }
 
       return result;
     } catch (error) {
-      console.error(`💥 PlaywrightPoolDO: PDF generation failed for ${params.url}:`, error);
+      console.error(
+        `💥 PlaywrightPoolDO: PDF generation failed for ${params.url}:`,
+        error,
+      );
       return {
         success: false as const,
         error: { message: String(error) },
@@ -940,7 +1181,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
             })`,
           );
           await browser.close();
-          console.log(`✅ PlaywrightPoolDO: Browser session closed successfully`);
+          console.log(
+            `✅ PlaywrightPoolDO: Browser session closed successfully`,
+          );
         } catch (closeError) {
           console.warn('PlaywrightPoolDO: Error closing browser:', closeError);
         }
@@ -950,7 +1193,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
   /** Main RPC method to scrape elements from a URL using proper session reuse. */
   async scrapeElements(params: ScrapeParams): Promise<ScrapeResult> {
-    console.log(`🔍 PlaywrightPoolDO: Scrape request for ${params.url} with ${params.elements.length} selectors`);
+    console.log(
+      `🔍 PlaywrightPoolDO: Scrape request for ${params.url} with ${params.elements.length} selectors`,
+    );
 
     let browser: Browser | null = null;
     let page: Page | null = null;
@@ -962,12 +1207,22 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       if (availableSessionId) {
         try {
-          console.log(`🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`);
-          browser = await connect(this.env.BROWSER, availableSessionId);
+          console.log(
+            `🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`,
+          );
+          browser = await connect(
+            this.env.PLAYWRIGHT_BROWSER,
+            availableSessionId,
+          );
           sessionReused = true;
-          console.log(`✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`);
+          console.log(
+            `✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`,
+          );
         } catch (connectError) {
-          console.warn(`⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`, connectError);
+          console.warn(
+            `⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`,
+            connectError,
+          );
           // Continue to launch new session
         }
       }
@@ -977,19 +1232,31 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         const limitsCheck = await this.canLaunchNewSession();
 
         if (!limitsCheck.canLaunch) {
-          console.error(`🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`);
-          throw new Error(`Browser session limit reached: ${limitsCheck.reason}`);
+          console.error(
+            `🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`,
+          );
+          throw new Error(
+            `Browser session limit reached: ${limitsCheck.reason}`,
+          );
         }
 
-        console.log('🚀 PlaywrightPoolDO: Launching new browser session within limits...');
-        browser = await launch(this.env.BROWSER, {
+        console.log(
+          '🚀 PlaywrightPoolDO: Launching new browser session within limits...',
+        );
+        browser = await launch(this.env.PLAYWRIGHT_BROWSER, {
           keep_alive: KEEP_ALIVE_MS, // 10 minutes
         });
-        console.log(`✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`);
+        console.log(
+          `✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`,
+        );
       }
 
       const sessionId = browser.sessionId();
-      console.log(`🎯 PlaywrightPoolDO: Using session ${sessionId} (${sessionReused ? 'reused' : 'new'})`);
+      console.log(
+        `🎯 PlaywrightPoolDO: Using session ${sessionId} (${
+          sessionReused ? 'reused' : 'new'
+        })`,
+      );
 
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
@@ -1001,14 +1268,21 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       const result = await scrapeOperation(page, params);
 
       if (result.success) {
-        console.log(`✅ PlaywrightPoolDO: Scrape successful. Elements found: ${result.data.metadata.elementsFound}`);
+        console.log(
+          `✅ PlaywrightPoolDO: Scrape successful. Elements found: ${result.data.metadata.elementsFound}`,
+        );
       } else {
-        console.error(`❌ PlaywrightPoolDO: Scrape failed: ${result.error.message}`);
+        console.error(
+          `❌ PlaywrightPoolDO: Scrape failed: ${result.error.message}`,
+        );
       }
 
       return result;
     } catch (error) {
-      console.error(`💥 PlaywrightPoolDO: Scrape failed for ${params.url}:`, error);
+      console.error(
+        `💥 PlaywrightPoolDO: Scrape failed for ${params.url}:`,
+        error,
+      );
       return {
         success: false as const,
         error: { message: String(error) },
@@ -1033,7 +1307,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
             })`,
           );
           await browser.close();
-          console.log(`✅ PlaywrightPoolDO: Browser session closed successfully`);
+          console.log(
+            `✅ PlaywrightPoolDO: Browser session closed successfully`,
+          );
         } catch (closeError) {
           console.warn('PlaywrightPoolDO: Error closing browser:', closeError);
         }
@@ -1055,12 +1331,22 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
 
       if (availableSessionId) {
         try {
-          console.log(`🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`);
-          browser = await connect(this.env.BROWSER, availableSessionId);
+          console.log(
+            `🔗 PlaywrightPoolDO: Attempting to connect to session ${availableSessionId}...`,
+          );
+          browser = await connect(
+            this.env.PLAYWRIGHT_BROWSER,
+            availableSessionId,
+          );
           sessionReused = true;
-          console.log(`✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`);
+          console.log(
+            `✅ PlaywrightPoolDO: Successfully connected to existing session ${availableSessionId}`,
+          );
         } catch (connectError) {
-          console.warn(`⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`, connectError);
+          console.warn(
+            `⚠️ PlaywrightPoolDO: Failed to connect to session ${availableSessionId}:`,
+            connectError,
+          );
           // Continue to launch new session
         }
       }
@@ -1070,19 +1356,31 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         const limitsCheck = await this.canLaunchNewSession();
 
         if (!limitsCheck.canLaunch) {
-          console.error(`🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`);
-          throw new Error(`Browser session limit reached: ${limitsCheck.reason}`);
+          console.error(
+            `🚫 PlaywrightPoolDO: Cannot launch new session: ${limitsCheck.reason}`,
+          );
+          throw new Error(
+            `Browser session limit reached: ${limitsCheck.reason}`,
+          );
         }
 
-        console.log('🚀 PlaywrightPoolDO: Launching new browser session within limits...');
-        browser = await launch(this.env.BROWSER, {
+        console.log(
+          '🚀 PlaywrightPoolDO: Launching new browser session within limits...',
+        );
+        browser = await launch(this.env.PLAYWRIGHT_BROWSER, {
           keep_alive: KEEP_ALIVE_MS, // 10 minutes
         });
-        console.log(`✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`);
+        console.log(
+          `✅ PlaywrightPoolDO: New browser session launched with ID ${browser.sessionId()}`,
+        );
       }
 
       const sessionId = browser.sessionId();
-      console.log(`🎯 PlaywrightPoolDO: Using session ${sessionId} (${sessionReused ? 'reused' : 'new'})`);
+      console.log(
+        `🎯 PlaywrightPoolDO: Using session ${sessionId} (${
+          sessionReused ? 'reused' : 'new'
+        })`,
+      );
 
       // Create and prepare page
       console.log(`🌐 PlaywrightPoolDO: Creating new page...`);
@@ -1094,14 +1392,21 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
       const result = await searchOperation(page, params);
 
       if (result.success) {
-        console.log(`✅ PlaywrightPoolDO: Search successful. Results found: ${result.data.metadata.totalResults}`);
+        console.log(
+          `✅ PlaywrightPoolDO: Search successful. Results found: ${result.data.metadata.totalResults}`,
+        );
       } else {
-        console.error(`❌ PlaywrightPoolDO: Search failed: ${result.error.message}`);
+        console.error(
+          `❌ PlaywrightPoolDO: Search failed: ${result.error.message}`,
+        );
       }
 
       return result;
     } catch (error) {
-      console.error(`💥 PlaywrightPoolDO: Search failed for "${params.query}":`, error);
+      console.error(
+        `💥 PlaywrightPoolDO: Search failed for "${params.query}":`,
+        error,
+      );
       return {
         success: false as const,
         error: { message: String(error) },
@@ -1126,7 +1431,9 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
             })`,
           );
           await browser.close();
-          console.log(`✅ PlaywrightPoolDO: Browser session closed successfully`);
+          console.log(
+            `✅ PlaywrightPoolDO: Browser session closed successfully`,
+          );
         } catch (closeError) {
           console.warn('PlaywrightPoolDO: Error closing browser:', closeError);
         }
@@ -1138,15 +1445,16 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
   async getStats() {
     try {
       // Get Playwright-specific data
-      const playwrightSessions = await sessions(this.env.BROWSER);
-      const playwrightLimits = await limits(this.env.BROWSER);
+      const playwrightSessions = await sessions(this.env.PLAYWRIGHT_BROWSER);
+      const playwrightLimits = await limits(this.env.PLAYWRIGHT_BROWSER);
 
       // Note: Unfortunately, there's no documented way to differentiate Playwright vs Puppeteer sessions
       // Both share the same browser binding and session pool in Cloudflare's implementation
       // The sessions() API returns all sessions regardless of which library created them
 
       return {
-        message: 'PlaywrightPoolDO with comprehensive session management and limits monitoring',
+        message:
+          'PlaywrightPoolDO with comprehensive session management and limits monitoring',
         timestamp: new Date().toISOString(),
 
         // Session information (includes both Playwright and Puppeteer sessions)
@@ -1167,10 +1475,14 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         limits: {
           maxConcurrentSessions: playwrightLimits.maxConcurrentSessions,
           currentActiveSessions: playwrightLimits.activeSessions.length,
-          allowedBrowserAcquisitions: playwrightLimits.allowedBrowserAcquisitions,
-          timeUntilNextAllowedAcquisition: playwrightLimits.timeUntilNextAllowedBrowserAcquisition,
+          allowedBrowserAcquisitions:
+            playwrightLimits.allowedBrowserAcquisitions,
+          timeUntilNextAllowedAcquisition:
+            playwrightLimits.timeUntilNextAllowedBrowserAcquisition,
           capacityUtilization: `${Math.round(
-            (playwrightLimits.activeSessions.length / playwrightLimits.maxConcurrentSessions) * 100,
+            (playwrightLimits.activeSessions.length /
+              playwrightLimits.maxConcurrentSessions) *
+              100,
           )}%`,
         },
 
@@ -1185,13 +1497,15 @@ export class PlaywrightPoolDO extends DurableObject<CloudflareBindings> {
         // Cross-library compatibility info
         crossLibraryInfo: {
           sharedSessionPool: true,
-          recommendedApproach: 'Use same-library session reuse for best compatibility',
+          recommendedApproach:
+            'Use same-library session reuse for best compatibility',
           riskFactors: [
             'Different DevTools protocol implementations',
             'Incompatible browser context setups',
             'Different session lifecycle management',
           ],
-          fallbackStrategy: 'Always handle connection failures and launch new sessions on error',
+          fallbackStrategy:
+            'Always handle connection failures and launch new sessions on error',
         },
 
         // Note about session differentiation

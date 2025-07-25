@@ -2,12 +2,16 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
-import webRoutes from './routes/web';
+// import webRoutes from './routes/web';
+import webV2 from './routes/web/web-v2.index';
 
 // Export Durable Objects
 export { PlaywrightPoolDO } from './durable-objects/playwright-pool-do';
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
+
+// V2 API routes - new PlaywrightPoolDO-based endpoints
+const v2Routes = [webV2] as const;
 
 // Middleware
 app.use('*', logger());
@@ -20,8 +24,12 @@ app.use(
   }),
 );
 
+v2Routes.forEach((route) => {
+  app.route('/v2', route);
+});
+
 // Routes
-app.route('/api/web', webRoutes);
+// app.route('/api/web', webRoutes);
 
 // Root endpoint
 app.get('/', (c) => {
