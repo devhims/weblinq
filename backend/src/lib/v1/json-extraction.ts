@@ -35,6 +35,10 @@ interface JsonExtractionMetadata {
   originalContentTokens?: number;
   finalContentTokens?: number;
   contentTruncated?: boolean;
+  // Performance metrics
+  inferenceTimeMs?: number;
+  modelUsed?: 'gemini' | 'cloudflare';
+  fallbackReason?: string;
 }
 
 interface JsonExtractionSuccess {
@@ -58,13 +62,391 @@ interface JsonExtractionFailure {
 export type JsonExtractionResult = JsonExtractionSuccess | JsonExtractionFailure;
 
 const CREDIT_COST = 2; // Higher cost due to AI usage
-const DEFAULT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as any;
+const DEFAULT_CLOUDFLARE_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast' as any;
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// Context window limits for the model
-const MODEL_CONTEXT_LIMIT = 24000; // Total context window
+// Context window limits for different models
+const CLOUDFLARE_MODEL_CONTEXT_LIMIT = 24000; // Total context window for Cloudflare
+const GEMINI_MODEL_CONTEXT_LIMIT = 1048576; // 1M tokens for Gemini 2.5 Flash
 const MAX_OUTPUT_TOKENS = 4096; // Reserve for output
 const SYSTEM_PROMPT_BUFFER = 500; // Reserve for system prompt
-const MAX_INPUT_TOKENS = MODEL_CONTEXT_LIMIT - MAX_OUTPUT_TOKENS - SYSTEM_PROMPT_BUFFER; // ~19,400 tokens
+
+// Calculate max input tokens for each model
+const CLOUDFLARE_MAX_INPUT_TOKENS = CLOUDFLARE_MODEL_CONTEXT_LIMIT - MAX_OUTPUT_TOKENS - SYSTEM_PROMPT_BUFFER;
+const GEMINI_MAX_INPUT_TOKENS = GEMINI_MODEL_CONTEXT_LIMIT - MAX_OUTPUT_TOKENS - SYSTEM_PROMPT_BUFFER;
+
+// Timeout constants
+const GEMINI_TIMEOUT_MS = 45000; // 45 seconds timeout for Gemini API
+const CLOUDFLARE_TIMEOUT_MS = 30000; // 30 seconds timeout for Cloudflare AI
+
+/**
+ * Convert OpenAI/Cloudflare response_format to Gemini JSON schema format
+ */
+function convertToGeminiSchema(response_format?: {
+  type: 'json_schema';
+  json_schema: Record<string, any>;
+}): Record<string, any> | undefined {
+  if (!response_format?.json_schema) return undefined;
+
+  const originalSchema = response_format.json_schema;
+
+  // If the schema already has a proper structure with "type", use it directly
+  if (originalSchema.type && originalSchema.properties) {
+    return originalSchema;
+  }
+
+  // Handle the case where the schema is improperly formatted with arrays as property values
+  // This fixes the common mistake where users define arrays directly instead of using JSON schema format
+  if (typeof originalSchema === 'object' && !originalSchema.type) {
+    const properties: Record<string, any> = {};
+
+    for (const [key, value] of Object.entries(originalSchema)) {
+      if (Array.isArray(value) && value.length > 0) {
+        // Convert array example to proper array schema
+        const firstItem = value[0];
+        if (typeof firstItem === 'object' && firstItem !== null) {
+          // Convert object example to schema
+          const itemProperties: Record<string, any> = {};
+          for (const [itemKey, itemValue] of Object.entries(firstItem)) {
+            if (typeof itemValue === 'string') {
+              // Handle type strings like "string", "number", etc.
+              itemProperties[itemKey] = { type: itemValue };
+            } else {
+              // Default to string type for other values
+              itemProperties[itemKey] = { type: 'string' };
+            }
+          }
+
+          properties[key] = {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: itemProperties,
+              required: Object.keys(itemProperties),
+            },
+          };
+        } else {
+          // Handle primitive array
+          properties[key] = {
+            type: 'array',
+            items: { type: typeof firstItem === 'string' ? firstItem : 'string' },
+          };
+        }
+      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Handle nested object
+        const nestedProperties: Record<string, any> = {};
+        for (const [nestedKey, nestedValue] of Object.entries(value)) {
+          if (typeof nestedValue === 'string') {
+            nestedProperties[nestedKey] = { type: nestedValue };
+          } else {
+            nestedProperties[nestedKey] = { type: 'string' };
+          }
+        }
+
+        properties[key] = {
+          type: 'object',
+          properties: nestedProperties,
+          required: Object.keys(nestedProperties),
+        };
+      } else if (typeof value === 'string') {
+        // Handle direct type specification
+        properties[key] = { type: value };
+      } else {
+        // Default fallback
+        properties[key] = { type: 'string' };
+      }
+    }
+
+    return {
+      type: 'object',
+      properties,
+      required: Object.keys(properties),
+    };
+  }
+
+  // Fallback: return as-is if we can't determine the structure
+  return originalSchema;
+}
+
+/**
+ * Call Gemini 2.5 Flash API for JSON extraction
+ */
+async function callGeminiAPI(
+  env: CloudflareBindings,
+  systemPrompt: string,
+  userPrompt: string,
+  responseType: 'json' | 'text',
+  geminiSchema?: Record<string, any>,
+): Promise<{
+  success: boolean;
+  data?: any;
+  error?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  inferenceTimeMs: number;
+}> {
+  const startTime = Date.now();
+
+  try {
+    if (!env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY not found in environment');
+    }
+
+    // Correct Gemini API URL format
+    const url = `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
+
+    // Prepare the request body according to Gemini API specification
+    const requestBody: any = {
+      contents: [
+        {
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+        },
+      ],
+      generationConfig: {
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
+        temperature: 0.1, // Low temperature for consistent extraction
+      },
+    };
+
+    // Configure response format
+    if (responseType === 'json') {
+      requestBody.generationConfig.responseMimeType = 'application/json';
+
+      if (geminiSchema) {
+        // Use structured schema for better control
+        requestBody.generationConfig.responseSchema = geminiSchema;
+      }
+    }
+    // For text responses, don't specify JSON format
+
+    console.log('🔥 Calling Gemini 2.5 Flash API...', {
+      url: url.replace(env.GEMINI_API_KEY, '[REDACTED]'),
+      bodySize: JSON.stringify(requestBody).length,
+      responseType,
+      hasSchema: !!geminiSchema,
+    });
+
+    if (geminiSchema) {
+      console.log('📋 Gemini Schema:', JSON.stringify(geminiSchema, null, 2));
+    }
+
+    // Add timeout handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Note: Use query parameter instead of header for API key
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    const inferenceTimeMs = Date.now() - startTime;
+
+    console.log('📡 Gemini API response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      inferenceTimeMs,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Gemini API error:', response.status, errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = (await response.json()) as any;
+
+    console.log(`⚡ Gemini inference completed in ${inferenceTimeMs}ms`);
+
+    // Extract the response content
+    if (!result.candidates || result.candidates.length === 0) {
+      throw new Error('No candidates in Gemini response');
+    }
+
+    const candidate = result.candidates[0];
+    if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
+      throw new Error('No content in Gemini response');
+    }
+
+    const textResponse = candidate.content.parts[0].text;
+
+    // Extract token usage if available
+    let inputTokens: number | undefined;
+    let outputTokens: number | undefined;
+
+    if (result.usageMetadata) {
+      inputTokens = result.usageMetadata.promptTokenCount;
+      outputTokens = result.usageMetadata.candidatesTokenCount;
+    }
+
+    console.log('✅ Gemini API response received:', {
+      responseLength: textResponse?.length || 0,
+      inputTokens,
+      outputTokens,
+      inferenceTimeMs,
+    });
+
+    return {
+      success: true,
+      data: textResponse,
+      inputTokens,
+      outputTokens,
+      inferenceTimeMs,
+    };
+  } catch (error) {
+    const inferenceTimeMs = Date.now() - startTime;
+
+    // Handle specific error types
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        console.error('❌ Gemini API timeout after', GEMINI_TIMEOUT_MS, 'ms');
+        return {
+          success: false,
+          error: `Gemini API timeout after ${GEMINI_TIMEOUT_MS}ms`,
+          inferenceTimeMs,
+        };
+      }
+    }
+
+    console.error('❌ Gemini API call failed:', error);
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      inferenceTimeMs,
+    };
+  }
+}
+
+/**
+ * Call Cloudflare Workers AI as fallback
+ */
+async function callCloudflareAI(
+  env: CloudflareBindings,
+  systemPrompt: string,
+  userPrompt: string,
+  responseType: 'json' | 'text',
+  response_format?: { type: 'json_schema'; json_schema: Record<string, any> },
+): Promise<{
+  success: boolean;
+  data?: any;
+  error?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  inferenceTimeMs: number;
+}> {
+  const startTime = Date.now();
+
+  try {
+    const messages = [
+      {
+        role: 'system',
+        content: systemPrompt,
+      },
+      {
+        role: 'user',
+        content: userPrompt,
+      },
+    ];
+
+    // Prepare AI request options
+    const aiOptions: any = {
+      messages,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      temperature: 0.1,
+    };
+
+    // Only enforce JSON mode for JSON responses
+    if (responseType === 'json') {
+      if (response_format) {
+        // Use the schema directly
+        aiOptions.response_format = response_format;
+      } else {
+        // Force JSON mode for prompt-based JSON requests
+        aiOptions.response_format = {
+          type: 'json_object',
+        };
+      }
+    }
+
+    console.log('🔄 Falling back to Cloudflare Workers AI...');
+
+    // Add timeout for Cloudflare AI as well
+    const aiPromise = env.AI.run(DEFAULT_CLOUDFLARE_MODEL, aiOptions);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`Cloudflare AI timeout after ${CLOUDFLARE_TIMEOUT_MS}ms`)),
+        CLOUDFLARE_TIMEOUT_MS,
+      ),
+    );
+
+    const aiResult = await Promise.race([aiPromise, timeoutPromise]);
+
+    const inferenceTimeMs = Date.now() - startTime;
+
+    console.log(`⚡ Cloudflare AI inference completed in ${inferenceTimeMs}ms`);
+
+    let textResponse: string | undefined;
+    let inputTokens: number | undefined;
+    let outputTokens: number | undefined;
+
+    // Handle multiple possible response formats
+    if (typeof aiResult === 'object' && aiResult !== null) {
+      // Modern OpenAI-compatible format
+      if ('choices' in aiResult && Array.isArray((aiResult as any).choices)) {
+        const choices = (aiResult as any).choices;
+        if (choices.length > 0 && choices[0].message?.content) {
+          textResponse = choices[0].message.content;
+
+          if ('usage' in aiResult) {
+            const usage = (aiResult as any).usage;
+            inputTokens = usage?.prompt_tokens || usage?.input_tokens;
+            outputTokens = usage?.completion_tokens || usage?.output_tokens;
+          }
+        }
+      }
+      // Legacy Workers AI format
+      else if ('response' in aiResult) {
+        const raw = (aiResult as any).response;
+        textResponse = typeof raw === 'string' ? raw : JSON.stringify(raw);
+
+        if ('usage' in aiResult) {
+          const usage = (aiResult as any).usage;
+          inputTokens = usage?.prompt_tokens;
+          outputTokens = usage?.completion_tokens;
+        }
+      }
+    } else if (typeof aiResult === 'string') {
+      textResponse = aiResult;
+    }
+
+    if (!textResponse) {
+      throw new Error('No valid response from Cloudflare AI');
+    }
+
+    return {
+      success: true,
+      data: textResponse,
+      inputTokens,
+      outputTokens,
+      inferenceTimeMs,
+    };
+  } catch (error) {
+    const inferenceTimeMs = Date.now() - startTime;
+    console.error('❌ Cloudflare AI call failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      inferenceTimeMs,
+    };
+  }
+}
 
 /**
  * Count tokens in text using tiktoken for accurate token counting (lazy-loaded)
@@ -156,7 +538,7 @@ async function truncateContent(
  * - 'json': Returns structured data as JSON object (default)
  * - 'text': Returns natural language analysis as plain text
  *
- * Uses markdown processing for superior content understanding and AI analysis
+ * Uses Gemini 2.5 Flash as primary model with Cloudflare AI as fallback
  * Automatically truncates content to fit within the model's context window
  */
 export async function jsonExtractionV1(
@@ -177,7 +559,7 @@ export async function jsonExtractionV1(
     });
 
     /* ════════════════ Step 1: Extract structured page content using markdown ════════════════ */
-    console.log('📄 Converting page to structured markdown for better AI processing...');
+    console.log('�� Converting page to structured markdown for better AI processing...');
 
     // Use the battle-tested markdown processor for superior content extraction
     const markdownResult = await markdownV1(env, {
@@ -260,12 +642,15 @@ Page Content (Structured Markdown):
 ${markdown}
     `.trim();
 
+    // Determine max tokens based on primary model (Gemini has much higher limits)
+    const maxInputTokens = GEMINI_MAX_INPUT_TOKENS;
+
     // Truncate content to fit within model's context window
     const {
       truncated: contentForAI,
       originalTokens,
       finalTokens,
-    } = await truncateContent(rawContentForAI, MAX_INPUT_TOKENS);
+    } = await truncateContent(rawContentForAI, maxInputTokens);
 
     if (originalTokens > finalTokens) {
       console.log(`⚠️  Content truncated for AI processing: ${originalTokens} → ${finalTokens} tokens`);
@@ -274,6 +659,7 @@ ${markdown}
     // Prepare AI messages with response type awareness
     let systemPrompt: string;
     let userPrompt: string;
+    let geminiSchema: Record<string, any> | undefined;
 
     if (responseType === 'text') {
       // Text response mode - natural language output
@@ -293,15 +679,17 @@ Guidelines:
     } else {
       // JSON response mode - structured data output
       if (extractionType === 'schema') {
+        geminiSchema = convertToGeminiSchema(params.response_format);
+
         systemPrompt =
-          'You are a data extraction assistant. Extract structured data from the provided webpage content (formatted as structured markdown) according to the specified JSON schema. The markdown preserves headings, links, lists, and content hierarchy. Return ONLY valid JSON that matches the schema - no explanations, no markdown code blocks (```), no formatting, just the raw JSON object starting with { and ending with }.';
+          'You are a data extraction assistant. Extract structured data from the provided webpage content (formatted as structured markdown) according to the specified JSON schema. The markdown preserves headings, links, lists, and content hierarchy. Return ONLY valid JSON that matches the schema - no explanations, no markdown code blocks, just the raw JSON object or array.';
 
         userPrompt = `${
           params.instructions || 'Extract data according to the provided schema.'
         }\n\nWebpage Content:\n${contentForAI}`;
       } else {
         systemPrompt =
-          "You are a data extraction assistant. Extract structured information from the provided webpage content (formatted as structured markdown with preserved headings, links, and hierarchy) based on the user's request. You MUST respond with ONLY valid JSON format - no explanations, no markdown code blocks (```), no additional formatting or text. The response should be a properly formatted JSON object that directly answers the user's question, starting with { and ending with }.";
+          "You are a data extraction assistant. Extract structured information from the provided webpage content (formatted as structured markdown with preserved headings, links, and hierarchy) based on the user's request. You MUST respond with ONLY valid JSON format - no explanations, no markdown code blocks, no additional formatting or text. The response should be a properly formatted JSON object that directly answers the user's question.";
 
         userPrompt = `${params.prompt}\n\n${
           params.instructions ? `Additional instructions: ${params.instructions}\n\n` : ''
@@ -309,99 +697,91 @@ Guidelines:
       }
     }
 
-    const messages = [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-      {
-        role: 'user',
-        content: userPrompt,
-      },
-    ];
+    /* ════════════════ Step 3: Try Gemini 2.5 Flash first ════════════════ */
+    console.log('🔥 Attempting Gemini 2.5 Flash inference...');
 
-    // Prepare AI request options
-    const aiOptions: any = {
-      messages,
-      max_tokens: 4096, // Increased limit to handle larger responses
-      temperature: 0.1, // Low temperature for consistent extraction
+    const geminiResult = await callGeminiAPI(env, systemPrompt, userPrompt, responseType, geminiSchema);
+
+    let aiResult: any;
+    let modelUsed: 'gemini' | 'cloudflare' = 'gemini';
+    let fallbackReason: string | undefined;
+    let inferenceTimeMs = geminiResult.inferenceTimeMs;
+    let tokenUsage = {
+      input: geminiResult.inputTokens,
+      output: geminiResult.outputTokens,
     };
 
-    // Only enforce JSON mode for JSON responses
-    if (responseType === 'json') {
-      if (params.response_format) {
-        // Use the schema directly
-        aiOptions.response_format = params.response_format;
-      } else {
-        // Force JSON mode for prompt-based JSON requests
-        aiOptions.response_format = {
-          type: 'json_object',
-        };
+    if (geminiResult.success) {
+      console.log('✅ Gemini 2.5 Flash successful!');
+      aiResult = { response: geminiResult.data };
+    } else {
+      console.log('❌ Gemini 2.5 Flash failed, falling back to Cloudflare AI...');
+      fallbackReason = `Gemini failed: ${geminiResult.error}`;
+      modelUsed = 'cloudflare';
+
+      // Truncate content for Cloudflare if it was originally truncated for Gemini
+      let cloudflareContent = contentForAI;
+      if (finalTokens > CLOUDFLARE_MAX_INPUT_TOKENS) {
+        const cloudflareResult = await truncateContent(rawContentForAI, CLOUDFLARE_MAX_INPUT_TOKENS);
+        cloudflareContent = cloudflareResult.truncated;
+        console.log(
+          `⚠️  Further truncated content for Cloudflare: ${finalTokens} → ${cloudflareResult.finalTokens} tokens`,
+        );
       }
+
+      // Update prompts with potentially truncated content
+      if (responseType === 'text') {
+        userPrompt = `${params.prompt}\n\n${
+          params.instructions ? `Additional instructions: ${params.instructions}\n\n` : ''
+        }Please analyze the following webpage content and provide a detailed, informative response:\n\nWebpage Content:\n${cloudflareContent}`;
+      } else {
+        if (extractionType === 'schema') {
+          userPrompt = `${
+            params.instructions || 'Extract data according to the provided schema.'
+          }\n\nWebpage Content:\n${cloudflareContent}`;
+        } else {
+          userPrompt = `${params.prompt}\n\n${
+            params.instructions ? `Additional instructions: ${params.instructions}\n\n` : ''
+          }Please analyze the following webpage content (provided as structured markdown with preserved headings, links, and hierarchy) and respond with a well-structured JSON object that provides detailed, actionable information. Use descriptive field names and break down information into multiple logical fields when appropriate (e.g., separate fields for title, description, key_features, contact_info, etc.). Take advantage of the markdown structure (headings, lists, links) to better understand content organization. Format your response as valid JSON only:\n\nWebpage Content:\n${cloudflareContent}`;
+        }
+      }
+
+      const cloudflareResult = await callCloudflareAI(
+        env,
+        systemPrompt,
+        userPrompt,
+        responseType,
+        params.response_format,
+      );
+
+      if (!cloudflareResult.success) {
+        throw new Error(
+          `Both Gemini and Cloudflare AI failed. Gemini: ${geminiResult.error}, Cloudflare: ${cloudflareResult.error}`,
+        );
+      }
+
+      inferenceTimeMs += cloudflareResult.inferenceTimeMs; // Add both inference times
+      tokenUsage = {
+        input: cloudflareResult.inputTokens,
+        output: cloudflareResult.outputTokens,
+      };
+      aiResult = { response: cloudflareResult.data };
     }
-    // For text responses, don't enforce JSON mode - let the AI respond naturally
-
-    console.log('🧠 Calling Workers AI for extraction...');
-
-    /* ════════════════ Step 3: Call Workers AI ════════════════ */
-    const aiResult = await env.AI.run(DEFAULT_MODEL, aiOptions);
 
     console.log('🤖 AI extraction result:', {
       success: !!aiResult,
-      resultType: typeof aiResult,
-      hasResponse: !!(aiResult as any)?.response,
+      modelUsed,
+      inferenceTimeMs,
+      fallbackReason,
+      inputTokens: tokenUsage.input,
+      outputTokens: tokenUsage.output,
     });
 
-    // Parse AI response with improved compatibility and performance
-    let extractedData: Record<string, any> | undefined;
-    const tokenUsage: { input?: number; output?: number } = {};
-
-    // Handle multiple possible response formats (future-proof for OpenAI compatibility)
+    // Parse AI response - simplified since we now handle this in the API functions
     let textResponse: string | undefined;
-    let responseSuccess = true;
 
-    if (typeof aiResult === 'object' && aiResult !== null) {
-      // Modern OpenAI-compatible format: { choices: [{ message: { content } }], usage }
-      if ('choices' in aiResult && Array.isArray((aiResult as any).choices)) {
-        const choices = (aiResult as any).choices;
-        if (choices.length > 0 && choices[0].message?.content) {
-          textResponse = choices[0].message.content;
-
-          // Extract token usage from OpenAI-compatible format
-          if ('usage' in aiResult) {
-            const usage = (aiResult as any).usage;
-            tokenUsage.input = usage?.prompt_tokens || usage?.input_tokens;
-            tokenUsage.output = usage?.completion_tokens || usage?.output_tokens;
-          }
-        } else {
-          responseSuccess = false;
-          textResponse = 'No content in AI response';
-        }
-      }
-      // Legacy Workers AI format: { response, usage }
-      else if ('response' in aiResult) {
-        const raw = (aiResult as any).response;
-
-        if (typeof raw === 'string') {
-          textResponse = raw; // old format → continue to JSON.parse
-        } else {
-          extractedData = raw as Record<string, any>; // new format → done
-        }
-
-        // usage accounting unchanged
-        if ('usage' in aiResult) {
-          const usage = (aiResult as any).usage;
-          tokenUsage.input = usage?.prompt_tokens;
-          tokenUsage.output = usage?.completion_tokens;
-        }
-      }
-      // Direct object response (less common)
-      else {
-        extractedData = aiResult as Record<string, any>;
-        responseSuccess = true;
-      }
-    } else if (typeof aiResult === 'string') {
-      textResponse = aiResult;
+    if (typeof aiResult === 'object' && aiResult !== null && 'response' in aiResult) {
+      textResponse = aiResult.response;
     } else {
       throw new TypeError('Unexpected response format from AI model');
     }
@@ -420,10 +800,6 @@ Guidelines:
           inputTokens: tokenUsage.input,
           outputTokens: tokenUsage.output,
         });
-      } else if (extractedData && typeof extractedData === 'object') {
-        // If we got JSON but expected text, convert to string
-        finalTextResponse = JSON.stringify(extractedData, null, 2);
-        console.log('✅ Converted JSON response to text format');
       } else {
         throw new Error('Failed to extract valid text response from AI model');
       }
@@ -531,11 +907,9 @@ Guidelines:
             );
           }
         }
-      } else if (extractedData && typeof extractedData === 'object') {
-        finalJsonData = extractedData;
       }
 
-      if (!responseSuccess || !finalJsonData) {
+      if (!finalJsonData) {
         throw new Error('Failed to extract valid JSON response from AI model');
       }
 
@@ -563,7 +937,7 @@ Guidelines:
       metadata: {
         url: params.url,
         timestamp: new Date().toISOString(),
-        model: DEFAULT_MODEL,
+        model: modelUsed === 'gemini' ? GEMINI_MODEL : DEFAULT_CLOUDFLARE_MODEL,
         responseType,
         extractionType,
         inputTokens: tokenUsage.input,
@@ -571,6 +945,9 @@ Guidelines:
         originalContentTokens: originalTokens,
         finalContentTokens: finalTokens,
         contentTruncated: originalTokens > finalTokens,
+        inferenceTimeMs,
+        modelUsed,
+        fallbackReason,
       },
     };
 
