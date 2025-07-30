@@ -3,7 +3,7 @@ import type { Buffer } from 'node:buffer';
 import { DurableObject } from 'cloudflare:workers';
 import { createHash } from 'node:crypto';
 
-import { deductCredits, getUserCredits } from '@/db/queries';
+// Credit management handled at handler level - no direct DB access needed here
 import { contentV1 } from '@/lib/v1/content';
 import { jsonExtractionV1 } from '@/lib/v1/json-extraction';
 import { linksV1 } from '@/lib/v1/links';
@@ -49,8 +49,6 @@ export interface CreditAwareResult<T> {
   success: boolean;
   data?: T;
   error?: string;
-  creditsCost: number;
-  creditsRemaining: number;
 }
 
 export class WebDurableObject extends DurableObject<CloudflareBindings> {
@@ -784,55 +782,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   }
 
   /**
-   * Check if user has sufficient credits for an operation
-   */
-  private async checkCredits(
-    operation: WebOperation,
-    requestUserId?: string,
-  ): Promise<{ hasCredits: boolean; balance: number; cost: number }> {
-    const cost = CREDIT_COSTS[operation];
-
-    try {
-      const credits = await getUserCredits(this.env, requestUserId || this.userId);
-      return {
-        hasCredits: credits.balance >= cost,
-        balance: credits.balance,
-        cost,
-      };
-    } catch (error) {
-      console.error(`❌ Failed to check credits for user ${this.userId}:`, error);
-      throw new Error('Failed to check credit balance');
-    }
-  }
-
-  /**
-   * Deduct credits for an operation using waitUntil (non-blocking)
-   * This method should be called after a successful operation
-   */
-  private async deductCreditsAsync(
-    operation: WebOperation,
-    metadata?: Record<string, any>,
-    requestUserId?: string,
-  ): Promise<void> {
-    const cost = CREDIT_COSTS[operation];
-
-    try {
-      await deductCredits(this.env, requestUserId || this.userId, cost, operation.toLowerCase(), {
-        operation,
-        cost,
-        timestamp: new Date().toISOString(),
-        ...metadata,
-      });
-      console.log(`✅ Deducted ${cost} credits for ${operation} operation (user: ${this.userId})`);
-    } catch (error) {
-      console.error(`❌ Failed to deduct credits for ${operation} operation (user: ${this.userId}):`, error);
-      // Don't throw here - credit deduction errors shouldn't break the user experience
-      // The operation was already successful, we just log the error
-    }
-  }
-
-  /**
-   * Execute a web operation with credit checking and deduction
+   * Execute a web operation without credit checking (credits handled at handler level)
    * Includes user ID verification and database initialization
    */
   private async executeWithCredits<T>(
@@ -842,19 +792,17 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
     requestUserId?: string,
   ): Promise<CreditAwareResult<T>> {
     const isProduction = this.env.NODE_ENV === 'production';
+
     // 1. Verify user ID matches to prevent cross-user access
     if (requestUserId && isProduction && (!this.userId || this.userId !== requestUserId)) {
       console.error(`❌ User ID mismatch in ${operation}: expected ${this.userId}, got ${requestUserId}`);
       return {
         success: false,
         error: 'Invalid user context',
-        creditsCost: 0,
-        creditsRemaining: 0,
       };
     }
 
     // 2. Ensure database is initialized in production if SQLite is available
-
     if (this.sql && isProduction) {
       try {
         this.initializeDatabase();
@@ -865,20 +813,8 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       }
     }
 
-    // 3. Check credits
-    const creditCheck = await this.checkCredits(operation, requestUserId);
-
-    if (!creditCheck.hasCredits) {
-      return {
-        success: false,
-        error: `Insufficient credits. Required: ${creditCheck.cost}, Available: ${creditCheck.balance}`,
-        creditsCost: creditCheck.cost,
-        creditsRemaining: creditCheck.balance,
-      };
-    }
-
     try {
-      // 4. Execute the operation
+      // 3. Execute the operation (credit checking is handled at handler level)
       const result = await operationFn();
 
       // Check if the result is already in the expected format (has success property)
@@ -887,43 +823,30 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
         const typedResult = result as any;
 
         if (typedResult.success) {
-          // 5. Deduct credits in background for successful operations
-          this.ctx.waitUntil(this.deductCreditsAsync(operation, metadata, requestUserId));
-
+          // Credit costs and remaining balance will be set by handler layer
           return {
             success: true,
             data: typedResult.data,
-            creditsCost: creditCheck.cost,
-            creditsRemaining: creditCheck.balance - creditCheck.cost,
           };
         } else {
-          // Operation failed - don't deduct credits
+          // Operation failed
           return {
             success: false,
             error: typedResult.error?.message || typedResult.error || 'Operation failed',
-            creditsCost: 0,
-            creditsRemaining: creditCheck.balance,
           };
         }
       }
 
       // For functions that return raw data (no success wrapper)
-      // 5. Deduct credits in background (non-blocking)
-      this.ctx.waitUntil(this.deductCreditsAsync(operation, metadata));
-
       return {
         success: true,
         data: result,
-        creditsCost: creditCheck.cost,
-        creditsRemaining: creditCheck.balance - creditCheck.cost,
       };
     } catch (error) {
-      // If operation fails, don't deduct credits
+      // If operation fails, return error
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Operation failed',
-        creditsCost: 0,
-        creditsRemaining: creditCheck.balance,
       };
     }
   }

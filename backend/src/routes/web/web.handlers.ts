@@ -313,7 +313,7 @@ async function executeWithCache<T>(
   // Check if we're in development mode to disable caching
   const isDevelopment = c.env.NODE_ENV === 'preview' || c.env.NODE_ENV === 'preview';
 
-  // 2. Check credits for new operation
+  // 2. Check credits before proceeding
   const creditCheck = await checkCredits(c.env, userId, operation);
 
   if (!creditCheck.hasCredits) {
@@ -335,7 +335,7 @@ async function executeWithCache<T>(
     if (cachedResult) {
       // Update credits remaining with current balance (cache might be stale)
       try {
-        await deductCreditsForOperation(c.env, userId, operation, cacheParams);
+        c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams));
         const updatedBalance = creditCheck.balance - creditCheck.cost;
 
         // Return cached result with updated credit information
@@ -376,7 +376,7 @@ async function executeWithCache<T>(
     }
 
     // 4. Deduct credits for successful operation
-    await deductCreditsForOperation(c.env, userId, operation, cacheParams);
+    c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams));
 
     const updatedBalance = creditCheck.balance - creditCheck.cost;
 
