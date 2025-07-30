@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/db';
+import { assignInitialCredits } from '@/db/queries';
 
 /* ------------------------------------------------------------------ */
 /*  Environment Detection for Preview vs Production                   */
@@ -25,6 +26,55 @@ const FRONTEND_URL = isPreview
     : 'http://localhost:3000';
 
 const SECRET = process.env.BETTER_AUTH_SECRET!;
+
+/* ------------------------------------------------------------------ */
+/*  Development-specific WebDurableObject initialization             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Initialize WebDurableObject for development environment
+ * This calls the backend API to handle the initialization since frontend
+ * doesn't have access to CloudflareBindings
+ */
+async function initializeWebDurableObjectDev(userId: string): Promise<void> {
+  try {
+    console.log(
+      `🔧 [Frontend] Initializing WebDurableObject for user ${userId} via backend API...`,
+    );
+
+    const backendUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787';
+
+    // Make a simple API call to trigger initialization
+    // Call the backend user initialization endpoint
+    const response = await fetch(`${backendUrl}/v1/user/initialize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+      credentials: 'include', // Include session cookies
+    });
+
+    if (response.ok) {
+      console.log(
+        `✅ [Frontend] Successfully initialized WebDurableObject for user ${userId}`,
+      );
+    } else {
+      console.warn(
+        `⚠️ [Frontend] WebDurableObject initialization may have failed for user ${userId} (${response.status})`,
+      );
+      // Don't throw error - this is non-critical for development
+    }
+  } catch (error) {
+    console.warn(
+      `⚠️ [Frontend] Failed to initialize WebDurableObject for user ${userId}:`,
+      error,
+    );
+    // Don't throw error - this is non-critical for development
+    // The user can still use the app without the durable object initialization
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Frontend Better Auth Instance (Preview Environments Only)        */
@@ -71,6 +121,44 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     // requireEmailVerification: false, // Simplified for preview
+  },
+
+  socialProviders: {
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    },
+  },
+
+  /* Database hooks to handle user lifecycle events */
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          try {
+            // Assign initial credits to new users
+            await assignInitialCredits(user.id);
+            console.log(
+              `✅ [Frontend] Successfully assigned initial credits to user ${user.id} (${user.email})`,
+            );
+
+            // Initialize WebDurableObject for the new user
+            // During development, this calls the backend API
+            await initializeWebDurableObjectDev(user.id);
+            console.log(
+              `✅ [Frontend] Successfully initialized WebDurableObject for user ${user.id} (${user.email})`,
+            );
+          } catch (error) {
+            console.error(
+              `❌ [Frontend] Failed to initialize user ${user.id}:`,
+              error,
+            );
+            // Don't throw error to prevent user creation from failing
+            // Credits and DO initialization can be done manually if needed
+          }
+        },
+      },
+    },
   },
 
   /* Next.js integration */

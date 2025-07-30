@@ -4,7 +4,7 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 import type { AppRouteHandler } from '@/lib/types';
 
 import { createDb } from '@/db/index';
-import { assignInitialCredits, getUserCredits } from '@/db/queries';
+import { assignInitialCredits, getUserCredits, initializeWebDurableObject } from '@/db/queries';
 import { user } from '@/db/schema';
 import { getAuthType, getCurrentApiToken, getCurrentSession, getCurrentUser, isAuthenticated } from '@/lib/auth-utils';
 import { createStandardErrorResponse, createStandardSuccessResponse, ERROR_CODES } from '@/lib/response-utils';
@@ -14,6 +14,7 @@ import type {
   ClearCacheRoute,
   GetCreditsRoute,
   GetMeRoute,
+  InitializeUserRoute,
   VerifyEmailRoute,
   VerifyEmailTokenRoute,
 } from './user.routes';
@@ -90,6 +91,53 @@ export const bootstrapCredits: AppRouteHandler<BootstrapCreditsRoute> = async (c
     return c.json(createStandardSuccessResponse({}), HttpStatusCodes.OK);
   } catch (error) {
     console.error('Bootstrap credits error:', error);
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
+  }
+};
+
+export const initializeUser: AppRouteHandler<InitializeUserRoute> = async (c) => {
+  try {
+    // Get userId from request body since this is a public route
+    const body = c.req.valid('json');
+    const { userId } = body;
+
+    if (!userId) {
+      const errorResponse = createStandardErrorResponse(
+        'User ID is required in request body',
+        ERROR_CODES.VALIDATION_ERROR,
+      );
+      return c.json(errorResponse, HttpStatusCodes.BAD_REQUEST);
+    }
+
+    let webDurableObjectInitialized = false;
+    let message = '';
+
+    try {
+      await initializeWebDurableObject(c.env, userId);
+      webDurableObjectInitialized = true;
+      message = `WebDurableObject successfully initialized for user ${userId}`;
+      console.log(`✅ [Backend API] ${message}`);
+    } catch (error) {
+      console.warn(`⚠️ [Backend API] WebDurableObject initialization failed for user ${userId}:`, error);
+      webDurableObjectInitialized = false;
+      message = `WebDurableObject initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+
+    return c.json(
+      createStandardSuccessResponse({
+        webDurableObjectInitialized,
+        message,
+      }),
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    console.error('Initialize user error:', error);
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
       ERROR_CODES.INTERNAL_SERVER_ERROR,

@@ -5,23 +5,23 @@ import * as handlers from './user.handlers';
 import * as routes from './user.routes';
 
 const router = createRouter();
-const userRouter = createRouter();
 
-userRouter.openapi(routes.getMe, handlers.getMe);
-
-// Protected routes requiring authentication
-userRouter.use(requireAuth);
-userRouter.openapi(routes.getCredits, handlers.getCredits);
-userRouter.openapi(routes.bootstrapCredits, handlers.bootstrapCredits);
-userRouter.openapi(routes.clearCache, handlers.clearCache);
-
-// Public routes (no auth required)
+// Public routes (no auth required) - mounted directly on main router
 const publicRouter = createRouter();
 publicRouter.openapi(routes.verifyEmail, handlers.verifyEmail);
 publicRouter.openapi(routes.verifyEmailToken, handlers.verifyEmailToken);
+publicRouter.openapi(routes.initializeUser, handlers.initializeUser);
 
-userRouter.route('/', publicRouter);
+// Protected routes requiring authentication
+const protectedRouter = createRouter();
+protectedRouter.use(requireAuth);
+protectedRouter.openapi(routes.getMe, handlers.getMe);
+protectedRouter.openapi(routes.getCredits, handlers.getCredits);
+protectedRouter.openapi(routes.bootstrapCredits, handlers.bootstrapCredits);
+protectedRouter.openapi(routes.clearCache, handlers.clearCache);
 
-router.route('/user', userRouter);
+// Mount both routers on the main router
+router.route('/user', publicRouter);
+router.route('/user', protectedRouter);
 
 export default router;

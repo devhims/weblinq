@@ -9,26 +9,18 @@ import type { DeleteFileRoute, ListFilesRoute } from './files.routes';
 
 /**
  * Helper function to get the WebDurableObject stub for a user
+ * Uses stable versioned IDs for consistent DO access across signup and runtime
  */
 function getWebDurableObject(c: { env: CloudflareBindings }, userId: string): DurableObjectStub<WebDurableObject> {
   const namespace = c.env.WEBLINQ_DURABLE_OBJECT;
   console.log('user id', userId);
 
-  // TEMPORARY: Use random IDs in development to force fresh SQLite-enabled instances
-  // This bypasses any migration issues with existing instances
-  const isDev = c.env.NODE_ENV !== 'production';
+  // Use stable versioned IDs for both development and production
+  // This ensures the same DO is accessed during signup and handler calls
+  const id = namespace.idFromName(`web:${userId}:v3`);
+  console.log(`🆔 Using stable DO ID for user ${userId}: web:${userId}:v3`);
 
-  if (isDev) {
-    const randomId = `web:${userId}:temp:${Date.now()}:${Math.random().toString(36).substr(2, 9)}`;
-    const id = namespace.idFromName(randomId);
-    console.log('🧪 DEVELOPMENT: Using random DO ID to guarantee fresh SQLite instance');
-    return namespace.get(id);
-  } else {
-    // Production uses stable versioned IDs
-    const id = namespace.idFromName(`web:${userId}:v3`);
-    console.log('🏭 PRODUCTION: Using stable versioned DO ID');
-    return namespace.get(id);
-  }
+  return namespace.get(id);
 }
 
 /**
@@ -64,7 +56,7 @@ export const listFiles: AppRouteHandler<ListFilesRoute> = async (c: any) => {
 
     console.log('📋 List files result:', {
       success: result.success,
-      sqliteEnabled: result.data.sqliteStatus.enabled,
+      // sqliteEnabled: result.data.sqliteStatus.enabled,
       sqliteAvailable: result.data.sqliteStatus.available,
       filesCount: result.data.files.length,
       totalFiles: result.data.totalFiles,

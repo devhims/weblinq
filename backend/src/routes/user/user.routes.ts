@@ -93,6 +93,38 @@ export const bootstrapCredits = createRoute({
   },
 });
 
+export const initializeUser = createRoute({
+  path: '/initialize',
+  method: 'post',
+  tags,
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            userId: z.string().min(1, 'User ID is required'),
+          }),
+        },
+      },
+    },
+  },
+  summary: 'Initialize user resources',
+  description: 'Initialize WebDurableObject and other user resources for development environments.',
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(
+      createStandardSuccessSchema(
+        z.object({
+          webDurableObjectInitialized: z.boolean(),
+          message: z.string(),
+        }),
+      ),
+      'User resources initialized successfully',
+    ),
+    [HttpStatusCodes.BAD_REQUEST]: jsonContent(StandardErrorSchema, 'Invalid request body'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+  },
+});
+
 export const clearCache = createRoute({
   path: '/clear-cache',
   method: 'get',
@@ -154,6 +186,7 @@ export const verifyEmailToken = createRoute({
 export type GetMeRoute = typeof getMe;
 export type GetCreditsRoute = typeof getCredits;
 export type BootstrapCreditsRoute = typeof bootstrapCredits;
+export type InitializeUserRoute = typeof initializeUser;
 export type ClearCacheRoute = typeof clearCache;
 export type VerifyEmailRoute = typeof verifyEmail;
 export type VerifyEmailTokenRoute = typeof verifyEmailToken;

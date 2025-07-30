@@ -8,6 +8,7 @@ import {
   assignInitialCredits,
   createOrUpdatePolarSubscription,
   createPaymentRecord,
+  initializeWebDurableObject,
   processMonthlyRefill,
 } from '@/db/queries';
 import * as schema from '@/db/schema';
@@ -110,10 +111,14 @@ export function createAuth(env: CloudflareBindings) {
               // Assign initial credits to new users
               await assignInitialCredits(env, user.id);
               console.log(`✅ Successfully assigned initial credits to user ${user.id} (${user.email})`);
+
+              // Initialize WebDurableObject for the new user
+              await initializeWebDurableObject(env, user.id);
+              console.log(`✅ Successfully initialized WebDurableObject for user ${user.id} (${user.email})`);
             } catch (error) {
-              console.error(`❌ Failed to assign initial credits to user ${user.id}:`, error);
+              console.error(`❌ Failed to initialize user ${user.id}:`, error);
               // Don't throw error to prevent user creation from failing
-              // Credits can be assigned manually if needed
+              // Credits and DO initialization can be done manually if needed
             }
           },
         },

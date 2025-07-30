@@ -529,6 +529,39 @@ export async function createOrUpdatePolarSubscription(
   }
 }
 
+/**
+ * Initialize WebDurableObject for a new user during signup
+ * This function creates and initializes the user's Durable Object with database setup
+ * Database initialization only happens in production where SQLite is available
+ */
+export async function initializeWebDurableObject(env: CloudflareBindings, userId: string): Promise<void> {
+  try {
+    console.log(`🔧 Initializing WebDurableObject for user ${userId}...`);
+
+    // Get the WebDurableObject namespace and create stable ID for the user
+    // Use the same stable versioned ID logic as handlers for consistency
+    const namespace = env.WEBLINQ_DURABLE_OBJECT;
+    const durableObjectId = namespace.idFromName(`web:${userId}:v3`);
+    const durableObject = namespace.get(durableObjectId);
+
+    console.log(`🆔 Using stable DO ID for user ${userId}: web:${userId}:v3`);
+
+    // Call initialization method on the Durable Object
+    // This will set up the user context and database tables (production only)
+    await durableObject.initializeUserAndDatabase(userId);
+
+    const isProduction = env.NODE_ENV === 'production';
+    if (isProduction) {
+      console.log(`✅ Successfully initialized WebDurableObject with database for user ${userId} (production)`);
+    } else {
+      console.log(`✅ Successfully initialized WebDurableObject for user ${userId} (development - no database)`);
+    }
+  } catch (error) {
+    console.error(`❌ Failed to initialize WebDurableObject for user ${userId}:`, error);
+    throw new Error(`Failed to initialize user Durable Object: ${error}`);
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* 4. Dashboard helper                                                 */
 /* ------------------------------------------------------------------ */

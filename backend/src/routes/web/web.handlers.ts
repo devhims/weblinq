@@ -28,14 +28,14 @@ import type {
  * Using the same values from CACHE_CONFIG but converted to seconds
  */
 const CACHE_TTL_SECONDS = {
-  SCREENSHOT: 12 * 60 * 60, // 12 hours
-  MARKDOWN: 30 * 60, // 30 minutes
-  JSON_EXTRACTION: 30 * 60, // 30 minutes
-  CONTENT: 30 * 60, // 30 minutes
-  SCRAPE: 10 * 60, // 10 minutes
-  LINKS: 30 * 60, // 30 minutes
-  SEARCH: 10 * 60, // 10 minutes
-  PDF: 12 * 60 * 60, // 12 hours
+  SCREENSHOT: 5 * 60, // 5 minutes
+  MARKDOWN: 1 * 60, // 1 minute
+  JSON_EXTRACTION: 5 * 60, // 5 minutes
+  CONTENT: 1 * 60, // 1 minute
+  SCRAPE: 1 * 60, // 1 minute
+  LINKS: 1 * 60, // 1 minute
+  SEARCH: 2 * 60, // 2 minutes
+  PDF: 5 * 60, // 5 minutes
 } as const;
 
 /**
@@ -490,26 +490,18 @@ async function logCriticalError(c: any, operation: string, error: unknown) {
 
 /**
  * Helper function to get the WebDurableObject stub for a user
+ * Uses stable versioned IDs for consistent DO access across signup and runtime
  */
 function getWebDurableObject(c: { env: CloudflareBindings }, userId: string): DurableObjectStub<WebDurableObject> {
   const namespace = c.env.WEBLINQ_DURABLE_OBJECT;
   console.log('user id', userId);
 
-  // TEMPORARY: Use random IDs in development to force fresh SQLite-enabled instances
-  // This bypasses any migration issues with existing instances
-  const isDev = c.env.NODE_ENV !== 'production';
+  // Use stable versioned IDs for both development and production
+  // This ensures the same DO is accessed during signup and handler calls
+  const id = namespace.idFromName(`web:${userId}:v3`);
+  console.log(`🆔 Using stable DO ID for user ${userId}: web:${userId}:v3`);
 
-  if (isDev) {
-    const randomId = `web:${userId}:temp:${Date.now()}:${Math.random().toString(36).substr(2, 9)}`;
-    const id = namespace.idFromName(randomId);
-    console.log('🧪 DEVELOPMENT: Using random DO ID to guarantee fresh SQLite instance');
-    return namespace.get(id);
-  } else {
-    // Production uses stable versioned IDs
-    const id = namespace.idFromName(`web:${userId}:v3`);
-    console.log('🏭 PRODUCTION: Using stable versioned DO ID');
-    return namespace.get(id);
-  }
+  return namespace.get(id);
 }
 
 /**
@@ -544,8 +536,7 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
       'SCREENSHOT',
       async () => {
         const webDO = getWebDurableObject(c, user.id);
-        await webDO.initializeUser(user.id);
-        return await webDO.screenshotV1({ ...body, base64: false });
+        return await webDO.screenshotV1({ ...body, base64: false }, user.id);
       },
       {
         url: body.url,
@@ -577,7 +568,6 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     if (!result.fromCache && result.data?.image instanceof Uint8Array) {
       try {
         const webDO = getWebDurableObject(c, user.id);
-        await webDO.initializeUser(user.id);
         const stored = await webDO.storeFileAndCreatePermanentUrl(
           result.data.image,
           body.url,
@@ -662,8 +652,7 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
       'MARKDOWN',
       async () => {
         const webDurableObject = getWebDurableObject(c, user.id);
-        await webDurableObject.initializeUser(user.id);
-        return await webDurableObject.markdownV1(body);
+        return await webDurableObject.markdownV1(body, user.id);
       },
       {
         url: body.url,
@@ -719,8 +708,7 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
       'JSON_EXTRACTION',
       async () => {
         const webDurableObject = getWebDurableObject(c, user.id);
-        await webDurableObject.initializeUser(user.id);
-        return await webDurableObject.jsonExtractionV1(body);
+        return await webDurableObject.jsonExtractionV1(body, user.id);
       },
       {
         url: body.url,
@@ -770,8 +758,7 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
       'CONTENT',
       async () => {
         const webDurableObject = getWebDurableObject(c, user.id);
-        await webDurableObject.initializeUser(user.id);
-        return await webDurableObject.contentV1(body);
+        return await webDurableObject.contentV1(body, user.id);
       },
       {
         url: body.url,
@@ -819,8 +806,7 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
       'SCRAPE',
       async () => {
         const webDurableObject = getWebDurableObject(c, user.id);
-        await webDurableObject.initializeUser(user.id);
-        return await webDurableObject.scrapeV1(body);
+        return await webDurableObject.scrapeV1(body, user.id);
       },
       {
         url: body.url,
@@ -869,8 +855,7 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
       'LINKS',
       async () => {
         const webDurableObject = getWebDurableObject(c, user.id);
-        await webDurableObject.initializeUser(user.id);
-        return await webDurableObject.linksV1(body);
+        return await webDurableObject.linksV1(body, user.id);
       },
       {
         url: body.url,
@@ -920,8 +905,7 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
       'SEARCH',
       async () => {
         const webDurableObject = getWebDurableObject(c, user.id);
-        await webDurableObject.initializeUser(user.id);
-        return await webDurableObject.searchV1(body);
+        return await webDurableObject.searchV1(body, user.id);
       },
       {
         query: body.query,
@@ -983,8 +967,7 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
       'PDF',
       async () => {
         const webDO = getWebDurableObject(c, user.id);
-        await webDO.initializeUser(user.id);
-        return await webDO.pdfV1({ ...body, base64: false });
+        return await webDO.pdfV1({ ...body, base64: false }, user.id);
       },
       {
         url: body.url,
@@ -1016,7 +999,6 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     if (!result.fromCache && result.data?.pdf instanceof Uint8Array) {
       try {
         const webDO = getWebDurableObject(c, user.id);
-        await webDO.initializeUser(user.id);
         const stored = await webDO.storeFileAndCreatePermanentUrl(
           result.data.pdf,
           body.url,

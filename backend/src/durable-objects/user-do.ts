@@ -57,34 +57,69 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   private userId: string;
   protected env: CloudflareBindings;
   private sql: SqlStorage | null = null;
-  private sqlEnabled: boolean = false;
 
   constructor(ctx: DurableObjectState, env: CloudflareBindings) {
     super(ctx, env);
     this.env = env;
     this.userId = '';
 
-    // Check if SQLite is available
+    // Check if SQLite is available (production only)
     try {
       this.sql = ctx.storage.sql;
-      console.log('✅ SQLite storage API accessible - testing database operations...');
-
-      // Start with SQLite disabled, enable only if initialization succeeds
-      this.sqlEnabled = false;
-      this.initializeDatabase();
-
-      // Check if initialization was successful
-      if (this.sqlEnabled === false) {
-        console.error('❌ Database initialization failed - permanent URLs disabled');
-        this.sql = null;
-      } else {
-        console.log('✅ Database initialization completed successfully - permanent URLs enabled');
-      }
+      console.log('✅ SQLite storage API accessible');
     } catch (error) {
       console.warn('⚠️ SQLite not available for this Durable Object instance:', error);
       this.sql = null;
-      this.sqlEnabled = false;
     }
+
+    // Load user ID from persistent storage if available
+    this.loadUserIdFromStorage();
+  }
+
+  /**
+   * Load user ID from persistent storage
+   * Called during constructor to restore user context after DO wakeup
+   */
+  private async loadUserIdFromStorage(): Promise<void> {
+    try {
+      const storedUserId = await this.ctx.storage.get<string>('userId');
+      if (storedUserId) {
+        this.userId = storedUserId;
+        console.log(`🔄 Restored user context from storage: ${storedUserId}`);
+      } else {
+        console.log('💤 No user ID found in storage - awaiting initialization');
+      }
+    } catch (error) {
+      console.error('❌ Failed to load user ID from storage:', error);
+      // Don't throw - this is a non-critical failure during startup
+    }
+  }
+
+  /**
+   * Combined initialization method called during user signup
+   * This replaces the separate initializeUser and initializeDatabase calls
+   */
+  async initializeUserAndDatabase(userId: string): Promise<void> {
+    console.log(`🔧 Starting combined initialization for user ${userId}...`);
+
+    // Set user context
+    this.userId = userId;
+    console.log(`✅ User context set for ${userId}`);
+
+    // Persist user ID in Durable Object storage for future wakeups
+    await this.ctx.storage.put('userId', userId);
+    console.log(`💾 User ID persisted to storage for ${userId}`);
+
+    // Initialize database only in production where SQLite is available
+    const isProduction = this.env.NODE_ENV === 'production';
+    if (this.sql && isProduction) {
+      this.initializeDatabase();
+      console.log(`✅ Database initialization completed for user ${userId} (production)`);
+    } else {
+      console.log(`ℹ️ Skipping database initialization for user ${userId} (development or SQLite unavailable)`);
+    }
+
+    console.log(`🎉 Combined initialization completed successfully for user ${userId}`);
   }
 
   /**
@@ -94,7 +129,6 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   private initializeDatabase(): void {
     if (!this.sql) {
       console.error('❌ No SQL storage available');
-      this.sqlEnabled = false;
       return;
     }
 
@@ -137,7 +171,6 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
         // If we get here, SQL is working
         console.log('🎉 SQLite operations successful - enabling permanent URLs');
-        this.sqlEnabled = true;
       } catch (sqlError) {
         console.error('❌ SQL operations failed:', sqlError);
         throw sqlError; // Re-throw to be caught by outer catch
@@ -145,7 +178,6 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
     } catch (error) {
       console.error('❌ Failed to initialize database:', error);
       console.error('💡 This likely means the Durable Object was not created with SQLite support');
-      this.sqlEnabled = false;
       this.sql = null;
     }
   }
@@ -196,7 +228,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       throw new Error('User ID not initialized');
     }
 
-    if (!this.sqlEnabled || !this.sql) {
+    if (!this.sql) {
       throw new Error(
         'SQLite storage not available for this Durable Object instance. Create a new user session to enable permanent URLs.',
       );
@@ -287,7 +319,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
    * Returns null if SQLite is not available
    */
   private async getPermanentUrl(fileId: string): Promise<FileRecord | null> {
-    if (!this.sqlEnabled || !this.sql) {
+    if (!this.sql) {
       return null;
     }
 
@@ -323,7 +355,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
     sortBy: 'created_at' | 'filename' = 'created_at',
     order: 'asc' | 'desc' = 'desc',
   ): Promise<FileRecord[]> {
-    if (!this.sqlEnabled || !this.sql) {
+    if (!this.sql) {
       return [];
     }
 
@@ -365,9 +397,23 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
   /**
    * Initialize the Durable Object with user-specific context
+   * This is now primarily a fallback for edge cases since initialization
+   * happens during user signup via initializeUserAndDatabase
    */
   async initializeUser(userId: string): Promise<void> {
-    this.userId = userId;
+    // Only set the user context if not already set
+    if (!this.userId) {
+      this.userId = userId;
+      console.log(`⚠️ Late initialization: setting user context for ${userId}`);
+
+      // Store in persistent storage for future wakeups
+      await this.ctx.storage.put('userId', userId);
+      console.log(`💾 User ID persisted to storage during late initialization: ${userId}`);
+    } else if (this.userId !== userId) {
+      console.warn(`❌ User ID mismatch: expected ${this.userId}, got ${userId}`);
+      throw new Error(`Invalid user context: expected ${this.userId}, got ${userId}`);
+    }
+    // If userId matches, no action needed - already properly initialized
   }
 
   /**
@@ -385,7 +431,6 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
     success: boolean;
     data: {
       sqliteStatus: {
-        enabled: boolean;
         available: boolean;
         userId: string;
       };
@@ -399,7 +444,6 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
       // Get SQLite status
       const sqliteStatus = {
-        enabled: this.sqlEnabled,
         available: !!this.sql,
         userId: this.userId,
       };
@@ -408,7 +452,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       let files: FileRecord[] = [];
       let totalFiles = 0;
 
-      if (this.sqlEnabled && this.sql) {
+      if (this.sql) {
         try {
           // Get total count
           const countQuery = type
@@ -443,7 +487,6 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
         success: false,
         data: {
           sqliteStatus: {
-            enabled: false,
             available: false,
             userId: this.userId || 'not-initialized',
           },
@@ -473,7 +516,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
     try {
       const { fileId, deleteFromR2 = false } = params;
 
-      if (!this.sqlEnabled || !this.sql) {
+      if (!this.sql) {
         return {
           success: false,
           data: {
@@ -607,104 +650,150 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   /*  v1 – Browser-based screenshot                                          */
   /* ------------------------------------------------------------------------ */
 
-  async screenshotV1(params: Parameters<typeof screenshotV1>[1]): Promise<CreditAwareResult<any>> {
-    return this.executeWithCredits('SCREENSHOT', () => screenshotV1(this.env, params), {
-      url: params.url,
-      userId: this.userId,
-      viewport: params.viewport,
-      waitTime: params.waitTime,
-    });
+  async screenshotV1(params: Parameters<typeof screenshotV1>[1], userId: string): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits(
+      'SCREENSHOT',
+      () => screenshotV1(this.env, params),
+      {
+        url: params.url,
+        userId: this.userId,
+        viewport: params.viewport,
+        waitTime: params.waitTime,
+      },
+      userId,
+    );
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – Browser-based markdown extraction                                 */
   /* ------------------------------------------------------------------------ */
 
-  async markdownV1(params: Parameters<typeof markdownV1>[1]): Promise<CreditAwareResult<any>> {
-    return this.executeWithCredits('MARKDOWN', () => markdownV1(this.env, params), {
-      url: params.url,
-      userId: this.userId,
-      waitTime: params.waitTime,
-    });
+  async markdownV1(params: Parameters<typeof markdownV1>[1], userId: string): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits(
+      'MARKDOWN',
+      () => markdownV1(this.env, params),
+      {
+        url: params.url,
+        userId: this.userId,
+        waitTime: params.waitTime,
+      },
+      userId,
+    );
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – Browser-based HTML content extraction                              */
   /* ------------------------------------------------------------------------ */
 
-  async contentV1(params: Parameters<typeof contentV1>[1]): Promise<CreditAwareResult<any>> {
-    return this.executeWithCredits('CONTENT', () => contentV1(this.env, params), {
-      url: params.url,
-      userId: this.userId,
-      waitTime: params.waitTime,
-    });
+  async contentV1(params: Parameters<typeof contentV1>[1], userId: string): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits(
+      'CONTENT',
+      () => contentV1(this.env, params),
+      {
+        url: params.url,
+        userId: this.userId,
+        waitTime: params.waitTime,
+      },
+      userId,
+    );
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – Browser-based Link extraction                                      */
   /* ------------------------------------------------------------------------ */
 
-  async linksV1(params: Parameters<typeof linksV1>[1]): Promise<CreditAwareResult<any>> {
-    return this.executeWithCredits('LINKS', () => linksV1(this.env, params), {
-      url: params.url,
-      userId: this.userId,
-      includeExternal: params.includeExternal,
-      waitTime: params.waitTime,
-    });
+  async linksV1(params: Parameters<typeof linksV1>[1], userId: string): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits(
+      'LINKS',
+      () => linksV1(this.env, params),
+      {
+        url: params.url,
+        userId: this.userId,
+        includeExternal: params.includeExternal,
+        waitTime: params.waitTime,
+      },
+      userId,
+    );
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – Browser-based Element scraping                                     */
   /* ------------------------------------------------------------------------ */
 
-  async scrapeV1(params: Parameters<typeof scrapeV1>[1]): Promise<CreditAwareResult<any>> {
-    return this.executeWithCredits('SCRAPE', () => scrapeV1(this.env, params), {
-      url: params.url,
-      userId: this.userId,
-      elements: params.elements?.length || 0,
-      waitTime: params.waitTime,
-    });
+  async scrapeV1(params: Parameters<typeof scrapeV1>[1], userId: string): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits(
+      'SCRAPE',
+      () => scrapeV1(this.env, params),
+      {
+        url: params.url,
+        userId: this.userId,
+        elements: params.elements?.length || 0,
+        waitTime: params.waitTime,
+      },
+      userId,
+    );
   }
 
-  async pdfV1(params: Parameters<typeof pdfV1>[1]): Promise<CreditAwareResult<any>> {
-    return this.executeWithCredits('PDF', () => pdfV1(this.env, params), {
-      url: params.url,
-      userId: this.userId,
-      base64: params.base64,
-      waitTime: params.waitTime,
-    });
+  async pdfV1(params: Parameters<typeof pdfV1>[1], userId: string): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits(
+      'PDF',
+      () => pdfV1(this.env, params),
+      {
+        url: params.url,
+        userId: this.userId,
+        base64: params.base64,
+        waitTime: params.waitTime,
+      },
+      userId,
+    );
   }
 
-  async searchV1(params: Parameters<typeof searchV1>[1]): Promise<CreditAwareResult<any>> {
-    return this.executeWithCredits('SEARCH', () => searchV1(this.env, params), {
-      query: params.query,
-      userId: this.userId,
-      limit: params.limit,
-    });
+  async searchV1(params: Parameters<typeof searchV1>[1], userId: string): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits(
+      'SEARCH',
+      () => searchV1(this.env, params),
+      {
+        query: params.query,
+        userId: this.userId,
+        limit: params.limit,
+      },
+      userId,
+    );
   }
 
   /* ------------------------------------------------------------------------ */
   /*  v1 – AI-powered JSON extraction                                        */
   /* ------------------------------------------------------------------------ */
 
-  async jsonExtractionV1(params: Parameters<typeof jsonExtractionV1>[1]): Promise<CreditAwareResult<any>> {
-    return this.executeWithCredits('JSON_EXTRACTION', () => jsonExtractionV1(this.env, params), {
-      url: params.url,
-      userId: this.userId,
-      prompt: params.prompt?.length || 0,
-      responseType: params.responseType,
-      waitTime: params.waitTime,
-    });
+  async jsonExtractionV1(
+    params: Parameters<typeof jsonExtractionV1>[1],
+    userId: string,
+  ): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits(
+      'JSON_EXTRACTION',
+      () => jsonExtractionV1(this.env, params),
+      {
+        url: params.url,
+        userId: this.userId,
+        prompt: params.prompt?.length || 0,
+        responseType: params.responseType,
+        waitTime: params.waitTime,
+      },
+      userId,
+    );
   }
 
   /**
    * Check if user has sufficient credits for an operation
    */
-  private async checkCredits(operation: WebOperation): Promise<{ hasCredits: boolean; balance: number; cost: number }> {
+  private async checkCredits(
+    operation: WebOperation,
+    requestUserId?: string,
+  ): Promise<{ hasCredits: boolean; balance: number; cost: number }> {
     const cost = CREDIT_COSTS[operation];
 
     try {
-      const credits = await getUserCredits(this.env, this.userId);
+      const credits = await getUserCredits(this.env, requestUserId || this.userId);
       return {
         hasCredits: credits.balance >= cost,
         balance: credits.balance,
@@ -720,11 +809,15 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
    * Deduct credits for an operation using waitUntil (non-blocking)
    * This method should be called after a successful operation
    */
-  private async deductCreditsAsync(operation: WebOperation, metadata?: Record<string, any>): Promise<void> {
+  private async deductCreditsAsync(
+    operation: WebOperation,
+    metadata?: Record<string, any>,
+    requestUserId?: string,
+  ): Promise<void> {
     const cost = CREDIT_COSTS[operation];
 
     try {
-      await deductCredits(this.env, this.userId, cost, operation.toLowerCase(), {
+      await deductCredits(this.env, requestUserId || this.userId, cost, operation.toLowerCase(), {
         operation,
         cost,
         timestamp: new Date().toISOString(),
@@ -740,14 +833,40 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
   /**
    * Execute a web operation with credit checking and deduction
+   * Includes user ID verification and database initialization
    */
   private async executeWithCredits<T>(
     operation: WebOperation,
     operationFn: () => Promise<T>,
     metadata?: Record<string, any>,
+    requestUserId?: string,
   ): Promise<CreditAwareResult<T>> {
-    // 1. Check credits first
-    const creditCheck = await this.checkCredits(operation);
+    const isProduction = this.env.NODE_ENV === 'production';
+    // 1. Verify user ID matches to prevent cross-user access
+    if (requestUserId && isProduction && (!this.userId || this.userId !== requestUserId)) {
+      console.error(`❌ User ID mismatch in ${operation}: expected ${this.userId}, got ${requestUserId}`);
+      return {
+        success: false,
+        error: 'Invalid user context',
+        creditsCost: 0,
+        creditsRemaining: 0,
+      };
+    }
+
+    // 2. Ensure database is initialized in production if SQLite is available
+
+    if (this.sql && isProduction) {
+      try {
+        this.initializeDatabase();
+        console.log(`✅ Database tables initialized for ${operation} operation`);
+      } catch (error) {
+        console.warn(`⚠️ Failed to initialize database for ${operation}:`, error);
+        // Continue without database - permanent URLs will be disabled
+      }
+    }
+
+    // 3. Check credits
+    const creditCheck = await this.checkCredits(operation, requestUserId);
 
     if (!creditCheck.hasCredits) {
       return {
@@ -759,7 +878,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
     }
 
     try {
-      // 2. Execute the operation
+      // 4. Execute the operation
       const result = await operationFn();
 
       // Check if the result is already in the expected format (has success property)
@@ -768,8 +887,8 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
         const typedResult = result as any;
 
         if (typedResult.success) {
-          // 3. Deduct credits in background for successful operations
-          this.ctx.waitUntil(this.deductCreditsAsync(operation, metadata));
+          // 5. Deduct credits in background for successful operations
+          this.ctx.waitUntil(this.deductCreditsAsync(operation, metadata, requestUserId));
 
           return {
             success: true,
@@ -789,7 +908,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       }
 
       // For functions that return raw data (no success wrapper)
-      // 3. Deduct credits in background (non-blocking)
+      // 5. Deduct credits in background (non-blocking)
       this.ctx.waitUntil(this.deductCreditsAsync(operation, metadata));
 
       return {

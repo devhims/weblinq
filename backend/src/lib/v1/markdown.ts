@@ -1,4 +1,4 @@
-import type { Heading, Link, Root as MdastRoot, Paragraph, Text } from 'mdast';
+import type { Root as MdastRoot } from 'mdast';
 import type { z } from 'zod';
 
 // Lazy imports to avoid heavy startup parsing
