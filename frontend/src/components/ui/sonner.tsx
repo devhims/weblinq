@@ -4,12 +4,11 @@ import { useTheme } from 'next-themes';
 import { Toaster as Sonner, ToasterProps } from 'sonner';
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = 'system' } = useTheme();
-
+  // Remove theme dependency for now to test if that's the issue
   return (
     <Sonner
-      theme={theme as ToasterProps['theme']}
-      className='toaster group'
+      theme="dark"
+      className="toaster group"
       style={
         {
           '--normal-bg': 'var(--popover)',

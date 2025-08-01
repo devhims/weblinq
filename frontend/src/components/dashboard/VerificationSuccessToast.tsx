@@ -31,25 +31,39 @@ export function CreditAssignmentToast() {
   const searchParams = useSearchParams();
   const newUser = searchParams.get('new_user');
 
+  // Debug: Log component mounting
+  console.log('🔍 CreditAssignmentToast component mounted/rendered');
+
   useEffect(() => {
+    console.log('🔍 CreditAssignmentToast useEffect running', {
+      newUser,
+      searchParamsString: searchParams.toString(),
+      allParams: Object.fromEntries(searchParams.entries()),
+    });
+
     // Show credit notification for new users (both email signup and OAuth)
     if (newUser === 'true') {
-      // Check if we've already shown this toast in this browser session
-      const hasShownThisSession = sessionStorage.getItem('credit_toast_shown');
+      console.log('🎯 Conditions met - attempting to show toast');
 
-      if (!hasShownThisSession) {
-        sessionStorage.setItem('credit_toast_shown', 'true');
+      // Test if toast function is available
+      console.log('🔍 Toast function:', typeof toast, toast);
 
-        toast.success(
-          "🎉 Welcome! You've been credited with 1,000 free credits to get started.",
-          {
-            duration: 6000,
-            description: 'Keep track of your credits in the billing page.',
-          },
-        );
-      }
+      toast.success(
+        "🎉 Welcome! You've been credited with 1,000 free credits to get started.",
+        {
+          duration: 6000,
+          description: 'Keep track of your credits in the billing page.',
+        },
+      );
+
+      console.log('🎉 Toast.success called');
+    } else {
+      console.log(
+        '❌ CreditAssignmentToast: Not showing notification (newUser !== "true")',
+        { newUser, type: typeof newUser },
+      );
     }
-  }, [newUser]);
+  }, [newUser, searchParams]);
 
-  return null;
+  return null; // This component only shows toasts, no visual element
 }
