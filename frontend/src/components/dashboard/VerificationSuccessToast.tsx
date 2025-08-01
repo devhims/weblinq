@@ -27,26 +27,17 @@ export function VerificationSuccessToast() {
   return null;
 }
 
+// Global flag to track if welcome toast has been shown in this browser session
+let hasShownWelcomeToast = false;
+
 export function CreditAssignmentToast() {
   const searchParams = useSearchParams();
   const newUser = searchParams.get('new_user');
 
-  // Debug: Log component mounting
-  console.log('🔍 CreditAssignmentToast component mounted/rendered');
-
   useEffect(() => {
-    console.log('🔍 CreditAssignmentToast useEffect running', {
-      newUser,
-      searchParamsString: searchParams.toString(),
-      allParams: Object.fromEntries(searchParams.entries()),
-    });
-
     // Show credit notification for new users (both email signup and OAuth)
-    if (newUser === 'true') {
-      console.log('🎯 Conditions met - attempting to show toast');
-
-      // Test if toast function is available
-      console.log('🔍 Toast function:', typeof toast, toast);
+    if (newUser === 'true' && !hasShownWelcomeToast) {
+      hasShownWelcomeToast = true;
 
       toast.success(
         "🎉 Welcome! You've been credited with 1,000 free credits to get started.",
@@ -55,15 +46,8 @@ export function CreditAssignmentToast() {
           description: 'Keep track of your credits in the billing page.',
         },
       );
-
-      console.log('🎉 Toast.success called');
-    } else {
-      console.log(
-        '❌ CreditAssignmentToast: Not showing notification (newUser !== "true")',
-        { newUser, type: typeof newUser },
-      );
     }
-  }, [newUser, searchParams]);
+  }, [newUser]);
 
   return null; // This component only shows toasts, no visual element
 }
