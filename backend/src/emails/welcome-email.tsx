@@ -145,7 +145,7 @@ const signature = {
   lineHeight: '1.6',
   color: '#374151',
   margin: '24px 0',
-  fontStyle: 'italic',
+  fontStyle: 'normal',
 };
 
 export function WelcomeEmail({ userEmail, firstName = '', appName = 'WebLinq' }: WelcomeEmailProps) {

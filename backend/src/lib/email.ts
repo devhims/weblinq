@@ -7,6 +7,41 @@ import { processPasswordResetTemplate } from '../emails/templates/password-reset
 import { processVerificationTemplate } from '../emails/templates/verification';
 import { processWelcomeTemplate } from '../emails/templates/welcome';
 
+/**
+ * Send email via Resend HTTP API (more reliable in Cloudflare Workers than SMTP)
+ */
+async function sendViaResendAPI(
+  apiKey: string,
+  from: string,
+  to: string,
+  subject: string,
+  html: string,
+  text: string,
+): Promise<{ messageId: string }> {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      html,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Resend API error: ${response.status} - ${errorData}`);
+  }
+
+  const result = (await response.json()) as { id: string };
+  return { messageId: result.id };
+}
+
 interface SendEmailResponse {
   success: boolean;
   messageId?: string;
@@ -14,24 +49,10 @@ interface SendEmailResponse {
 }
 
 /**
- * Create nodemailer transporter with email provider settings
- * Supports Resend (preferred) and Zoho SMTP
+ * @deprecated Create Zoho SMTP transporter - DEPRECATED, use Resend instead
+ * Kept for legacy compatibility but should not be used for new implementations
  */
-function createTransporter(env: CloudflareBindings) {
-  // Prefer Resend if API key is available
-  if (env.RESEND_API_KEY) {
-    return nodemailer.createTransport({
-      host: 'smtp.resend.com',
-      port: 587,
-      secure: true,
-      auth: {
-        user: 'resend',
-        pass: env.RESEND_API_KEY,
-      },
-    });
-  }
-
-  // Fallback to Zoho
+function _createZohoTransporter(env: CloudflareBindings) {
   return nodemailer.createTransport({
     host: env.ZOHO_EMAIL_HOST || 'smtp.zoho.in',
     port: 587,
@@ -69,18 +90,21 @@ export async function sendVerificationEmail(
       appName,
     });
 
-    // Create transporter and send email
-    const transporter = createTransporter(env);
-    const fromEmail = env.RESEND_API_KEY ? 'support@weblinq.dev' : env.ZOHO_EMAIL_USER;
-    const info = await transporter.sendMail({
-      from: `"${appName}" <${fromEmail}>`,
-      to: userEmail,
-      subject: `Verify your email address - ${appName}`,
-      text,
-      html,
-    });
+    // Use Resend HTTP API (primary method)
+    if (!env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is required for email sending');
+    }
 
-    console.log('✅ Verification email sent successfully:', {
+    const info = await sendViaResendAPI(
+      env.RESEND_API_KEY,
+      `"${appName}" <support@weblinq.dev>`,
+      userEmail,
+      `Verify your email address - ${appName}`,
+      html,
+      text,
+    );
+
+    console.log('✅ Verification email sent successfully via Resend HTTP API:', {
       to: userEmail,
       messageId: info.messageId,
     });
@@ -117,18 +141,21 @@ export async function sendPasswordResetEmail(
       appName,
     });
 
-    // Create transporter and send email
-    const transporter = createTransporter(env);
-    const fromEmail = env.RESEND_API_KEY ? 'support@weblinq.dev' : env.ZOHO_EMAIL_USER;
-    const info = await transporter.sendMail({
-      from: `"${appName}" <${fromEmail}>`,
-      to: userEmail,
-      subject: `Reset your password - ${appName}`,
-      text,
-      html,
-    });
+    // Use Resend HTTP API (primary method)
+    if (!env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is required for email sending');
+    }
 
-    console.log('✅ Password reset email sent successfully:', {
+    const info = await sendViaResendAPI(
+      env.RESEND_API_KEY,
+      `"${appName}" <support@weblinq.dev>`,
+      userEmail,
+      `Reset your password - ${appName}`,
+      html,
+      text,
+    );
+
+    console.log('✅ Password reset email sent successfully via Resend HTTP API:', {
       to: userEmail,
       messageId: info.messageId,
     });
@@ -165,20 +192,24 @@ export async function sendWelcomeEmail(
       appName,
     });
 
-    // Create transporter and send email
-    const transporter = createTransporter(env);
-    const fromEmail = env.RESEND_API_KEY ? 'support@weblinq.dev' : env.ZOHO_EMAIL_USER;
-    const info = await transporter.sendMail({
-      from: `"${appName}" <${fromEmail}>`,
-      to: userEmail,
-      subject: `Welcome to ${appName}`,
-      text,
-      html,
-    });
+    // Use Resend HTTP API (primary method - most reliable in Cloudflare Workers)
+    if (!env.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY is required for email sending');
+    }
 
-    console.log('✅ Welcome email sent successfully:', {
+    const info = await sendViaResendAPI(
+      env.RESEND_API_KEY,
+      `"${appName}" <support@weblinq.dev>`,
+      userEmail,
+      `Welcome to ${appName}`,
+      html,
+      text,
+    );
+
+    console.log('✅ Welcome email sent successfully via Resend HTTP API:', {
       to: userEmail,
       messageId: info.messageId,
+      provider: 'Resend API',
     });
 
     return {
@@ -186,10 +217,17 @@ export async function sendWelcomeEmail(
       messageId: info.messageId,
     };
   } catch (error) {
-    console.error('❌ Failed to send welcome email:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Failed to send welcome email:', {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      userEmail,
+      hasResendKey: !!env.RESEND_API_KEY,
+    });
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
     };
   }
 }
