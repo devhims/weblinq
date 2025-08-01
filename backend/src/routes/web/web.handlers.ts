@@ -3,9 +3,11 @@ import { createHash } from 'node:crypto';
 import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { WebDurableObject } from '@/durable-objects/user-do';
+import type { WebOperation } from '@/lib/constants';
 import type { AppRouteHandler } from '@/lib/types';
 
 import { deductCredits, getUserCredits, logError } from '@/db/queries';
+import { CREDIT_COSTS } from '@/lib/constants';
 import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
 
 import type {
@@ -37,22 +39,6 @@ const CACHE_TTL_SECONDS = {
   SEARCH: 2 * 60, // 2 minutes
   PDF: 5 * 60, // 5 minutes
 } as const;
-
-/**
- * Credit costs for different web operations
- */
-const CREDIT_COSTS = {
-  SCREENSHOT: 1,
-  MARKDOWN: 1,
-  JSON_EXTRACTION: 2, // Higher cost due to AI processing
-  CONTENT: 1,
-  SCRAPE: 1,
-  LINKS: 1,
-  SEARCH: 1,
-  PDF: 1,
-} as const;
-
-type WebOperation = keyof typeof CREDIT_COSTS;
 
 /**
  * Result wrapper that includes credit information

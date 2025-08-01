@@ -5,6 +5,7 @@ import nodemailer from 'nodemailer';
 
 import { processPasswordResetTemplate } from '../emails/templates/password-reset';
 import { processVerificationTemplate } from '../emails/templates/verification';
+import { processWelcomeTemplate } from '../emails/templates/welcome';
 
 interface SendEmailResponse {
   success: boolean;
@@ -13,9 +14,24 @@ interface SendEmailResponse {
 }
 
 /**
- * Create nodemailer transporter with Zoho SMTP settings
+ * Create nodemailer transporter with email provider settings
+ * Supports Resend (preferred) and Zoho SMTP
  */
 function createTransporter(env: CloudflareBindings) {
+  // Prefer Resend if API key is available
+  if (env.RESEND_API_KEY) {
+    return nodemailer.createTransport({
+      host: 'smtp.resend.com',
+      port: 587,
+      secure: true,
+      auth: {
+        user: 'resend',
+        pass: env.RESEND_API_KEY,
+      },
+    });
+  }
+
+  // Fallback to Zoho
   return nodemailer.createTransport({
     host: env.ZOHO_EMAIL_HOST || 'smtp.zoho.in',
     port: 587,
@@ -55,8 +71,9 @@ export async function sendVerificationEmail(
 
     // Create transporter and send email
     const transporter = createTransporter(env);
+    const fromEmail = env.RESEND_API_KEY ? 'support@weblinq.dev' : env.ZOHO_EMAIL_USER;
     const info = await transporter.sendMail({
-      from: `"${appName}" <${env.ZOHO_EMAIL_USER}>`,
+      from: `"${appName}" <${fromEmail}>`,
       to: userEmail,
       subject: `Verify your email address - ${appName}`,
       text,
@@ -102,8 +119,9 @@ export async function sendPasswordResetEmail(
 
     // Create transporter and send email
     const transporter = createTransporter(env);
+    const fromEmail = env.RESEND_API_KEY ? 'support@weblinq.dev' : env.ZOHO_EMAIL_USER;
     const info = await transporter.sendMail({
-      from: `"${appName}" <${env.ZOHO_EMAIL_USER}>`,
+      from: `"${appName}" <${fromEmail}>`,
       to: userEmail,
       subject: `Reset your password - ${appName}`,
       text,
@@ -121,6 +139,54 @@ export async function sendPasswordResetEmail(
     };
   } catch (error) {
     console.error('❌ Failed to send password reset email:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Send welcome email using pre-built template
+ */
+export async function sendWelcomeEmail(
+  env: CloudflareBindings,
+  userEmail: string,
+  firstName?: string,
+): Promise<SendEmailResponse> {
+  try {
+    // App configuration
+    const appName = env.APP_NAME || 'WebLinq';
+
+    // Process pre-built template with variables
+    const { html, text } = processWelcomeTemplate({
+      userEmail,
+      firstName: firstName || '',
+      appName,
+    });
+
+    // Create transporter and send email
+    const transporter = createTransporter(env);
+    const fromEmail = env.RESEND_API_KEY ? 'support@weblinq.dev' : env.ZOHO_EMAIL_USER;
+    const info = await transporter.sendMail({
+      from: `"${appName}" <${fromEmail}>`,
+      to: userEmail,
+      subject: `Welcome to ${appName}`,
+      text,
+      html,
+    });
+
+    console.log('✅ Welcome email sent successfully:', {
+      to: userEmail,
+      messageId: info.messageId,
+    });
+
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
+  } catch (error) {
+    console.error('❌ Failed to send welcome email:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

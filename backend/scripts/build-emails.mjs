@@ -14,6 +14,7 @@ import { render } from '@react-email/render';
 // Import our email templates with proper extension resolution
 import { PasswordResetEmail } from '../src/emails/password-reset-email.tsx';
 import { VerificationEmail } from '../src/emails/verification-email.tsx';
+import { WelcomeEmail } from '../src/emails/welcome-email.tsx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -43,6 +44,15 @@ async function buildEmails() {
         props: {
           resetUrl: '{{RESET_URL}}',
           userEmail: '{{USER_EMAIL}}',
+          appName: '{{APP_NAME}}',
+        },
+      },
+      {
+        name: 'welcome',
+        component: WelcomeEmail,
+        props: {
+          userEmail: '{{USER_EMAIL}}',
+          firstName: '{{FIRST_NAME}}',
           appName: '{{APP_NAME}}',
         },
       },
@@ -112,6 +122,9 @@ export function process${pascalCaseName}Template(variables: ${pascalCaseName}Var
     console.log('  - password-reset.html');
     console.log('  - password-reset.txt');
     console.log('  - password-reset.ts (Cloudflare Workers module)');
+    console.log('  - welcome.html');
+    console.log('  - welcome.txt');
+    console.log('  - welcome.ts (Cloudflare Workers module)');
   } catch (error) {
     console.error('❌ Failed to build email templates:', error);
     process.exit(1);

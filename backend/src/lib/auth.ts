@@ -16,7 +16,7 @@ import { checkout, polar, portal, usage, webhooks } from '@polar-sh/better-auth'
 import { Polar } from '@polar-sh/sdk';
 
 import { getTrustedOrigins } from './auth-utils';
-import { sendPasswordResetEmail, sendVerificationEmail } from './email';
+import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from './email';
 
 export function createAuth(env: CloudflareBindings) {
   /* ---------- environment detection ---------- */
@@ -102,6 +102,14 @@ export function createAuth(env: CloudflareBindings) {
       },
     },
 
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ['google', 'github'],
+        allowDifferentEmails: false,
+      },
+    },
+
     /* Database hooks to handle user lifecycle events */
     databaseHooks: {
       user: {
@@ -115,10 +123,16 @@ export function createAuth(env: CloudflareBindings) {
               // Initialize WebDurableObject for the new user
               await initializeWebDurableObject(env, user.id);
               console.log(`✅ Successfully initialized WebDurableObject for user ${user.id} (${user.email})`);
+
+              // Send welcome email to new user
+              // Extract first name from user's name or email
+              const firstName = user.name?.split(' ')[0] || user.email?.split('@')[0] || '';
+              await sendWelcomeEmail(env, user.email, firstName);
+              console.log(`✅ Successfully sent welcome email to user ${user.id} (${user.email})`);
             } catch (error) {
               console.error(`❌ Failed to initialize user ${user.id}:`, error);
               // Don't throw error to prevent user creation from failing
-              // Credits and DO initialization can be done manually if needed
+              // Credits, DO initialization, and welcome email can be done manually if needed
             }
           },
         },

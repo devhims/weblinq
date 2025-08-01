@@ -3,7 +3,9 @@ import type { Buffer } from 'node:buffer';
 import { DurableObject } from 'cloudflare:workers';
 import { createHash } from 'node:crypto';
 
-// Credit management handled at handler level - no direct DB access needed here
+import type { WebOperation } from '@/lib/constants';
+import type { CreditAwareResult, FileRecord } from '@/lib/types';
+
 import { contentV1 } from '@/lib/v1/content';
 import { jsonExtractionV1 } from '@/lib/v1/json-extraction';
 import { linksV1 } from '@/lib/v1/links';
@@ -12,44 +14,6 @@ import { pdfV1 } from '@/lib/v1/pdf';
 import { scrapeV1 } from '@/lib/v1/scrape';
 import { screenshotV1 } from '@/lib/v1/screenshot';
 import { searchV1 } from '@/lib/v1/search';
-
-// Database record interfaces
-interface FileRecord {
-  id: string;
-  type: 'screenshot' | 'pdf';
-  url: string;
-  filename: string;
-  r2_key: string;
-  public_url: string;
-  metadata: string; // JSON string
-  created_at: string;
-  expires_at?: string;
-}
-
-/**
- * Credit costs for different web operations
- */
-export const CREDIT_COSTS = {
-  SCREENSHOT: 1,
-  MARKDOWN: 1,
-  JSON_EXTRACTION: 2, // Higher cost due to AI processing
-  CONTENT: 1,
-  SCRAPE: 1,
-  LINKS: 1,
-  SEARCH: 1,
-  PDF: 1,
-} as const;
-
-export type WebOperation = keyof typeof CREDIT_COSTS;
-
-/**
- * Result wrapper that includes credit information
- */
-export interface CreditAwareResult<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
 
 export class WebDurableObject extends DurableObject<CloudflareBindings> {
   private userId: string;
