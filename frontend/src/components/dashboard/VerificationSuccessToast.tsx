@@ -29,34 +29,16 @@ export function VerificationSuccessToast() {
 
 export function CreditAssignmentToast() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const newUser = searchParams.get('new_user');
-  const hasShownRef = useRef(false);
 
   useEffect(() => {
-    // Debug logging
-    console.log('🐛 CreditAssignmentToast Debug:', {
-      newUser,
-      hasShownRef: hasShownRef.current,
-      url: window.location.href,
-      searchParams: Object.fromEntries(searchParams.entries()),
-    });
+    // Show credit notification for new users (both email signup and OAuth)
+    if (newUser === 'true') {
+      // Check if we've already shown this toast in this browser session
+      const hasShownThisSession = sessionStorage.getItem('credit_toast_shown');
 
-    // Only show for new users and only once ever per browser
-    if (newUser === 'true' && !hasShownRef.current) {
-      // Use localStorage to permanently track if user has seen welcome toast
-      // This prevents showing it again even after browser restarts
-      const hasSeenWelcomeToast = localStorage.getItem(
-        'weblinq_welcome_toast_shown',
-      );
-
-      console.log('🐛 localStorage check:', { hasSeenWelcomeToast });
-
-      if (!hasSeenWelcomeToast) {
-        hasShownRef.current = true;
-        localStorage.setItem('weblinq_welcome_toast_shown', 'true');
-
-        console.log('🎉 Showing welcome toast!');
+      if (!hasShownThisSession) {
+        sessionStorage.setItem('credit_toast_shown', 'true');
 
         toast.success(
           "🎉 Welcome! You've been credited with 1,000 free credits to get started.",
@@ -65,24 +47,9 @@ export function CreditAssignmentToast() {
             description: 'Keep track of your credits in the billing page.',
           },
         );
-      } else {
-        console.log(
-          '❌ Toast already shown - localStorage has value:',
-          hasSeenWelcomeToast,
-        );
       }
-
-      // Always clean up URL parameter after checking, regardless of whether toast was shown
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('new_user');
-      router.replace(newUrl.pathname + newUrl.search, { scroll: false });
-    } else {
-      console.log('❌ Not showing toast - conditions not met:', {
-        newUserTrue: newUser === 'true',
-        hasNotShown: !hasShownRef.current,
-      });
     }
-  }, [newUser, router, searchParams]);
+  }, [newUser]);
 
   return null;
 }
