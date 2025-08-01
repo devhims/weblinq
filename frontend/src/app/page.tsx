@@ -336,18 +336,22 @@ export default async function HomePage() {
 
                   <div className="mt-auto">
                     {plan.type === 'free' && (
-                      <Button variant="outline" className="w-full">
-                        Get Started
+                      <Button variant="outline" className="w-full" asChild>
+                        <Link href="/dashboard/studio">Get Started</Link>
                       </Button>
                     )}
 
                     {plan.type === 'subscription' && (
-                      <Button className="w-full">Subscribe →</Button>
+                      <Button className="w-full" asChild>
+                        <Link href="/dashboard/billing">Subscribe →</Link>
+                      </Button>
                     )}
 
                     {plan.type === 'contact' && (
-                      <Button variant="outline" className="w-full">
-                        Contact Sales
+                      <Button variant="outline" className="w-full" asChild>
+                        <Link href="mailto:support@weblinq.dev">
+                          Contact Sales
+                        </Link>
                       </Button>
                     )}
                   </div>
