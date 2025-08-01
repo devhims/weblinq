@@ -18,7 +18,7 @@ import { Polar } from '@polar-sh/sdk';
 import { getTrustedOrigins } from './auth-utils';
 import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from './email';
 
-export function createAuth(env: CloudflareBindings) {
+export function createAuth(env: CloudflareBindings, executionCtx?: ExecutionContext) {
   /* ---------- environment detection ---------- */
   const isLocal = env.BETTER_AUTH_URL?.startsWith('http://localhost');
 
@@ -115,24 +115,54 @@ export function createAuth(env: CloudflareBindings) {
       user: {
         create: {
           after: async (user) => {
-            try {
-              // Assign initial credits to new users
-              await assignInitialCredits(env, user.id);
-              console.log(`✅ Successfully assigned initial credits to user ${user.id} (${user.email})`);
+            // Extract first name for welcome email
+            const firstName = user.name?.split(' ')[0] || user.email?.split('@')[0] || '';
 
-              // Initialize WebDurableObject for the new user
-              await initializeWebDurableObject(env, user.id);
-              console.log(`✅ Successfully initialized WebDurableObject for user ${user.id} (${user.email})`);
+            // Background processing function for non-critical user initialization
+            const backgroundInitialization = async () => {
+              try {
+                console.log(`🚀 Starting background initialization for user ${user.id} (${user.email})`);
 
-              // Send welcome email to new user
-              // Extract first name from user's name or email
-              const firstName = user.name?.split(' ')[0] || user.email?.split('@')[0] || '';
-              await sendWelcomeEmail(env, user.email, firstName);
-              console.log(`✅ Successfully sent welcome email to user ${user.id} (${user.email})`);
-            } catch (error) {
-              console.error(`❌ Failed to initialize user ${user.id}:`, error);
-              // Don't throw error to prevent user creation from failing
-              // Credits, DO initialization, and welcome email can be done manually if needed
+                // Run all initialization tasks in parallel for better performance
+                const [creditsResult, doResult, emailResult] = await Promise.allSettled([
+                  assignInitialCredits(env, user.id),
+                  initializeWebDurableObject(env, user.id),
+                  sendWelcomeEmail(env, user.email, firstName),
+                ]);
+
+                // Log results
+                if (creditsResult.status === 'fulfilled') {
+                  console.log(`✅ Successfully assigned initial credits to user ${user.id}`);
+                } else {
+                  console.error(`❌ Failed to assign credits to user ${user.id}:`, creditsResult.reason);
+                }
+
+                if (doResult.status === 'fulfilled') {
+                  console.log(`✅ Successfully initialized WebDurableObject for user ${user.id}`);
+                } else {
+                  console.error(`❌ Failed to initialize WebDurableObject for user ${user.id}:`, doResult.reason);
+                }
+
+                if (emailResult.status === 'fulfilled') {
+                  console.log(`✅ Successfully sent welcome email to user ${user.id}`);
+                } else {
+                  console.error(`❌ Failed to send welcome email to user ${user.id}:`, emailResult.reason);
+                }
+
+                console.log(`🎉 Background initialization completed for user ${user.id}`);
+              } catch (error) {
+                console.error(`❌ Critical error in background initialization for user ${user.id}:`, error);
+              }
+            };
+
+            // Use executionCtx for background processing if available, otherwise run synchronously as fallback
+            if (executionCtx?.waitUntil) {
+              console.log(`⚡ Scheduling background initialization for user ${user.id} (non-blocking)`);
+              executionCtx.waitUntil(backgroundInitialization());
+            } else {
+              console.log(`⚠️ No execution context available, running initialization tasks in parallel (blocking)`);
+              // Fallback: run in parallel but still block the callback
+              await backgroundInitialization();
             }
           },
         },

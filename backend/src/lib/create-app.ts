@@ -32,7 +32,7 @@ export default function createApp(): AppOpenAPI {
   // In Cloudflare Workers, we need fresh DB connections per request
   app.use('*', (c, next) => {
     if (!c.get('auth')) {
-      const auth = createAuth(c.env);
+      const auth = createAuth(c.env, c.executionCtx as ExecutionContext);
       c.set('auth', auth);
     }
     return next();
