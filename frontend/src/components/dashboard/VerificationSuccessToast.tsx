@@ -56,18 +56,14 @@ export function CreditAssignmentToast() {
     const newUser = searchParams.get('new_user');
     if (newUser !== 'true') return;
 
-    const STORAGE_KEY = 'weblinq_credit_toast_shown';
-    if (typeof window !== 'undefined' && !localStorage.getItem(STORAGE_KEY)) {
-      toast.success(
-        "🎉 Welcome! You've been credited with 1,000 free credits to get started.",
-        {
-          duration: 6000,
-        },
-      );
-      localStorage.setItem(STORAGE_KEY, 'true');
-    }
+    toast.success(
+      "🎉 Welcome! You've been credited with 1,000 free credits to get started.",
+      {
+        duration: 6000,
+      },
+    );
 
-    // Remove the param from the URL so it does not trigger again.
+    // Remove the param from the URL immediately so the toast won't repeat.
     const params = new URLSearchParams(searchParams.toString());
     params.delete('new_user');
     params.delete('verified'); // Optional – also strip verified if present.
