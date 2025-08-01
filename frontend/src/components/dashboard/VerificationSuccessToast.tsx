@@ -34,6 +34,14 @@ export function CreditAssignmentToast() {
   const hasShownRef = useRef(false);
 
   useEffect(() => {
+    // Debug logging
+    console.log('🐛 CreditAssignmentToast Debug:', {
+      newUser,
+      hasShownRef: hasShownRef.current,
+      url: window.location.href,
+      searchParams: Object.fromEntries(searchParams.entries()),
+    });
+
     // Only show for new users and only once ever per browser
     if (newUser === 'true' && !hasShownRef.current) {
       // Use localStorage to permanently track if user has seen welcome toast
@@ -42,9 +50,13 @@ export function CreditAssignmentToast() {
         'weblinq_welcome_toast_shown',
       );
 
+      console.log('🐛 localStorage check:', { hasSeenWelcomeToast });
+
       if (!hasSeenWelcomeToast) {
         hasShownRef.current = true;
         localStorage.setItem('weblinq_welcome_toast_shown', 'true');
+
+        console.log('🎉 Showing welcome toast!');
 
         toast.success(
           "🎉 Welcome! You've been credited with 1,000 free credits to get started.",
@@ -53,14 +65,24 @@ export function CreditAssignmentToast() {
             description: 'Keep track of your credits in the billing page.',
           },
         );
+      } else {
+        console.log(
+          '❌ Toast already shown - localStorage has value:',
+          hasSeenWelcomeToast,
+        );
       }
 
       // Always clean up URL parameter after checking, regardless of whether toast was shown
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('new_user');
       router.replace(newUrl.pathname + newUrl.search, { scroll: false });
+    } else {
+      console.log('❌ Not showing toast - conditions not met:', {
+        newUserTrue: newUser === 'true',
+        hasNotShown: !hasShownRef.current,
+      });
     }
-  }, [newUser, router]);
+  }, [newUser, router, searchParams]);
 
   return null;
 }
