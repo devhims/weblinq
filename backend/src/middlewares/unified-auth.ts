@@ -143,7 +143,10 @@ export const requireAdmin: MiddlewareHandler<AppBindings> = async (c, next) => {
       },
     });
 
-    if (!hasPermission) {
+    // Handle both boolean and object responses from Better Auth
+    const actualPermission = typeof hasPermission === 'boolean' ? hasPermission : hasPermission?.success || false;
+
+    if (!actualPermission) {
       const errorResponse = createStandardErrorResponse(
         'Admin privileges required. Access denied.',
         ERROR_CODES.PERMISSION_DENIED,
