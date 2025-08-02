@@ -17,6 +17,7 @@ async function sendViaResendAPI(
   subject: string,
   html: string,
   text: string,
+  replyTo?: string,
 ): Promise<{ messageId: string }> {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -30,6 +31,7 @@ async function sendViaResendAPI(
       subject,
       html,
       text,
+      ...(replyTo && { reply_to: [replyTo] }),
     }),
   });
 
@@ -97,11 +99,12 @@ export async function sendVerificationEmail(
 
     const info = await sendViaResendAPI(
       env.RESEND_API_KEY,
-      `"${appName}" <support@weblinq.dev>`,
+      `"${appName}" <support@mail.weblinq.dev>`,
       userEmail,
       `Verify your email address - ${appName}`,
       html,
       text,
+      'support@weblinq.dev',
     );
 
     console.log('✅ Verification email sent successfully via Resend HTTP API:', {
@@ -148,11 +151,12 @@ export async function sendPasswordResetEmail(
 
     const info = await sendViaResendAPI(
       env.RESEND_API_KEY,
-      `"${appName}" <support@weblinq.dev>`,
+      `"${appName}" <support@mail.weblinq.dev>`,
       userEmail,
       `Reset your password - ${appName}`,
       html,
       text,
+      'support@weblinq.dev',
     );
 
     console.log('✅ Password reset email sent successfully via Resend HTTP API:', {
@@ -199,11 +203,12 @@ export async function sendWelcomeEmail(
 
     const info = await sendViaResendAPI(
       env.RESEND_API_KEY,
-      `"${appName}" <support@weblinq.dev>`,
+      `"${appName}" <support@mail.weblinq.dev>`,
       userEmail,
       `Welcome to ${appName}`,
       html,
       text,
+      'support@weblinq.dev',
     );
 
     console.log('✅ Welcome email sent successfully via Resend HTTP API:', {
