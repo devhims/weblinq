@@ -2,6 +2,7 @@ import { createAuthClient } from 'better-auth/react';
 import { polarClient } from '@polar-sh/better-auth';
 import { config } from '@/config/env';
 import { shouldUseFrontendAuth } from '@/lib/utils';
+import { adminClient } from 'better-auth/client/plugins';
 
 /* ------------------------------------------------------------------ */
 /*  Hybrid Auth Client - Routes to Frontend or Backend Based on Env   */
@@ -22,7 +23,9 @@ console.log('🔧 Auth client configuration:', {
 export const authClient = createAuthClient({
   baseURL, // Dynamic based on environment
   fetchOptions: { credentials: 'include' },
-  plugins: shouldUseFrontendAuth() ? [] : [polarClient()], // Polar only in production
+  plugins: shouldUseFrontendAuth()
+    ? [adminClient()] // Add admin client for frontend auth (preview)
+    : [polarClient(), adminClient()], // Add both Polar and admin for backend auth (production)
 });
 
 /* 2.  Re-export the hooks & helpers Better Auth injects. */
@@ -33,6 +36,8 @@ export const {
   signOut,
   getSession,
   $Infer,
+  // Admin functions
+  admin,
 } = authClient;
 
 /* 3.  Handy TypeScript aliases. */

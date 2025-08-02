@@ -1,7 +1,7 @@
 // src/lib/auth.ts – minimal Worker-side Better Auth that works in dev & prod
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { apiKey } from 'better-auth/plugins';
+import { admin, apiKey } from 'better-auth/plugins';
 
 import { createDb } from '@/db';
 import {
@@ -171,6 +171,7 @@ export function createAuth(env: CloudflareBindings, executionCtx?: ExecutionCont
 
     /* API-key support for backend-only routes + Polar integration */
     plugins: [
+      admin(),
       apiKey({
         enableMetadata: true,
         customAPIKeyGetter: (ctx) => ctx.headers?.get('Authorization')?.split(' ')[1] ?? null,

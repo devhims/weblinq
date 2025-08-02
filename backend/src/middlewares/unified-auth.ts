@@ -108,4 +108,72 @@ export const requireAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   await next();
 };
 
+/**
+ * Require admin privileges middleware - use after unifiedAuth
+ *
+ * This middleware ensures that the user is authenticated AND has admin privileges.
+ * It checks the user's role using Better Auth's admin plugin functionality.
+ *
+ * Usage:
+ * ```
+ * router.use('*', unifiedAuth);           // Apply to all routes
+ * router.use('/admin/*', requireAdmin);   // Require admin for admin routes
+ * ```
+ */
+export const requireAdmin: MiddlewareHandler<AppBindings> = async (c, next) => {
+  const user = c.get('user');
+  const session = c.get('session');
+  const auth = c.get('auth');
+
+  if (!user || !session) {
+    const errorResponse = createStandardErrorResponse('Authentication required', ERROR_CODES.AUTHENTICATION_REQUIRED);
+    return c.json(errorResponse, HttpStatusCodes.UNAUTHORIZED, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
+  }
+
+  try {
+    // Check if user has admin permissions using Better Auth admin plugin
+    const hasPermission = await auth.api.userHasPermission({
+      body: {
+        userId: user.id,
+        permissions: {
+          user: ['list'], // Basic admin permission to list users
+        },
+      },
+    });
+
+    if (!hasPermission) {
+      const errorResponse = createStandardErrorResponse(
+        'Admin privileges required. Access denied.',
+        ERROR_CODES.PERMISSION_DENIED,
+      );
+      return c.json(errorResponse, HttpStatusCodes.FORBIDDEN, {
+        'X-Request-ID': errorResponse.error.requestId!,
+      });
+    }
+
+    // Log admin access for audit trail
+    console.log('🔑 Admin access granted:', {
+      userId: user.id,
+      email: user.email,
+      path: c.req.path,
+      method: c.req.method,
+      timestamp: new Date().toISOString(),
+      sessionId: session.id,
+    });
+
+    await next();
+  } catch (error) {
+    console.error('❌ Error checking admin permissions:', error);
+    const errorResponse = createStandardErrorResponse(
+      'Unable to verify admin privileges',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
+  }
+};
+
 export default unifiedAuth;

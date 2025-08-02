@@ -60,6 +60,7 @@ export function CreditAssignmentToast() {
       "🎉 Welcome! You've been credited with 1,000 free credits to get started.",
       {
         duration: 6000,
+        description: 'Keep track of your credits in the billing page.',
       },
     );
 

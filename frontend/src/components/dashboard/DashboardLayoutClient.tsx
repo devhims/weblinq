@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,12 @@ import {
   X,
   Settings2,
   Monitor,
+  ShieldCheck,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { SidebarFooter } from './SidebarFooter';
 import { CreditAssignmentToast } from './VerificationSuccessToast';
+import { useSession, admin } from '@/lib/auth-client';
 
 interface DashboardLayoutClientProps {
   children: React.ReactNode;
@@ -26,14 +28,47 @@ export function DashboardLayoutClient({
 }: DashboardLayoutClientProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const { data: session } = useSession();
 
-  const navItems = [
+  // Check admin status
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!session?.user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      try {
+        const result = await admin.hasPermission({
+          permissions: { user: ['list'] },
+        });
+        // Better Auth returns a response object with data property
+        setIsAdmin(Boolean(result?.data?.success));
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [session]);
+
+  const baseNavItems = [
     { href: '/dashboard/studio', icon: Monitor, label: 'Studio' },
     { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
     { href: '/dashboard/api-keys', icon: Key, label: 'API Keys' },
     { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
     { href: '/dashboard/settings', icon: Settings2, label: 'Settings' },
   ];
+
+  // Add admin item only if user is admin
+  const navItems = isAdmin
+    ? [
+        ...baseNavItems,
+        { href: '/dashboard/admin', icon: ShieldCheck, label: 'Admin' },
+      ]
+    : baseNavItems;
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-68px)] w-full">

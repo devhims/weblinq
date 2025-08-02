@@ -10,6 +10,11 @@ export const user = sqliteTable(
       .$defaultFn(() => false)
       .notNull(),
     image: text('image'),
+    // Admin plugin fields - required for Better Auth admin functionality
+    role: text('role').default('user'),
+    banned: integer('banned', { mode: 'boolean' }).default(false),
+    banReason: text('ban_reason'),
+    banExpires: integer('ban_expires', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .$defaultFn(() => /* @__PURE__ */ new Date())
       .notNull(),
@@ -19,6 +24,7 @@ export const user = sqliteTable(
   },
   (t) => ({
     idxEmail: index('idx_user_email').on(t.email),
+    idxRole: index('idx_user_role').on(t.role),
   }),
 );
 
@@ -35,9 +41,12 @@ export const session = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    // Admin plugin field - required for impersonation functionality
+    impersonatedBy: text('impersonated_by'),
   },
   (t) => ({
     idxToken: index('idx_session_token').on(t.token),
+    idxImpersonatedBy: index('idx_session_impersonated').on(t.impersonatedBy),
   }),
 );
 
