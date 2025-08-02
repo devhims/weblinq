@@ -33,8 +33,10 @@ const SECRET = process.env.BETTER_AUTH_SECRET!;
 
 /**
  * Initialize WebDurableObject for development environment
+ *
  * This calls the backend API to handle the initialization since frontend
- * doesn't have access to CloudflareBindings
+ * doesn't have access to CloudflareBindings. In development, we use an
+ * admin API key to authenticate since durable objects are not stable.
  */
 async function initializeWebDurableObjectDev(userId: string): Promise<void> {
   try {
@@ -45,15 +47,37 @@ async function initializeWebDurableObjectDev(userId: string): Promise<void> {
     const backendUrl =
       process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8787';
 
-    // Make a simple API call to trigger initialization
-    // Call the backend user initialization endpoint
+    // Get admin API key for development environments
+    const adminApiKey = process.env.ADMIN_API_KEY;
+
+    if (!adminApiKey && isDev) {
+      console.warn(
+        `⚠️ [Frontend] No ADMIN_API_KEY found for development. User initialization skipped.`,
+      );
+      console.warn(
+        `💡 [Frontend] Add ADMIN_API_KEY to your .env.local file for automatic user initialization`,
+      );
+      return;
+    }
+
+    // Prepare headers - use admin API key for development, session cookies for preview/prod
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (adminApiKey && isDev) {
+      headers['Authorization'] = `Bearer ${adminApiKey}`;
+      console.log(
+        `🔑 [Frontend] Using admin API key for development user initialization`,
+      );
+    }
+
+    // Make API call to trigger initialization
     const response = await fetch(`${backendUrl}/v1/user/initialize`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({ userId }),
-      credentials: 'include', // Include session cookies
+      credentials: 'include', // Include session cookies as fallback
     });
 
     if (response.ok) {
@@ -62,8 +86,15 @@ async function initializeWebDurableObjectDev(userId: string): Promise<void> {
       );
     } else {
       console.warn(
-        `⚠️ [Frontend] WebDurableObject initialization may have failed for user ${userId} (${response.status})`,
+        `⚠️ [Frontend] WebDurableObject initialization failed for user ${userId} (${response.status})`,
       );
+
+      if (response.status === 403) {
+        console.warn(
+          `🔒 [Frontend] Admin privileges required. Ensure ADMIN_API_KEY is valid.`,
+        );
+      }
+
       // Don't throw error - this is non-critical for development
     }
   } catch (error) {

@@ -707,11 +707,6 @@ export interface VerifyEmailResponse {
 
 export type BootstrapCreditsRequest = object;
 
-export interface BootstrapCreditsResponse {
-  success: boolean;
-  data: object;
-}
-
 // User API functions
 export const userApi = {
   // Get user credit information
@@ -727,9 +722,6 @@ export const userApi = {
       body: JSON.stringify(data),
     }),
 
-  // Bootstrap credits for existing users
-  bootstrapCredits: (): Promise<BootstrapCreditsResponse> =>
-    apiRequest('/v1/user/bootstrap-credits', {
-      method: 'POST',
-    }),
+  // Note: bootstrapCredits endpoint now requires admin privileges
+  // and should be called via admin panel, not from regular user context
 };
