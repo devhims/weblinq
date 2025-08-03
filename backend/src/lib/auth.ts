@@ -9,6 +9,7 @@ import {
   createOrUpdatePolarSubscription,
   createPaymentRecord,
   initializeWebDurableObject,
+  notifyPlanChange,
   processMonthlyRefill,
 } from '@/db/queries';
 import * as schema from '@/db/schema';
@@ -268,6 +269,9 @@ async function handleSubscriptionCanceled(env: CloudflareBindings, payload: any)
       cancelledAt: payload.data.cancelledAt ? new Date(payload.data.cancelledAt) : new Date(), // Use current time if not provided
     });
 
+    // Notify WebDurableObject of plan change for updated concurrent request limits
+    await notifyPlanChange(env, userId, 'free');
+
     console.log(`✅ Successfully processed subscription.canceled for ${payload.data.id}`);
   } catch (error) {
     console.error('❌ Error in handleSubscriptionCanceled:', error);
@@ -364,6 +368,9 @@ async function handleInitialSubscription(env: CloudflareBindings, payload: any, 
     await createPaymentRecordSafely(env, payload, userId);
   }
 
+  // Notify WebDurableObject of plan change for updated concurrent request limits
+  await notifyPlanChange(env, userId, 'pro');
+
   console.log(`🎉 Initial subscription processed for user ${userId}, subscription ${subscriptionId}`);
 }
 
@@ -418,6 +425,9 @@ async function handleSubscriptionUpdate(env: CloudflareBindings, payload: any, u
   if (payload.data.amount) {
     await createPaymentRecordSafely(env, payload, userId);
   }
+
+  // Notify WebDurableObject of plan change for updated concurrent request limits
+  await notifyPlanChange(env, userId, 'pro');
 
   console.log(`⚙️ Subscription update processed for user ${userId}, subscription ${subscriptionId}`);
 }

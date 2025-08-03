@@ -2,6 +2,7 @@ import { createRouter } from '@/lib/create-app';
 import { requireAdmin } from '@/middlewares/unified-auth';
 
 import * as handlers from './system.handlers';
+import * as routes from './system.routes';
 
 const router = createRouter();
 
@@ -20,5 +21,6 @@ router.post('/system/cleanup-do', handlers.cleanupDo);
 router.post('/system/delete-all-browsers', handlers.deleteAllBrowsers);
 router.post('/system/check-remaining', handlers.checkRemaining);
 router.post('/system/close-browser-session', handlers.closeBrowserSession);
+router.openapi(routes.updateUserPlan, handlers.updateUserPlan);
 
 export default router;

@@ -36,6 +36,14 @@ const closeBrowserSessionInputSchema = z.object({
   sessionId: z.string().min(1, 'Session ID is required'),
 });
 
+const updateUserPlanInputSchema = z.object({
+  userId: z.string().min(1, 'User ID is required'),
+  plan: z.enum(['free', 'pro'], {
+    required_error: 'Plan is required',
+    invalid_type_error: 'Plan must be either "free" or "pro"',
+  }),
+});
+
 /**
  * Standardized output schemas following ApiSuccessResponse<T> format
  */
@@ -137,6 +145,15 @@ const closeBrowserSessionOutputSchema = createStandardSuccessSchema(
     sessionId: z.string(),
     message: z.string(),
     success: z.boolean(),
+  }),
+);
+
+const updateUserPlanOutputSchema = createStandardSuccessSchema(
+  z.object({
+    userId: z.string(),
+    plan: z.enum(['free', 'pro']),
+    updatedBy: z.string(),
+    updatedAt: z.string(),
   }),
 );
 
@@ -287,6 +304,29 @@ export const closeBrowserSession = createRoute({
   },
 });
 
+export const updateUserPlan = createRoute({
+  path: '/system/update-user-plan',
+  method: 'post',
+  tags,
+  security,
+  summary: 'Update user plan',
+  description: "Update a user's subscription plan (free/pro) - Admin only",
+  request: {
+    body: jsonContentRequired(updateUserPlanInputSchema, 'User plan update parameters'),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(updateUserPlanOutputSchema, 'User plan updated successfully'),
+    [HttpStatusCodes.BAD_REQUEST]: jsonContent(StandardErrorSchema, 'Invalid input parameters'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(updateUserPlanInputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.FORBIDDEN]: jsonContent(StandardErrorSchema, 'Admin access required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+  },
+});
+
 export type BrowserStatusRoute = typeof browserStatus;
 export type SessionHealthRoute = typeof sessionHealth;
 export type CreateBrowsersRoute = typeof createBrowsers;
@@ -294,3 +334,4 @@ export type CleanupDoRoute = typeof cleanupDo;
 export type DeleteAllBrowsersRoute = typeof deleteAllBrowsers;
 export type CheckRemainingRoute = typeof checkRemaining;
 export type CloseBrowserSessionRoute = typeof closeBrowserSession;
+export type UpdateUserPlanRoute = typeof updateUserPlan;

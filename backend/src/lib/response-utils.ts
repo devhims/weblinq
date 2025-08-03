@@ -142,6 +142,7 @@ export const ERROR_CODES = {
   INVALID_API_KEY: 'invalid_api_key',
   PERMISSION_DENIED: 'permission_denied',
   RATE_LIMIT_EXCEEDED: 'rate_limit_exceeded',
+  CONCURRENT_REQUESTS_LIMIT_EXCEEDED: 'concurrent_requests_limit_exceeded',
 
   // Validation
   VALIDATION_ERROR: 'validation_error',

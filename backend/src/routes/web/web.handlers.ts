@@ -491,6 +491,24 @@ function getWebDurableObject(c: { env: CloudflareBindings }, userId: string): Du
 }
 
 /**
+ * Helper function to handle operation errors with appropriate HTTP status codes
+ */
+function handleOperationError(c: any, result: CreditAwareResult<any>, _operation: string, _body: any) {
+  if (result.error?.includes('Insufficient credits')) {
+    return c.json(createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'), HttpStatusCodes.PAYMENT_REQUIRED);
+  }
+
+  if (result.error?.includes('Rate limit exceeded')) {
+    return c.json(
+      createStandardErrorResponse(result.error, ERROR_CODES.CONCURRENT_REQUESTS_LIMIT_EXCEEDED),
+      429, // Too Many Requests
+    );
+  }
+
+  return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+}
+
+/**
  * Screenshot endpoint – captures a webpage screenshot
  *
  * Binary (`Uint8Array`) is the default.  A base-64 JSON envelope is produced
@@ -534,15 +552,8 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
 
     if (!result.success) {
       await logOperationFailure(c, 'screenshot', result, body);
-
-      if (result.error?.includes('Insufficient credits')) {
-        return c.json(
-          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
-          HttpStatusCodes.PAYMENT_REQUIRED,
-        );
-      }
       console.error('📤 Screenshot failed:', result.error);
-      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      return handleOperationError(c, result, 'screenshot', body);
     }
 
     /* ------------------------------------------------------------------ */
@@ -648,14 +659,7 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
 
     if (!result.success) {
       await logOperationFailure(c, 'markdown', result, body);
-
-      if (result.error?.includes('Insufficient credits')) {
-        return c.json(
-          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
-          HttpStatusCodes.PAYMENT_REQUIRED,
-        );
-      }
-      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      return handleOperationError(c, result, 'markdown', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
@@ -706,14 +710,7 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
 
     if (!result.success) {
       await logOperationFailure(c, 'json_extraction', result, body);
-
-      if (result.error?.includes('Insufficient credits')) {
-        return c.json(
-          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
-          HttpStatusCodes.PAYMENT_REQUIRED,
-        );
-      }
-      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      return handleOperationError(c, result, 'json_extraction', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
@@ -754,14 +751,7 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
 
     if (!result.success) {
       await logOperationFailure(c, 'content', result, body);
-
-      if (result.error?.includes('Insufficient credits')) {
-        return c.json(
-          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
-          HttpStatusCodes.PAYMENT_REQUIRED,
-        );
-      }
-      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      return handleOperationError(c, result, 'content', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
@@ -803,14 +793,7 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
 
     if (!result.success) {
       await logOperationFailure(c, 'scrape', result, body);
-
-      if (result.error?.includes('Insufficient credits')) {
-        return c.json(
-          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
-          HttpStatusCodes.PAYMENT_REQUIRED,
-        );
-      }
-      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      return handleOperationError(c, result, 'scrape', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
@@ -852,14 +835,7 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
 
     if (!result.success) {
       await logOperationFailure(c, 'links', result, body);
-
-      if (result.error?.includes('Insufficient credits')) {
-        return c.json(
-          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
-          HttpStatusCodes.PAYMENT_REQUIRED,
-        );
-      }
-      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      return handleOperationError(c, result, 'links', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
@@ -901,14 +877,7 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
 
     if (!result.success) {
       await logOperationFailure(c, 'search', result, body, `search:${body.query}`);
-
-      if (result.error?.includes('Insufficient credits')) {
-        return c.json(
-          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
-          HttpStatusCodes.PAYMENT_REQUIRED,
-        );
-      }
-      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      return handleOperationError(c, result, 'search', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
@@ -965,15 +934,8 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
 
     if (!result.success) {
       await logOperationFailure(c, 'pdf', result, body);
-
-      if (result.error?.includes('Insufficient credits')) {
-        return c.json(
-          createStandardErrorResponse(result.error, 'INSUFFICIENT_CREDITS'),
-          HttpStatusCodes.PAYMENT_REQUIRED,
-        );
-      }
       console.error('📤 PDF generation failed:', result.error);
-      return c.json(result, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+      return handleOperationError(c, result, 'pdf', body);
     }
 
     /* ------------------------------------------------------------------ */

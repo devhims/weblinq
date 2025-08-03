@@ -562,6 +562,34 @@ export async function initializeWebDurableObject(env: CloudflareBindings, userId
   }
 }
 
+/**
+ * Notify WebDurableObject that user's plan has changed
+ * This triggers a plan update in the Durable Object for updated concurrent request limits
+ */
+export async function notifyPlanChange(
+  env: CloudflareBindings,
+  userId: string,
+  newPlan: 'free' | 'pro',
+): Promise<void> {
+  try {
+    console.log(`📋 Notifying plan change for user ${userId} to ${newPlan}...`);
+
+    // Get the WebDurableObject namespace and create stable ID for the user
+    const namespace = env.WEBLINQ_DURABLE_OBJECT;
+    const durableObjectId = namespace.idFromName(`web:${userId}:v3`);
+    const durableObject = namespace.get(durableObjectId);
+
+    // Call plan update method on the Durable Object
+    await durableObject.updateUserPlan(newPlan);
+
+    console.log(`✅ Successfully updated plan for user ${userId} to ${newPlan}`);
+  } catch (error) {
+    console.error(`❌ Failed to update plan for user ${userId}:`, error);
+    // Don't throw - plan change notification failure shouldn't break subscription processing
+    console.warn(`⚠️ Plan change notification failure is non-critical, continuing...`);
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* 4. Dashboard helper                                                 */
 /* ------------------------------------------------------------------ */

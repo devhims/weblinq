@@ -4,6 +4,7 @@ import * as HttpStatusCodes from 'stoker/http-status-codes';
 
 import type { AppBindings } from '@/lib/types';
 
+import { notifyPlanChange } from '@/db/queries';
 import { createStandardErrorResponse, createStandardSuccessResponse, ERROR_CODES } from '@/lib/response-utils';
 
 /**
@@ -343,6 +344,93 @@ export async function closeBrowserSession(c: Context<AppBindings>) {
     console.error('Close browser session error:', error);
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Unknown close browser session error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
+  }
+}
+
+/**
+ * Admin update user plan endpoint - Update a user's plan (free/pro) for admin users
+ *
+ * Usage example:
+ * POST /system/update-user-plan
+ * Authorization: Bearer <admin-api-key>
+ * Content-Type: application/json
+ *
+ * Body:
+ * {
+ *   "userId": "user_12345",
+ *   "plan": "pro"
+ * }
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "userId": "user_12345",
+ *     "plan": "pro",
+ *     "updatedBy": "admin_user_id",
+ *     "updatedAt": "2025-01-01T12:00:00.000Z"
+ *   },
+ *   "creditsUsed": 0,
+ *   "requestId": "req_12345"
+ * }
+ */
+export async function updateUserPlan(c: Context<AppBindings>) {
+  try {
+    const user = c.get('user')!; // requireAdmin ensures user exists and is admin
+    const body = await c.req.json();
+
+    console.log('🔧 Admin user plan update request:', {
+      adminUserId: user.id,
+      targetUserId: body.userId,
+      newPlan: body.plan,
+    });
+
+    // Validate input
+    if (!body.userId || typeof body.userId !== 'string') {
+      const errorResponse = createStandardErrorResponse(
+        'User ID is required and must be a string',
+        ERROR_CODES.VALIDATION_ERROR,
+      );
+      return c.json(errorResponse, HttpStatusCodes.BAD_REQUEST, {
+        'X-Request-ID': errorResponse.error.requestId!,
+      });
+    }
+
+    if (!body.plan || !['free', 'pro'].includes(body.plan)) {
+      const errorResponse = createStandardErrorResponse(
+        'Plan is required and must be either "free" or "pro"',
+        ERROR_CODES.VALIDATION_ERROR,
+      );
+      return c.json(errorResponse, HttpStatusCodes.BAD_REQUEST, {
+        'X-Request-ID': errorResponse.error.requestId!,
+      });
+    }
+
+    // Use the existing notifyPlanChange function to update the plan
+    await notifyPlanChange(c.env, body.userId, body.plan);
+
+    const result = {
+      userId: body.userId,
+      plan: body.plan,
+      updatedBy: user.id,
+      updatedAt: new Date().toISOString(),
+    };
+
+    console.log('✅ Admin user plan update successful:', result);
+
+    return c.json(
+      createStandardSuccessResponse(result, 0), // No credits cost for admin operations
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    console.error('Admin user plan update error:', error);
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Failed to update user plan',
       ERROR_CODES.INTERNAL_SERVER_ERROR,
     );
     return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {

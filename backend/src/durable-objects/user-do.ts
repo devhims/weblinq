@@ -1,7 +1,7 @@
 import type { Buffer } from 'node:buffer';
 
 import { DurableObject } from 'cloudflare:workers';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import type { WebOperation } from '@/lib/constants';
 import type { CreditAwareResult, FileRecord } from '@/lib/types';
@@ -19,6 +19,17 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   private userId: string;
   protected env: CloudflareBindings;
   private sql: SqlStorage | null = null;
+
+  // Plan-based concurrent request management
+  private userPlan: 'free' | 'pro' = 'free';
+  private activeRequests: Set<string> = new Set();
+  private maxConcurrentRequests: number = 2; // Default to free plan limit
+
+  // Constants for concurrent request limits
+  private static readonly CONCURRENT_LIMITS = {
+    free: 2,
+    pro: 5,
+  } as const;
 
   constructor(ctx: DurableObjectState, env: CloudflareBindings) {
     super(ctx, env);
@@ -39,21 +50,33 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   }
 
   /**
-   * Load user ID from persistent storage
+   * Load user ID and plan from persistent storage
    * Called during constructor to restore user context after DO wakeup
    */
   private async loadUserIdFromStorage(): Promise<void> {
     try {
-      const storedUserId = await this.ctx.storage.get<string>('userId');
+      const [storedUserId, storedPlan] = await Promise.all([
+        this.ctx.storage.get<string>('userId'),
+        this.ctx.storage.get<'free' | 'pro'>('userPlan'),
+      ]);
+
       if (storedUserId) {
         this.userId = storedUserId;
         console.log(`🔄 Restored user context from storage: ${storedUserId}`);
       } else {
         console.log('💤 No user ID found in storage - awaiting initialization');
       }
+
+      // Load plan from storage, default to 'free' if not found
+      this.userPlan = storedPlan || 'free';
+      this.maxConcurrentRequests = WebDurableObject.CONCURRENT_LIMITS[this.userPlan];
+      console.log(`📋 Restored user plan from storage: ${this.userPlan} (limit: ${this.maxConcurrentRequests})`);
     } catch (error) {
-      console.error('❌ Failed to load user ID from storage:', error);
+      console.error('❌ Failed to load user data from storage:', error);
       // Don't throw - this is a non-critical failure during startup
+      // Ensure we fall back to free plan
+      this.userPlan = 'free';
+      this.maxConcurrentRequests = WebDurableObject.CONCURRENT_LIMITS.free;
     }
   }
 
@@ -68,9 +91,16 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
     this.userId = userId;
     console.log(`✅ User context set for ${userId}`);
 
-    // Persist user ID in Durable Object storage for future wakeups
-    await this.ctx.storage.put('userId', userId);
-    console.log(`💾 User ID persisted to storage for ${userId}`);
+    // Persist user ID and default plan in Durable Object storage for future wakeups
+    await Promise.all([
+      this.ctx.storage.put('userId', userId),
+      this.ctx.storage.put('userPlan', 'free'), // Default to free plan
+    ]);
+    console.log(`💾 User data persisted to storage for ${userId} (plan: free)`);
+
+    // Set initial plan and limits
+    this.userPlan = 'free';
+    this.maxConcurrentRequests = WebDurableObject.CONCURRENT_LIMITS.free;
 
     // Initialize database only in production where SQLite is available
     const isProduction = this.env.NODE_ENV === 'production';
@@ -368,14 +398,97 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       this.userId = userId;
       console.log(`⚠️ Late initialization: setting user context for ${userId}`);
 
-      // Store in persistent storage for future wakeups
-      await this.ctx.storage.put('userId', userId);
-      console.log(`💾 User ID persisted to storage during late initialization: ${userId}`);
+      // Store in persistent storage for future wakeups with default free plan
+      await Promise.all([this.ctx.storage.put('userId', userId), this.ctx.storage.put('userPlan', 'free')]);
+      console.log(`💾 User data persisted to storage during late initialization: ${userId} (plan: free)`);
+
+      // Set default plan
+      this.userPlan = 'free';
+      this.maxConcurrentRequests = WebDurableObject.CONCURRENT_LIMITS.free;
     } else if (this.userId !== userId) {
       console.warn(`❌ User ID mismatch: expected ${this.userId}, got ${userId}`);
       throw new Error(`Invalid user context: expected ${this.userId}, got ${userId}`);
     }
     // If userId matches, no action needed - already properly initialized
+  }
+
+  /**
+   * Update user plan (called when subscription changes via webhooks)
+   * This is the only way the plan should be updated after initialization
+   */
+  async updateUserPlan(newPlan: 'free' | 'pro'): Promise<void> {
+    if (!this.userId) {
+      console.warn('⚠️ Cannot update user plan - userId not set');
+      return;
+    }
+
+    try {
+      console.log(`📋 Updating user plan for ${this.userId}: ${this.userPlan} → ${newPlan}`);
+
+      // Update in-memory state
+      this.userPlan = newPlan;
+      this.maxConcurrentRequests = WebDurableObject.CONCURRENT_LIMITS[newPlan];
+
+      // Persist to storage for future DO restarts
+      await this.ctx.storage.put('userPlan', newPlan);
+
+      console.log(`✅ Plan updated for user ${this.userId}: plan=${newPlan}, limit=${this.maxConcurrentRequests}`);
+    } catch (error) {
+      console.error(`❌ Failed to update user plan for ${this.userId}:`, error);
+      throw error; // Re-throw so webhook handlers know the update failed
+    }
+  }
+
+  /**
+   * Acquire a request slot for concurrent request limiting
+   * Returns true if slot acquired, false if at limit
+   */
+  private async acquireRequestSlot(requestId: string): Promise<boolean> {
+    if (this.activeRequests.size >= this.maxConcurrentRequests) {
+      console.log(
+        `🚫 Request ${requestId} rejected - at concurrent limit (${this.activeRequests.size}/${this.maxConcurrentRequests}) for plan ${this.userPlan}`,
+      );
+      return false;
+    }
+
+    this.activeRequests.add(requestId);
+    console.log(
+      `✅ Request ${requestId} acquired slot (${this.activeRequests.size}/${this.maxConcurrentRequests}) for plan ${this.userPlan}`,
+    );
+    return true;
+  }
+
+  /**
+   * Release a request slot
+   */
+  private releaseRequestSlot(requestId: string): void {
+    if (this.activeRequests.delete(requestId)) {
+      console.log(`🔓 Request ${requestId} released slot (${this.activeRequests.size}/${this.maxConcurrentRequests})`);
+    }
+  }
+
+  /**
+   * Get current concurrent request count
+   */
+  getCurrentConcurrency(): number {
+    return this.activeRequests.size;
+  }
+
+  /**
+   * Get current user plan and limits (for debugging)
+   */
+  getRequestLimitInfo(): {
+    plan: 'free' | 'pro';
+    activeRequests: number;
+    maxConcurrentRequests: number;
+    planSource: 'storage';
+  } {
+    return {
+      plan: this.userPlan,
+      activeRequests: this.activeRequests.size,
+      maxConcurrentRequests: this.maxConcurrentRequests,
+      planSource: 'storage', // Plan is always loaded from/stored in DO storage
+    };
   }
 
   /**
@@ -746,8 +859,8 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   }
 
   /**
-   * Execute a web operation without credit checking (credits handled at handler level)
-   * Includes user ID verification and database initialization
+   * Execute a web operation with concurrent request limiting and credit checking (credits handled at handler level)
+   * Includes user ID verification, database initialization, and request slot management
    */
   private async executeWithCredits<T>(
     operation: WebOperation,
@@ -766,19 +879,30 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       };
     }
 
-    // 2. Ensure database is initialized in production if SQLite is available
-    if (this.sql && isProduction) {
-      try {
-        this.initializeDatabase();
-        console.log(`✅ Database tables initialized for ${operation} operation`);
-      } catch (error) {
-        console.warn(`⚠️ Failed to initialize database for ${operation}:`, error);
-        // Continue without database - permanent URLs will be disabled
-      }
+    // 2. Acquire request slot for concurrent request limiting
+    const requestId = randomUUID();
+    const slotAcquired = await this.acquireRequestSlot(requestId);
+
+    if (!slotAcquired) {
+      return {
+        success: false,
+        error: `Rate limit exceeded. You have reached the maximum concurrent requests (${this.maxConcurrentRequests}) for your ${this.userPlan} plan. Please wait for an existing request to complete or upgrade to Pro for higher limits.`,
+      };
     }
 
     try {
-      // 3. Execute the operation (credit checking is handled at handler level)
+      // 3. Ensure database is initialized in production if SQLite is available
+      if (this.sql && isProduction) {
+        try {
+          this.initializeDatabase();
+          console.log(`✅ Database tables initialized for ${operation} operation`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to initialize database for ${operation}:`, error);
+          // Continue without database - permanent URLs will be disabled
+        }
+      }
+
+      // 4. Execute the operation (credit checking is handled at handler level)
       const result = await operationFn();
 
       // Check if the result is already in the expected format (has success property)
@@ -812,6 +936,9 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
         success: false,
         error: error instanceof Error ? error.message : 'Operation failed',
       };
+    } finally {
+      // Always release the request slot
+      this.releaseRequestSlot(requestId);
     }
   }
 }
