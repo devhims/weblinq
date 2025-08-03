@@ -183,7 +183,7 @@ function ForgotPasswordContent() {
         <p className="text-sm text-muted-foreground">
           Don&apos;t have an account?{' '}
           <Link href="/sign-in" className="text-primary hover:underline">
-            Sign up
+            Sign in
           </Link>
         </p>
       </div>
