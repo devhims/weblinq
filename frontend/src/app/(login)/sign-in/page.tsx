@@ -1,24 +1,53 @@
-'use client';
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSession } from '@/lib/auth-client';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth';
+import { shouldUseFrontendAuth } from '@/lib/utils';
+import { config } from '@/config/env';
 import UnifiedAuthForm from '@/components/auth/unified-auth-form';
 
-export default function SignInPage() {
-  const { data: session, isPending } = useSession();
-  const router = useRouter();
+async function getSession() {
+  const headersList = await headers();
 
-  useEffect(() => {
-    // Redirect authenticated users to dashboard
-    if (!isPending && session?.user) {
-      router.replace('/dashboard');
+  if (shouldUseFrontendAuth()) {
+    // Preview/dev: Use frontend auth
+    return await auth.api.getSession({ headers: headersList });
+  } else {
+    // Production: Use backend auth (same logic as ServerAuthGuard)
+    const cookieHeader = headersList.get('cookie') || '';
+    const host = headersList.get('host');
+    const proto = headersList.get('x-forwarded-proto') || 'https';
+    const currentOrigin = host ? `${proto}://${host}` : config.frontendUrl;
+
+    try {
+      const response = await fetch(
+        `${config.backendUrl}/api/auth/get-session`,
+        {
+          headers: {
+            cookie: cookieHeader,
+            'content-type': 'application/json',
+            origin: currentOrigin,
+          },
+          credentials: 'include',
+        },
+      );
+
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.log('Backend auth check failed:', error);
     }
-  }, [session, isPending, router]);
 
-  // Show nothing while checking auth status or if user is authenticated
-  if (isPending || session?.user) {
     return null;
+  }
+}
+
+export default async function SignInPage() {
+  // If user is already authenticated, redirect to dashboard
+  const session = await getSession();
+
+  if (session?.user) {
+    redirect('/dashboard');
   }
 
   return <UnifiedAuthForm />;
