@@ -533,11 +533,11 @@ export const studioApi = {
       body: JSON.stringify(data),
     }),
 
-  // Extract structured JSON
+  // AI extract structured data
   jsonExtraction: (
     data: JsonExtractionRequest,
   ): Promise<JsonExtractionResponse> =>
-    apiRequest('/v1/web/extract-json', {
+    apiRequest('/v1/web/ai-extract', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

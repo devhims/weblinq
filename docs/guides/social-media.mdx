@@ -3,7 +3,7 @@ title: 'Social Media Monitoring'
 description: 'Monitor social media content using WebLinq API'
 ---
 
-Monitor and analyze social media content using WebLinq API workflows and structured JSON schemas.
+Monitor and analyze social media content using WebLinq API workflows and AI extract schemas.
 
 <Note>Always respect platform terms of service and rate limits</Note>
 
@@ -68,7 +68,7 @@ async function analyzeProfile(profileUrl) {
     required: ["profile", "recentPosts"]
   };
 
-const response = await fetch('https://api.weblinq.dev/v1/web/extract-json', {
+const response = await fetch('https://api.weblinq.dev/v1/web/ai-extract', {
 method: 'POST',
 headers: {
 'Authorization': `Bearer ${apiKey}`,
@@ -98,7 +98,7 @@ async function analyzeContentStrategy(profileUrl) {
   const apiKey = process.env.WEBLINQ_API_KEY;
 
   // Use text response for strategic insights
-  const response = await fetch('https://api.weblinq.dev/v1/web/extract-json', {
+  const response = await fetch('https://api.weblinq.dev/v1/web/ai-extract', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -136,7 +136,7 @@ async function analyzeContentStrategy(profileUrl) {
 async function generateAudiencePersona(profileUrl) {
   const apiKey = process.env.WEBLINQ_API_KEY;
 
-  const response = await fetch('https://api.weblinq.dev/v1/web/extract-json', {
+  const response = await fetch('https://api.weblinq.dev/v1/web/ai-extract', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -215,7 +215,7 @@ def comprehensive_social_analysis(profile_url):
 
     # Get structured profile data
     structured_response = requests.post(
-        'https://api.weblinq.dev/v1/web/extract-json',
+        'https://api.weblinq.dev/v1/web/ai-extract',
         headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
         json={
             'url': profile_url,
@@ -226,7 +226,7 @@ def comprehensive_social_analysis(profile_url):
 
     # Get strategic content analysis
     strategy_response = requests.post(
-        'https://api.weblinq.dev/v1/web/extract-json',
+        'https://api.weblinq.dev/v1/web/ai-extract',
         headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
         json={
             'url': profile_url,
@@ -331,7 +331,7 @@ async function monitorBrandMentions(brandKeywords, platforms = ['twitter', 'link
             }
           };
 
-          const extractResponse = await fetch(`${baseUrl}/web/extract-json`, {
+          const extractResponse = await fetch(`${baseUrl}/web/ai-extract`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${apiKey}`,
@@ -469,7 +469,7 @@ async function analyzeCompetitorSocial(competitorProfiles) {
         }
       };
 
-      const extractResponse = await fetch(`${baseUrl}/web/extract-json`, {
+      const extractResponse = await fetch(`${baseUrl}/web/ai-extract`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -665,7 +665,7 @@ availability: { type: "string", enum: ["available", "limited", "unavailable"] }
 }
 };
 
-      const extractResponse = await fetch(`${baseUrl}/web/extract-json`, {
+      const extractResponse = await fetch(`${baseUrl}/web/ai-extract`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -818,7 +818,7 @@ async function generateSocialMediaReport(profiles, timeframe = 'monthly') {
       }
     };
 
-    const analyticsResponse = await fetch(`${baseUrl}/web/extract-json`, {
+    const analyticsResponse = await fetch(`${baseUrl}/web/ai-extract`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -1017,7 +1017,7 @@ async function monitorTrends(platforms = ['twitter', 'tiktok', 'instagram']) {
           }
         };
 
-        const trendResponse = await fetch(`${baseUrl}/web/extract-json`, {
+        const trendResponse = await fetch(`${baseUrl}/web/ai-extract`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
@@ -1109,7 +1109,7 @@ Extract clean text content from social posts for sentiment analysis and content 
 
 <Warning>Always respect platform terms of service and rate limits when monitoring social media sites.</Warning>
 
-<Tip>**Social Media Pro Tip**: Combine search for discovery, extract-json with schemas for structured analysis, screenshot for visual documentation, and PDF for professional reporting. This creates a complete social media intelligence system.</Tip>
+<Tip>**Social Media Pro Tip**: Combine search for discovery, ai-extract with schemas for structured analysis, screenshot for visual documentation, and PDF for professional reporting. This creates a complete social media intelligence system.</Tip>
 
 <AccordionGroup>
 <Accordion title="📊 JSON Schema for Social Media">

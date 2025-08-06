@@ -38,7 +38,7 @@ export async function researchTopic(query) {
   // 3️⃣ structured extract
   const extracted = await Promise.all(
     results.map((r) =>
-      post('/web/extract-json', {
+      post('/web/ai-extract', {
         url: r.url,
         response_format: { type: 'json_schema', json_schema: schema },
         prompt: `Key findings on "${query}"`,
@@ -76,7 +76,7 @@ export async function researchInsights(query) {
 
   const insights = await Promise.all(
     results.map((r) =>
-      post('/web/extract-json', {
+      post('/web/ai-extract', {
         url: r.url,
         responseType: 'text',
         prompt: `Summarise important insights about "${query}".`,
@@ -109,7 +109,7 @@ def quick_research(q):
         },
         "required":["title","keyFindings"]
     }
-    return [ req('/web/extract-json',{
+    return [ req('/web/ai-extract',{
                 "url": r['url'],
                 "response_format":{ "type":"json_schema", "json_schema":schema },
                 "prompt":f'Key findings on "{q}"'
@@ -165,7 +165,7 @@ export async function monitor(url) {
     },
   };
 
-  const products = await post('/web/extract-json', {
+  const products = await post('/web/ai-extract', {
     url,
     response_format: { type: 'json_schema', json_schema: schema },
     prompt: 'List products and prices you can see.',
@@ -210,7 +210,7 @@ export async function generateReport(urls) {
       const [md, pdf, info] = await Promise.all([
         post('/web/markdown', { url }),
         post('/web/pdf', { url }),
-        post('/web/extract-json', {
+        post('/web/ai-extract', {
           url,
           response_format: { type: 'json_schema', json_schema: schema },
           prompt: 'Short summary',
@@ -263,7 +263,7 @@ export async function extractBusiness(url) {
 
   const {
     data: { extracted },
-  } = await post('/web/extract-json', {
+  } = await post('/web/ai-extract', {
     url,
     response_format: { type: 'json_schema', json_schema: schema },
   });
@@ -308,7 +308,7 @@ export async function buildStrategy(topic) {
 
   const analysis = await Promise.all(
     results.map((r) =>
-      post('/web/extract-json', {
+      post('/web/ai-extract', {
         url: r.url,
         response_format: { type: 'json_schema', json_schema: schema },
         prompt: `Analyse strengths for "${topic}".`,
@@ -319,7 +319,7 @@ export async function buildStrategy(topic) {
   // 3️⃣ content plan (text mode)
   const {
     data: { text: strategy },
-  } = await post('/web/extract-json', {
+  } = await post('/web/ai-extract', {
     url:
       'data:text/plain;base64,' +
       Buffer.from(JSON.stringify(analysis)).toString('base64'),

@@ -317,17 +317,17 @@ export const markdown = createRoute({
 });
 
 export const jsonExtraction = createRoute({
-  path: '/web/extract-json',
+  path: '/web/ai-extract',
   method: 'post',
   tags,
   security,
-  summary: 'Extract structured data from a web page',
-  description: 'Extract JSON data or text content using AI-powered parsing',
+  summary: 'AI extract structured data from a web page',
+  description: 'AI extract JSON data or text content using AI-powered parsing',
   request: {
-    body: jsonContentRequired(jsonExtractionInputSchema, 'JSON extraction parameters'),
+    body: jsonContentRequired(jsonExtractionInputSchema, 'AI extract parameters'),
   },
   responses: {
-    [HttpStatusCodes.OK]: jsonContent(jsonExtractionOutputSchema, 'JSON data extracted successfully'),
+    [HttpStatusCodes.OK]: jsonContent(jsonExtractionOutputSchema, 'AI extract completed successfully'),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
       createErrorSchema(jsonExtractionInputSchema),
       'Validation error',

@@ -114,9 +114,9 @@ export const API_ENDPOINTS = [
   },
   {
     id: 'structured',
-    name: 'Structured Data',
+    name: 'AI Extract',
     icon: FileJson,
-    description: 'Extract structured data from a webpage',
+    description: 'AI extract structured data from a webpage',
     subActions: [
       {
         id: 'text',
@@ -127,7 +127,7 @@ export const API_ENDPOINTS = [
       {
         id: 'json',
         name: 'JSON',
-        description: 'Extract structured data in JSON format',
+        description: 'AI extract structured data in JSON format',
         Component: JsonActions,
       },
     ],

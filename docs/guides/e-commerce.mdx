@@ -26,7 +26,7 @@ export async function extractProduct(url) {
 
   const {
     data: { extracted },
-  } = await post('/web/extract-json', {
+  } = await post('/web/ai-extract', {
     url,
     response_format: { type: 'json_schema', json_schema: schema },
   });
@@ -53,7 +53,7 @@ const base = 'https://api.weblinq.dev/v1';
 export async function productInsights(url) {
   const {
     data: { text },
-  } = await post('/web/extract-json', {
+  } = await post('/web/ai-extract', {
     url,
     responseType: 'text', // ✅ matches schema
     prompt: `Analyse this product page and list key selling points, drawbacks and target audience.`,
@@ -77,12 +77,12 @@ def extract_both(url):
                "properties":{"name":{"type":"string"},"price":{"type":"number"}},
                "required":["name","price"] }
 
-    struct = req('/web/extract-json', {
+    struct = req('/web/ai-extract', {
         "url": url,
         "response_format":{ "type":"json_schema","json_schema":schema }
     })['data']['extracted']
 
-    text   = req('/web/extract-json', {
+    text   = req('/web/ai-extract', {
         "url": url,
         "responseType":"text",
         "prompt":"Brief pros & cons."
@@ -127,7 +127,7 @@ export async function snapshotStore(storeUrl) {
     },
   };
 
-  const meta = post('/web/extract-json', {
+  const meta = post('/web/ai-extract', {
     url: storeUrl,
     response_format: { type: 'json_schema', json_schema: schema },
     prompt: 'Store overview',
@@ -190,7 +190,7 @@ export async function priceReport(urls) {
     urls.map(async (url) => {
       const {
         data: { extracted },
-      } = await post('/web/extract-json', {
+      } = await post('/web/ai-extract', {
         url,
         response_format: { type: 'json_schema', json_schema: schema },
       });
@@ -254,7 +254,7 @@ export async function findProducts(query, limit = 10) {
 
   const products = await Promise.all(
     results.map((r) =>
-      post('/web/extract-json', {
+      post('/web/ai-extract', {
         url: r.url,
         response_format: { type: 'json_schema', json_schema: schema },
       }).then((p) => ({
@@ -297,7 +297,7 @@ export async function checkStock(urls) {
     urls.map(async (url) => {
       const {
         data: { extracted },
-      } = await post('/web/extract-json', {
+      } = await post('/web/ai-extract', {
         url,
         response_format: { type: 'json_schema', json_schema: schema },
         prompt: 'Current stock status',
@@ -329,8 +329,8 @@ Define exact data structures to extract consistent, structured product informati
 </Accordion>
 
 <Accordion title="🔍 Multi-API Workflows">
-  Combine search, links, extract-json, screenshot, and PDF APIs for
-  comprehensive e-commerce intelligence.
+  Combine search, links, ai-extract, screenshot, and PDF APIs for comprehensive
+  e-commerce intelligence.
 </Accordion>
 
 <Accordion title="📊 Competitive Analysis">

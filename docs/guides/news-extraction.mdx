@@ -53,7 +53,7 @@ async function extractNewsArticle(articleUrl) {
     required: ["headline", "publishDate", "summary", "keyPoints"]
   };
 
-const response = await fetch('https://api.weblinq.dev/v1/web/extract-json', {
+const response = await fetch('https://api.weblinq.dev/v1/web/ai-extract', {
 method: 'POST',
 headers: {
 'Authorization': `Bearer ${apiKey}`,
@@ -83,7 +83,7 @@ async function analyzeNewsEditorial(articleUrl) {
   const apiKey = process.env.WEBLINQ_API_KEY;
 
   // Use text response for nuanced editorial analysis
-  const response = await fetch('https://api.weblinq.dev/v1/web/extract-json', {
+  const response = await fetch('https://api.weblinq.dev/v1/web/ai-extract', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -125,7 +125,7 @@ async function generateNewsSummary(articleUrl, audienceType = 'general') {
     student: "Write an educational summary with background context for students"
   };
 
-  const response = await fetch('https://api.weblinq.dev/v1/web/extract-json', {
+  const response = await fetch('https://api.weblinq.dev/v1/web/ai-extract', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -190,7 +190,7 @@ def comprehensive_news_analysis(article_url):
 
     # Get structured metadata
     structured_response = requests.post(
-        'https://api.weblinq.dev/v1/web/extract-json',
+        'https://api.weblinq.dev/v1/web/ai-extract',
         headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
         json={
             'url': article_url,
@@ -201,7 +201,7 @@ def comprehensive_news_analysis(article_url):
 
     # Get contextual analysis
     analysis_response = requests.post(
-        'https://api.weblinq.dev/v1/web/extract-json',
+        'https://api.weblinq.dev/v1/web/ai-extract',
         headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
         json={
             'url': article_url,
@@ -296,7 +296,7 @@ async function monitorNewsTopics(topics, maxArticlesPerTopic = 5) {
           }
         };
 
-        const extractResponse = await fetch(`${baseUrl}/web/extract-json`, {
+        const extractResponse = await fetch(`${baseUrl}/web/ai-extract`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
@@ -402,7 +402,7 @@ def extract_news_article(article_url):
     }
 
     response = requests.post(
-        'https://api.weblinq.dev/v1/web/extract-json',
+        'https://api.weblinq.dev/v1/web/ai-extract',
         headers={
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json'
@@ -490,7 +490,7 @@ const searchQuery = keywords.map(keyword =>
 
       for (const result of searchData.data.results) {
         // Extract alert information
-        const alertResponse = await fetch(`${baseUrl}/web/extract-json`, {
+        const alertResponse = await fetch(`${baseUrl}/web/ai-extract`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
@@ -609,7 +609,7 @@ async function generateNewsReport(topics, timeframe = '24h') {
         }
       };
 
-      const extractResponse = await fetch(`${baseUrl}/web/extract-json`, {
+      const extractResponse = await fetch(`${baseUrl}/web/ai-extract`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -760,7 +760,7 @@ def extract_news_article(article_url):
     }
 
     response = requests.post(
-        'https://api.weblinq.dev/v1/web/extract-json',
+        'https://api.weblinq.dev/v1/web/ai-extract',
         headers={
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json'
@@ -843,7 +843,7 @@ includeExternal: false,
         }
       };
 
-      const extractResponse = await fetch(`${baseUrl}/web/extract-json`, {
+      const extractResponse = await fetch(`${baseUrl}/web/ai-extract`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -929,7 +929,7 @@ Generate comprehensive news reports and summaries for distribution.
 </AccordionGroup>
 
 <Tip>
-  **News Monitoring Pro Tip**: Combine search for discovery, extract-json for structured analysis, markdown for clean
+  **News Monitoring Pro Tip**: Combine search for discovery, ai-extract for structured analysis, markdown for clean
   content, and PDF for professional reports. This creates a complete news intelligence pipeline.
 </Tip>
 

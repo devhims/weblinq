@@ -18,16 +18,32 @@ import {
   MessageSquareText,
   AlertCircle,
 } from 'lucide-react';
-import { ApiResult, ScreenshotResult, ScrapeResult, LinksResult, SearchResponse } from '../types';
+import {
+  ApiResult,
+  ScreenshotResult,
+  ScrapeResult,
+  LinksResult,
+  SearchResponse,
+} from '../types';
 import { useState, useEffect } from 'react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { SearchResultDisplay } from './SearchResultDisplay';
 import { CopyButton } from '@/components/ui/copy-button';
 import { useStudioParams } from '../hooks/useStudioParams';
 import { CodeDisplay } from './CodeDisplay';
 import { ScreenshotDisplay } from './ScreenshotDisplay';
 import { studioApi } from '@/lib/studio-api';
-import { downloadBlob, generateScreenshotFilename, generatePdfFilename, formatFileSize } from '@/lib/utils';
+import {
+  downloadBlob,
+  generateScreenshotFilename,
+  generatePdfFilename,
+  formatFileSize,
+} from '@/lib/utils';
 import { toast } from 'sonner';
 import pretty from 'pretty';
 import SyntaxHighlighter from 'react-syntax-highlighter';
@@ -53,7 +69,11 @@ interface CombinedResultsDisplayProps {
   isMobile?: boolean;
 }
 
-function CombinedResultsDisplay({ results, fullPage = false, isMobile = false }: CombinedResultsDisplayProps) {
+function CombinedResultsDisplay({
+  results,
+  fullPage = false,
+  isMobile = false,
+}: CombinedResultsDisplayProps) {
   const [activeTab, setActiveTab] = useState(results[0]?.type || 'elements');
 
   // Map result type to a display component
@@ -64,13 +84,21 @@ function CombinedResultsDisplay({ results, fullPage = false, isMobile = false }:
       case 'markdown':
         return <CodeDisplay content={result.data} language="markdown" />;
       case 'screenshot':
-        return <ScreenshotDisplay imageUrl={result.data.imageUrl} isMobile={isMobile} fullPage={fullPage} />;
+        return (
+          <ScreenshotDisplay
+            imageUrl={result.data.imageUrl}
+            isMobile={isMobile}
+            fullPage={fullPage}
+          />
+        );
       case 'links':
         return <LinksResultDisplay links={result.data} />;
       default:
         return (
           <div className="p-3 sm:p-4 text-center">
-            <p className="text-sm sm:text-base">Unknown result type: {result.type}</p>
+            <p className="text-sm sm:text-base">
+              Unknown result type: {result.type}
+            </p>
           </div>
         );
     }
@@ -123,7 +151,11 @@ interface LinksResultDisplayProps {
 function LinksResultDisplay({ links }: LinksResultDisplayProps) {
   // Handle both old format (array of strings) and new format (array of objects)
   const normalizedLinks = Array.isArray(links)
-    ? links.map((link) => (typeof link === 'string' ? { url: link, text: link, type: 'external' as const } : link))
+    ? links.map((link) =>
+        typeof link === 'string'
+          ? { url: link, text: link, type: 'external' as const }
+          : link,
+      )
     : [];
 
   return (
@@ -132,7 +164,9 @@ function LinksResultDisplay({ links }: LinksResultDisplayProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
-            <Label className="font-medium text-sm sm:text-base">Found {normalizedLinks.length} links</Label>
+            <Label className="font-medium text-sm sm:text-base">
+              Found {normalizedLinks.length} links
+            </Label>
           </div>
           <CopyButton content={links} inline />
         </div>
@@ -141,7 +175,10 @@ function LinksResultDisplay({ links }: LinksResultDisplayProps) {
         <ul className="space-y-1.5">
           {normalizedLinks.length > 0 &&
             normalizedLinks.map((link, index) => (
-              <li key={index} className="p-2 sm:p-2.5 hover:bg-muted rounded-md break-all">
+              <li
+                key={index}
+                className="p-2 sm:p-2.5 hover:bg-muted rounded-md break-all"
+              >
                 <a
                   href={link.url}
                   target="_blank"
@@ -150,7 +187,9 @@ function LinksResultDisplay({ links }: LinksResultDisplayProps) {
                 >
                   <Globe className="h-4 w-4 sm:h-5 sm:w-5 mr-2 mt-1 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate sm:whitespace-normal">{link.text || link.url}</div>
+                    <div className="font-medium truncate sm:whitespace-normal">
+                      {link.text || link.url}
+                    </div>
                     <div className="text-xs text-muted-foreground truncate sm:whitespace-normal">
                       {link.type} • {link.url}
                     </div>
@@ -164,7 +203,12 @@ function LinksResultDisplay({ links }: LinksResultDisplayProps) {
   );
 }
 
-export function ResultDisplay({ loading, error, result, selectedEndpoint }: ResultDisplayProps) {
+export function ResultDisplay({
+  loading,
+  error,
+  result,
+  selectedEndpoint,
+}: ResultDisplayProps) {
   // derive fullPage flag from global params (mobile OR fullPage true)
   const { params } = useStudioParams();
   const isMobile = params.mobile ?? false;
@@ -183,7 +227,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       const filename = generateScreenshotFilename(params.url, format);
       downloadBlob(blob, filename);
 
-      toast.success(`Screenshot downloaded as ${filename} (${formatFileSize(blob.size)})`);
+      toast.success(
+        `Screenshot downloaded as ${filename} (${formatFileSize(blob.size)})`,
+      );
     } catch (error) {
       console.error('Download failed:', error);
       toast.error('Failed to download screenshot');
@@ -200,7 +246,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       const filename = generatePdfFilename(params.url);
       downloadBlob(blob, filename);
 
-      toast.success(`PDF downloaded as ${filename} (${formatFileSize(blob.size)})`);
+      toast.success(
+        `PDF downloaded as ${filename} (${formatFileSize(blob.size)})`,
+      );
     } catch (error) {
       console.error('Download failed:', error);
       toast.error('Failed to download PDF');
@@ -215,7 +263,10 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
     }
 
     const pdfResult = result as any;
-    const pdfData = pdfResult && typeof pdfResult === 'object' ? pdfResult.pdf ?? pdfResult.data?.pdf : undefined;
+    const pdfData =
+      pdfResult && typeof pdfResult === 'object'
+        ? (pdfResult.pdf ?? pdfResult.data?.pdf)
+        : undefined;
     const pdfPermanentUrl = pdfResult?.data?.permanentUrl;
 
     // Prioritize permanent URL for preview if available
@@ -232,7 +283,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
     }
 
     try {
-      console.log('⚠️ Using fallback blob URL for PDF preview (no permanent URL available)');
+      console.log(
+        '⚠️ Using fallback blob URL for PDF preview (no permanent URL available)',
+      );
       // Ensure we have a proper Uint8Array for the Blob constructor
       const uint8Data = new Uint8Array(pdfData);
       const blob = new Blob([uint8Data], { type: 'application/pdf' });
@@ -258,7 +311,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       <div className="flex flex-col items-center justify-center h-[200px] sm:h-[300px] lg:h-[400px] text-center px-4">
         <AlertCircle className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-destructive mb-3" />
         <div className="space-y-2">
-          <p className="text-destructive font-medium text-sm sm:text-base">Error occurred</p>
+          <p className="text-destructive font-medium text-sm sm:text-base">
+            Error occurred
+          </p>
           <p className="text-muted-foreground text-xs sm:text-sm">{error}</p>
         </div>
       </div>
@@ -269,20 +324,31 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
     return (
       <div className="flex flex-col items-center justify-center h-[200px] sm:h-[300px] lg:h-[400px] text-center px-4">
         <Globe className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-muted-foreground mb-3" />
-        <p className="text-muted-foreground text-sm sm:text-md">Enter a URL and select an endpoint to see results</p>
+        <p className="text-muted-foreground text-sm sm:text-md">
+          Enter a URL and select an endpoint to see results
+        </p>
       </div>
     );
   }
 
   // Handle combined results from multiple APIs
   if (result && typeof result === 'object' && 'combinedResults' in result) {
-    return <CombinedResultsDisplay results={result.combinedResults} fullPage={fullPage} isMobile={isMobile} />;
+    return (
+      <CombinedResultsDisplay
+        results={result.combinedResults}
+        fullPage={fullPage}
+        isMobile={isMobile}
+      />
+    );
   }
 
   switch (selectedEndpoint) {
     case 'html':
-      const htmlContent = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-      return <CodeDisplay content={htmlContent} language="html" formatHtml={true} />;
+      const htmlContent =
+        typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+      return (
+        <CodeDisplay content={htmlContent} language="html" formatHtml={true} />
+      );
 
     case 'scrape':
     case 'elements':
@@ -290,7 +356,11 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       // 🔄 Normalise legacy/alternate shapes where element data lives under `data` instead of `results`
       let normalised: ScrapeResult | null = null;
 
-      if (scrapeResult && scrapeResult.elements && scrapeResult.elements.length > 0) {
+      if (
+        scrapeResult &&
+        scrapeResult.elements &&
+        scrapeResult.elements.length > 0
+      ) {
         // Detect shape of first element
         const firstElement: any = scrapeResult.elements[0];
         if ('data' in firstElement && !('results' in firstElement)) {
@@ -300,7 +370,11 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
             elements: scrapeResult.elements.map((el: any) => {
               const candidate = el.data;
               // Ensure we have an array of results
-              const resultsArr = Array.isArray(candidate) ? candidate : candidate ? [candidate] : [];
+              const resultsArr = Array.isArray(candidate)
+                ? candidate
+                : candidate
+                  ? [candidate]
+                  : [];
               return {
                 selector: el.selector,
                 results: resultsArr,
@@ -316,7 +390,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
         return (
           <div className="flex items-center justify-center h-[200px] sm:h-[300px] lg:h-[400px] text-center px-4">
             <div className="text-muted-foreground">
-              <p className="text-sm sm:text-base">No valid scrape results available</p>
+              <p className="text-sm sm:text-base">
+                No valid scrape results available
+              </p>
             </div>
           </div>
         );
@@ -333,7 +409,8 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
           fileId?: string;
         };
       };
-      const imageData = screenshotResult?.image ?? screenshotResult?.data?.image;
+      const imageData =
+        screenshotResult?.image ?? screenshotResult?.data?.image;
       const imageMetadata = screenshotResult?.data?.metadata;
       const permanentUrl = screenshotResult?.data?.permanentUrl;
       const fileId = screenshotResult?.data?.fileId;
@@ -370,13 +447,17 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
           } else if (imageData instanceof Uint8Array) {
             // Binary data
             const format = imageMetadata?.format || 'png';
-            blob = new Blob([new Uint8Array(imageData)], { type: `image/${format}` });
+            blob = new Blob([new Uint8Array(imageData)], {
+              type: `image/${format}`,
+            });
           } else {
             throw new Error('Unsupported image data format');
           }
 
           imageUrl = URL.createObjectURL(blob);
-          console.log('⚠️ Using fallback blob URL for display (no permanent URL available)');
+          console.log(
+            '⚠️ Using fallback blob URL for display (no permanent URL available)',
+          );
         } catch (error) {
           console.error('Failed to create image blob URL:', error);
         }
@@ -419,7 +500,11 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
               </div>
             )}
           </div>
-          <ScreenshotDisplay imageUrl={imageUrl} isMobile={isMobile} fullPage={fullPage} />
+          <ScreenshotDisplay
+            imageUrl={imageUrl}
+            isMobile={isMobile}
+            fullPage={fullPage}
+          />
         </div>
       );
 
@@ -433,7 +518,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
           fileId?: string;
         };
       };
-      const pdfData = (pdfResult?.pdf ?? pdfResult?.data?.pdf) as Uint8Array | undefined;
+      const pdfData = (pdfResult?.pdf ?? pdfResult?.data?.pdf) as
+        | Uint8Array
+        | undefined;
       const pdfMetadata = pdfResult?.data?.metadata;
       const pdfPermanentUrl = pdfResult?.data?.permanentUrl;
       const pdfFileId = pdfResult?.data?.fileId;
@@ -456,7 +543,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-              <p className="text-sm sm:text-base font-medium">{pdfData ? 'Preview' : 'No PDF data returned'}</p>
+              <p className="text-sm sm:text-base font-medium">
+                {pdfData ? 'Preview' : 'No PDF data returned'}
+              </p>
             </div>
             {pdfData && (
               <div className="flex items-center gap-2">
@@ -495,29 +584,40 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       const jsonResult = result as any;
       if (jsonResult && typeof jsonResult === 'object') {
         // New format with responseType metadata
-        if (jsonResult.data?.metadata?.responseType === 'text' && jsonResult.data?.text) {
+        if (
+          jsonResult.data?.metadata?.responseType === 'text' &&
+          jsonResult.data?.text
+        ) {
           // Text response - display as markdown for better formatting
           return (
             <div className="bg-card p-3 sm:p-4 rounded-md border overflow-hidden w-full relative">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <MessageSquareText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  <p className="text-sm sm:text-base font-medium">AI Analysis</p>
+                  <p className="text-sm sm:text-base font-medium">
+                    AI Analysis
+                  </p>
                 </div>
                 <CopyButton content={jsonResult.data.text} inline />
               </div>
               <div className="prose prose-sm max-w-none dark:prose-invert">
-                <div className="whitespace-pre-wrap text-sm leading-relaxed">{jsonResult.data.text}</div>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {jsonResult.data.text}
+                </div>
               </div>
               {jsonResult.data.metadata && (
                 <div className="mt-4 pt-3 border-t border-border text-xs text-muted-foreground">
                   <div className="flex items-center gap-4 flex-wrap">
                     <span>Model: {jsonResult.data.metadata.model}</span>
                     {jsonResult.data.metadata.inputTokens && (
-                      <span>Input: {jsonResult.data.metadata.inputTokens} tokens</span>
+                      <span>
+                        Input: {jsonResult.data.metadata.inputTokens} tokens
+                      </span>
                     )}
                     {jsonResult.data.metadata.outputTokens && (
-                      <span>Output: {jsonResult.data.metadata.outputTokens} tokens</span>
+                      <span>
+                        Output: {jsonResult.data.metadata.outputTokens} tokens
+                      </span>
                     )}
                   </div>
                 </div>
@@ -526,14 +626,19 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
           );
         } else if (jsonResult.data?.extracted) {
           // JSON response - display as formatted JSON
-          return <CodeDisplay content={jsonResult.data.extracted} language="json" />;
+          return (
+            <CodeDisplay content={jsonResult.data.extracted} language="json" />
+          );
         } else if (jsonResult.success === false) {
           // Error response - handle StandardErrorSchema format
-          const errorMessage = jsonResult.error?.message || 'Unknown error occurred';
+          const errorMessage =
+            jsonResult.error?.message || 'Unknown error occurred';
 
           return (
             <div className="bg-destructive/10 p-4 sm:p-5 rounded-md border border-destructive/20 overflow-hidden break-words">
-              <p className="text-destructive text-sm sm:text-base font-medium">{errorMessage}</p>
+              <p className="text-destructive text-sm sm:text-base font-medium">
+                {errorMessage}
+              </p>
             </div>
           );
         }
@@ -542,7 +647,8 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       return <CodeDisplay content={result} language="json" />;
 
     case 'markdown':
-      const markdownContent = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+      const markdownContent =
+        typeof result === 'string' ? result : JSON.stringify(result, null, 2);
       return <CodeDisplay content={markdownContent} language="markdown" />;
 
     case 'links':
@@ -552,14 +658,21 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
     case 'search':
       console.log('Search result data:', result);
       // Type guard to ensure we have a proper SearchResponse
-      if (result && typeof result === 'object' && !Array.isArray(result) && 'results' in result) {
+      if (
+        result &&
+        typeof result === 'object' &&
+        !Array.isArray(result) &&
+        'results' in result
+      ) {
         return <SearchResultDisplay result={result as SearchResponse} />;
       }
       // Fallback for unexpected result format
       return (
         <div className="bg-card p-3 sm:p-4 rounded-md border h-full w-full flex flex-col">
           <div className="flex-1 overflow-y-auto">
-            <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm">{JSON.stringify(result, null, 2)}</pre>
+            <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm">
+              {JSON.stringify(result, null, 2)}
+            </pre>
           </div>
         </div>
       );
@@ -568,7 +681,9 @@ export function ResultDisplay({ loading, error, result, selectedEndpoint }: Resu
       return (
         <div className="bg-card p-3 sm:p-4 rounded-md border h-full w-full flex flex-col">
           <div className="flex-1 overflow-y-auto">
-            <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm">{JSON.stringify(result, null, 2)}</pre>
+            <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm">
+              {JSON.stringify(result, null, 2)}
+            </pre>
           </div>
         </div>
       );
@@ -580,9 +695,13 @@ interface ScrapeResultDisplayProps {
 }
 
 function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({});
 
-  const [expandedAttributes, setExpandedAttributes] = useState<Record<string, boolean>>({});
+  const [expandedAttributes, setExpandedAttributes] = useState<
+    Record<string, boolean>
+  >({});
 
   const toggleSection = (selector: string) => {
     setExpandedSections((prev) => ({
@@ -642,7 +761,10 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
     const escaped = escapeHtml(html);
 
     return escaped
-      .replace(/class="([^"]*)"/g, '<span class="text-primary">class</span>=<span class="text-green-300">"$1"</span>')
+      .replace(
+        /class="([^"]*)"/g,
+        '<span class="text-primary">class</span>=<span class="text-green-300">"$1"</span>',
+      )
       .replace(
         /aria-([a-z]+)="([^"]*)"/g,
         '<span class="text-primary/80">aria-$1</span>=<span class="text-amber-200">"$2"</span>',
@@ -699,8 +821,13 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
           <div className="flex space-x-2">
             {/* inline copy button so it sits left of the toggle */}
             <CopyButton content={jsonFormatted} inline />
-            <Button variant="outline" size="sm" onClick={() => setShowRaw(false)} className="text-xs sm:text-sm">
-              View Structured
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRaw(false)}
+              className="text-xs sm:text-sm"
+            >
+              View AI Extract
             </Button>
           </div>
         </div>
@@ -740,7 +867,9 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleCopy(JSON.stringify(result, null, 2), 'all')}
+                    onClick={() =>
+                      handleCopy(JSON.stringify(result, null, 2), 'all')
+                    }
                     className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                   >
                     {copiedItems['all'] ? (
@@ -755,7 +884,12 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <Button variant="outline" size="sm" onClick={() => setShowRaw(true)} className="text-xs sm:text-sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRaw(true)}
+              className="text-xs sm:text-sm"
+            >
               View Raw JSON
             </Button>
           </div>
@@ -765,7 +899,10 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
         {result &&
           result.elements &&
           result.elements.map((item, index) => (
-            <div key={index} className="mb-4 sm:mb-6 border rounded-md overflow-hidden shadow-sm">
+            <div
+              key={index}
+              className="mb-4 sm:mb-6 border rounded-md overflow-hidden shadow-sm"
+            >
               <div
                 className="bg-muted p-2 sm:p-3 flex justify-between items-center cursor-pointer"
                 onClick={() => toggleSection(item.selector)}
@@ -787,7 +924,9 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                           </code>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p className="text-xs max-w-[300px] break-all">{item.selector}</p>
+                          <p className="text-xs max-w-[300px] break-all">
+                            {item.selector}
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -797,7 +936,8 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                     </code>
                   )}
                   <span className="ml-2 text-xs sm:text-sm text-muted-foreground">
-                    ({item.results.length} {item.results.length === 1 ? 'result' : 'results'})
+                    ({item.results.length}{' '}
+                    {item.results.length === 1 ? 'result' : 'results'})
                   </span>
                 </div>
                 <TooltipProvider>
@@ -808,7 +948,10 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleCopy(JSON.stringify(item.results, null, 2), `item-${index}`);
+                          handleCopy(
+                            JSON.stringify(item.results, null, 2),
+                            `item-${index}`,
+                          );
                         }}
                         className="h-6 w-6 sm:h-8 sm:w-8 p-0 ml-2"
                       >
@@ -832,7 +975,9 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                     const resultId = `${item.selector}-${resultIndex}`;
 
                     // Find the class attribute if it exists
-                    const classAttribute = result.attributes.find((attr) => attr.name === 'class');
+                    const classAttribute = result.attributes.find(
+                      (attr) => attr.name === 'class',
+                    );
 
                     // Format HTML with highlighted class attributes for consistency
                     const formattedHtml = result.html.replace(
@@ -841,16 +986,25 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                     );
 
                     return (
-                      <div key={resultIndex} className="p-3 sm:p-4 bg-background hover:bg-muted/40">
+                      <div
+                        key={resultIndex}
+                        className="p-3 sm:p-4 bg-background hover:bg-muted/40"
+                      >
                         {/* Main text highlight section */}
                         {result.text && (
                           <div className="mb-3 bg-accent/30 p-2 sm:p-3 rounded-md border border-border">
                             <div className="flex items-center mb-1">
                               <Type className="h-3 w-3 sm:h-4 sm:w-4 text-primary mr-2" />
-                              <span className="text-xs sm:text-sm font-medium text-primary">Text Content</span>
+                              <span className="text-xs sm:text-sm font-medium text-primary">
+                                Text Content
+                              </span>
                             </div>
                             <p className="text-foreground font-medium break-words text-sm sm:text-base">
-                              {result.text || <span className="text-muted-foreground italic">No text content</span>}
+                              {result.text || (
+                                <span className="text-muted-foreground italic">
+                                  No text content
+                                </span>
+                              )}
                             </p>
                           </div>
                         )}
@@ -863,8 +1017,12 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                               className="flex items-center text-xs sm:text-sm text-foreground bg-accent/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md w-full"
                             >
                               <Info className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                              <span className="font-medium">Attributes of this element</span>
-                              <span className="ml-2 text-xs text-muted-foreground">({result.attributes.length})</span>
+                              <span className="font-medium">
+                                Attributes of this element
+                              </span>
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                ({result.attributes.length})
+                              </span>
                               <span className="ml-auto">
                                 {expandedAttributes[resultId] ? (
                                   <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -878,21 +1036,30 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
                               <div className="mt-2 bg-muted/50 p-2 sm:p-3 rounded-md border border-border">
                                 <div className="grid grid-cols-1 gap-2">
                                   {result.attributes.map((attr, attrIndex) => (
-                                    <div key={attrIndex} className="bg-card p-2 rounded border text-xs">
-                                      <span className="font-medium text-foreground">{attr.name}:</span>
+                                    <div
+                                      key={attrIndex}
+                                      className="bg-card p-2 rounded border text-xs"
+                                    >
+                                      <span className="font-medium text-foreground">
+                                        {attr.name}:
+                                      </span>
                                       {attr.name === 'class' ? (
                                         <div className="mt-1 pl-2 sm:pl-4 border-l-2 border-primary/20">
-                                          {attr.value.split(' ').map((cls, i) => (
-                                            <span
-                                              key={i}
-                                              className="inline-block bg-accent/20 text-accent-foreground px-1 py-0.5 rounded mr-1 mb-1 text-xs"
-                                            >
-                                              {cls}
-                                            </span>
-                                          ))}
+                                          {attr.value
+                                            .split(' ')
+                                            .map((cls, i) => (
+                                              <span
+                                                key={i}
+                                                className="inline-block bg-accent/20 text-accent-foreground px-1 py-0.5 rounded mr-1 mb-1 text-xs"
+                                              >
+                                                {cls}
+                                              </span>
+                                            ))}
                                         </div>
                                       ) : (
-                                        <span className="ml-1 text-foreground break-all">"{attr.value}"</span>
+                                        <span className="ml-1 text-foreground break-all">
+                                          "{attr.value}"
+                                        </span>
                                       )}
                                     </div>
                                   ))}
@@ -930,8 +1097,12 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
         {result && result.elements && result.elements.length === 0 && (
           <div className="text-center p-4 sm:p-6 text-muted-foreground">
             <Layers className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 mx-auto mb-2 opacity-30" />
-            <p className="text-sm sm:text-base">No elements found matching your selectors.</p>
-            <p className="text-xs sm:text-sm mt-1">Try different selectors or URL parameters.</p>
+            <p className="text-sm sm:text-base">
+              No elements found matching your selectors.
+            </p>
+            <p className="text-xs sm:text-sm mt-1">
+              Try different selectors or URL parameters.
+            </p>
           </div>
         )}
       </div>

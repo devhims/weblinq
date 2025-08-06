@@ -268,7 +268,7 @@ const tools = [
 						},
 					},
 					required: ['type', 'json_schema'],
-					description: 'Structured JSON schema for extraction (only valid when responseType is json)',
+					description: 'AI extract schema for extraction (only valid when responseType is json)',
 				},
 				instructions: {
 					type: 'string',
@@ -669,7 +669,7 @@ async function executeTool(name: string, args: any, apiKey: string) {
 				});
 
 			case 'ai_extract':
-				return await makeApiRequest('/v1/web/extract-json', {
+				return await makeApiRequest('/v1/web/ai-extract', {
 					method: 'POST',
 					body: JSON.stringify(coercedArgs),
 					apiKey,
