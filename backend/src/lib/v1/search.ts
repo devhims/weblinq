@@ -1,6 +1,6 @@
 import type { Page } from '@cloudflare/puppeteer';
 
-import { hardenPageAdvanced, runWithBrowser } from './browser-utils';
+import { hardenPageFast, runWithBrowser } from './browser-utils';
 
 /**
  * Input params inferred directly from the route schema so any changes there
@@ -39,70 +39,61 @@ abstract class BaseSearchHandler {
   protected abstract isBlocked(pageTitle: string, html?: string): boolean;
 
   /**
-   * Common search flow for all engines
+   * Ultra-fast search flow with no resource blocking
    */
-  async performSearch(page: Page, query: string, limit: number): Promise<InternalSearchResult> {
+  async performSearchUltraFast(page: Page, query: string, limit: number): Promise<InternalSearchResult> {
     const performSearchStartTime = Date.now();
     const url = this.getSearchUrl(query, limit);
-    console.log(`🌐 [TIMING] ${this.constructor.name} performSearch started at ${performSearchStartTime}ms for ${url}`);
+    console.log(
+      `⚡ [ULTRA-FAST] ${this.constructor.name} performSearchUltraFast started at ${performSearchStartTime}ms for ${url}`,
+    );
 
-    // Enable request interception to block CSS/fonts/images for faster loading
-    const interceptionStartTime = Date.now();
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const resourceType = req.resourceType();
-      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
-    const interceptionTime = Date.now() - interceptionStartTime;
-    console.log(`🌐 [TIMING] ${this.constructor.name} request interception setup took ${interceptionTime}ms`);
+    // NO REQUEST INTERCEPTION - allow all resources to load for maximum compatibility
+    console.log(`⚡ [ULTRA-FAST] ${this.constructor.name} allowing all resources to load`);
 
     const navigationStartTime = Date.now();
-    console.log(`🌐 [TIMING] ${this.constructor.name} starting navigation to ${url} at ${navigationStartTime}ms`);
+    console.log(`⚡ [ULTRA-FAST] ${this.constructor.name} starting navigation to ${url} at ${navigationStartTime}ms`);
 
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 10_000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 8_000 }); // Reduced timeout
 
     const navigationTime = Date.now() - navigationStartTime;
-    console.log(`✅ [TIMING] ${this.constructor.name} page navigation completed in ${navigationTime}ms`);
+    console.log(`✅ [ULTRA-FAST] ${this.constructor.name} page navigation completed in ${navigationTime}ms`);
 
-    // Give page extra time if results haven't loaded yet
+    // Give page extra time if results haven't loaded yet - but much less time
     const selectors = this.getSelectors();
     const selectorWaitStartTime = Date.now();
     console.log(
-      `🔍 [TIMING] ${this.constructor.name} waiting for selectors: ${selectors.join(
+      `🔍 [ULTRA-FAST] ${this.constructor.name} waiting for selectors: ${selectors.join(
         ', ',
       )} at ${selectorWaitStartTime}ms`,
     );
 
     const hasContent = await page
-      .waitForSelector(selectors.join(', '), { timeout: 1500 })
+      .waitForSelector(selectors.join(', '), { timeout: 500 }) // Very aggressive timeout
       .then(() => {
         const selectorFoundTime = Date.now() - selectorWaitStartTime;
-        console.log(`✅ [TIMING] ${this.constructor.name} selectors found in ${selectorFoundTime}ms`);
+        console.log(`✅ [ULTRA-FAST] ${this.constructor.name} selectors found in ${selectorFoundTime}ms`);
         return true;
       })
       .catch(() => {
         const selectorTimeoutTime = Date.now() - selectorWaitStartTime;
-        console.log(`⚠️ [TIMING] ${this.constructor.name} selectors timeout after ${selectorTimeoutTime}ms`);
+        console.log(`⚠️ [ULTRA-FAST] ${this.constructor.name} selectors timeout after ${selectorTimeoutTime}ms`);
         return false;
       });
 
     if (!hasContent) {
       const extraWaitStartTime = Date.now();
-      console.log(`⏳ [TIMING] ${this.constructor.name} adding extra 400ms wait at ${extraWaitStartTime}ms`);
-      await new Promise((res) => setTimeout(res, 400));
+      console.log(`⏳ [ULTRA-FAST] ${this.constructor.name} adding extra 100ms wait at ${extraWaitStartTime}ms`); // Minimal extra wait
+      await new Promise((res) => setTimeout(res, 100));
       const extraWaitTime = Date.now() - extraWaitStartTime;
-      console.log(`⏳ [TIMING] ${this.constructor.name} extra wait completed in ${extraWaitTime}ms`);
+      console.log(`⏳ [ULTRA-FAST] ${this.constructor.name} extra wait completed in ${extraWaitTime}ms`);
     }
 
     let results: RawSearchLink[] = [];
     let usedSelector = '';
 
     const extractionStartTime = Date.now();
-    console.log(`🎯 [TIMING] ${this.constructor.name} starting result extraction at ${extractionStartTime}ms`);
+    console.log(`🎯 [ULTRA-FAST] ${this.constructor.name} starting result extraction at ${extractionStartTime}ms`);
 
     for (const selector of selectors) {
       try {
@@ -114,20 +105,22 @@ abstract class BaseSearchHandler {
           results = selectorResults;
           usedSelector = selector;
           console.log(
-            `🎯 [TIMING] ${this.constructor.name} found ${selectorResults.length} results using: ${selector} in ${selectorTime}ms`,
+            `🎯 [ULTRA-FAST] ${this.constructor.name} found ${selectorResults.length} results using: ${selector} in ${selectorTime}ms`,
           );
           break;
         } else {
-          console.log(`🎯 [TIMING] ${this.constructor.name} no results with selector: ${selector} (${selectorTime}ms)`);
+          console.log(
+            `🎯 [ULTRA-FAST] ${this.constructor.name} no results with selector: ${selector} (${selectorTime}ms)`,
+          );
         }
       } catch (error) {
-        console.log(`❌ [TIMING] ${this.constructor.name} selector error: ${selector} - ${error}`);
+        console.log(`❌ [ULTRA-FAST] ${this.constructor.name} selector error: ${selector} - ${error}`);
         continue;
       }
     }
 
     const extractionTime = Date.now() - extractionStartTime;
-    console.log(`🎯 [TIMING] ${this.constructor.name} result extraction completed in ${extractionTime}ms`);
+    console.log(`🎯 [ULTRA-FAST] ${this.constructor.name} result extraction completed in ${extractionTime}ms`);
 
     // Check for blocking
     const blockingCheckStartTime = Date.now();
@@ -136,7 +129,7 @@ abstract class BaseSearchHandler {
     const isBlocked = this.isBlocked(pageTitle, html);
     const blockingCheckTime = Date.now() - blockingCheckStartTime;
     console.log(
-      `🔐 [TIMING] ${this.constructor.name} blocking check completed in ${blockingCheckTime}ms (blocked: ${isBlocked})`,
+      `🔐 [ULTRA-FAST] ${this.constructor.name} blocking check completed in ${blockingCheckTime}ms (blocked: ${isBlocked})`,
     );
 
     if (isBlocked) {
@@ -144,7 +137,9 @@ abstract class BaseSearchHandler {
     }
 
     const totalPerformSearchTime = Date.now() - performSearchStartTime;
-    console.log(`🌐 [TIMING] ${this.constructor.name} performSearch completed in ${totalPerformSearchTime}ms total`);
+    console.log(
+      `⚡ [ULTRA-FAST] ${this.constructor.name} performSearchUltraFast completed in ${totalPerformSearchTime}ms total`,
+    );
 
     return {
       results,
@@ -957,7 +952,7 @@ class MultiEngineSearchHandler {
     try {
       const pageCreationStartTime = Date.now();
       console.log(
-        `🚀 [TIMING] Creating additional browser pages for ${engines.length} engines at ${pageCreationStartTime}ms`,
+        `⚡ [ULTRA-FAST] Creating additional browser pages for ${engines.length} engines at ${pageCreationStartTime}ms`,
       );
 
       // Create additional pages for parallel processing (we already have one page)
@@ -965,19 +960,22 @@ class MultiEngineSearchHandler {
         const pageStart = Date.now();
         const newPage = await browser.newPage();
         const pageCreated = Date.now();
-        console.log(`🚀 [TIMING] Created page ${i} in ${pageCreated - pageStart}ms`);
+        console.log(`⚡ [ULTRA-FAST] Created page ${i} in ${pageCreated - pageStart}ms`);
 
-        // Apply same hardening as the original page
+        // Apply ultra-fast minimal hardening
         const hardeningStart = Date.now();
-        await hardenPageAdvanced(newPage);
+        await hardenPageFast(newPage);
         const hardeningEnd = Date.now();
-        console.log(`🚀 [TIMING] Hardened page ${i} in ${hardeningEnd - hardeningStart}ms`);
+        console.log(`⚡ [ULTRA-FAST] Hardened page ${i} in ${hardeningEnd - hardeningStart}ms`);
 
         additionalPages.push(newPage);
       }
 
       const pageCreationEndTime = Date.now();
-      console.log(`🚀 [TIMING] All pages created and hardened in ${pageCreationEndTime - pageCreationStartTime}ms`);
+      console.log(`⚡ [ULTRA-FAST] All pages created and hardened in ${pageCreationEndTime - pageCreationStartTime}ms`);
+
+      // NO REQUEST INTERCEPTION for first page either - ultra-fast mode
+      console.log(`⚡ [ULTRA-FAST] Skipping request interception for first page - allowing all resources`);
 
       const pages = [page, ...additionalPages];
 
@@ -990,7 +988,7 @@ class MultiEngineSearchHandler {
 
       // Execute searches in parallel using Promise.allSettled for graceful error handling
       const parallelSearchStartTime = Date.now();
-      console.log(`🚀 [TIMING] Starting parallel search execution at ${parallelSearchStartTime}ms`);
+      console.log(`⚡ [ULTRA-FAST] Starting parallel search execution at ${parallelSearchStartTime}ms`);
 
       const searchPromises = engines.map(async (engine, index) => {
         const enginePage = pages[index];
@@ -1004,21 +1002,23 @@ class MultiEngineSearchHandler {
         try {
           const engineStartTime = Date.now();
           console.log(
-            `🔍 [TIMING] Starting ${engine} search on page ${
+            `🔍 [ULTRA-FAST] Starting ${engine} search on page ${
               index + 1
             } at ${engineStartTime}ms (requesting ${perEngineLimit} results)`,
           );
 
           // Add timeout to prevent any single engine from taking too long
-          const searchPromise = handler.performSearch(enginePage, query, perEngineLimit);
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`${engine} search timeout after 8 seconds`)), 8000),
+          const searchPromise = handler.performSearchUltraFast(enginePage, query, perEngineLimit);
+          const timeoutPromise = new Promise<never>(
+            (_, reject) => setTimeout(() => reject(new Error(`${engine} search timeout after 6 seconds`)), 6000), // Reduced timeout for ultra-fast mode
           );
 
           const result = await Promise.race([searchPromise, timeoutPromise]);
           const searchTime = Date.now() - engineStartTime;
 
-          console.log(`✅ [TIMING] ${engine} completed in ${searchTime}ms, found ${result.results.length} raw results`);
+          console.log(
+            `✅ [ULTRA-FAST] ${engine} completed in ${searchTime}ms, found ${result.results.length} raw results`,
+          );
 
           // Filter and clean results (no need to slice since we requested the right amount)
           const filteringStartTime = Date.now();
@@ -1046,7 +1046,7 @@ class MultiEngineSearchHandler {
             }));
 
           const filteringTime = Date.now() - filteringStartTime;
-          console.log(`🔍 [TIMING] ${engine} filtering and URL cleaning took ${filteringTime}ms`);
+          console.log(`🔍 [ULTRA-FAST] ${engine} filtering and URL cleaning took ${filteringTime}ms`);
 
           return {
             engine,
@@ -1061,7 +1061,7 @@ class MultiEngineSearchHandler {
           };
         } catch (error) {
           const errorTime = Date.now() - parallelSearchStartTime;
-          console.error(`❌ [TIMING] ${engine} search failed after ${errorTime}ms:`, error);
+          console.error(`❌ [ULTRA-FAST] ${engine} search failed after ${errorTime}ms:`, error);
           return {
             engine,
             error: String(error),
@@ -1075,11 +1075,11 @@ class MultiEngineSearchHandler {
       const searchResults = await Promise.allSettled(searchPromises);
       const parallelTime = Date.now() - parallelSearchStartTime;
 
-      console.log(`⚡ [TIMING] Parallel search completed in ${parallelTime}ms`);
+      console.log(`⚡ [ULTRA-FAST] Parallel search completed in ${parallelTime}ms`);
 
       // Process results
       const processingStartTime = Date.now();
-      console.log(`⚡ [TIMING] Starting result processing at ${processingStartTime}ms`);
+      console.log(`⚡ [ULTRA-FAST] Starting result processing at ${processingStartTime}ms`);
 
       for (const settlementResult of searchResults) {
         if (settlementResult.status === 'fulfilled') {
@@ -1109,7 +1109,7 @@ class MultiEngineSearchHandler {
       }
     } finally {
       const cleanupStartTime = Date.now();
-      console.log(`🧹 [TIMING] Starting page cleanup at ${cleanupStartTime}ms`);
+      console.log(`🧹 [ULTRA-FAST] Starting page cleanup at ${cleanupStartTime}ms`);
 
       // Clean up additional pages
       for (const additionalPage of additionalPages) {
@@ -1123,7 +1123,7 @@ class MultiEngineSearchHandler {
       }
 
       const cleanupTime = Date.now() - cleanupStartTime;
-      console.log(`🧹 [TIMING] Page cleanup completed in ${cleanupTime}ms`);
+      console.log(`🧹 [ULTRA-FAST] Page cleanup completed in ${cleanupTime}ms`);
     }
 
     return { results: allResults, engineResults };
@@ -1142,7 +1142,7 @@ class MultiEngineSearchHandler {
     debug: Record<string, any>;
   }> {
     const searchStartTime = Date.now();
-    console.log(`🔍 [TIMING] MultiEngineSearchHandler starting at ${searchStartTime}ms`);
+    console.log(`⚡ [ULTRA-FAST] MultiEngineSearchHandler starting at ${searchStartTime}ms`);
 
     let allResults: Array<RawSearchLink & { source: SearchEngine }> = [];
     const engineResults: Record<string, any> = {};
@@ -1151,7 +1151,7 @@ class MultiEngineSearchHandler {
     const primaryEngines: SearchEngine[] = ['duckduckgo', 'bing'];
     const fallbackEngines: SearchEngine[] = ['startpage'];
 
-    console.log(`🎯 [STRATEGY] Starting with fast engines: ${primaryEngines.join(', ')}`);
+    console.log(`🎯 [ULTRA-FAST] Starting with fast engines: ${primaryEngines.join(', ')}`);
 
     try {
       // Tier 1: Run fast engines in parallel
@@ -1164,17 +1164,17 @@ class MultiEngineSearchHandler {
       const targetThreshold = Math.max(5, Math.ceil(limit * 0.7)); // At least 5 results or 70% of requested
 
       console.log(
-        `📊 [STRATEGY] Fast engines returned ${uniqueResultsCount} unique results (threshold: ${targetThreshold})`,
+        `📊 [ULTRA-FAST] Fast engines returned ${uniqueResultsCount} unique results (threshold: ${targetThreshold})`,
       );
 
       // Tier 2: Only run Startpage if we need more results
       if (uniqueResultsCount < targetThreshold) {
-        console.log(`🔄 [STRATEGY] Running fallback engines: ${fallbackEngines.join(', ')} (insufficient results)`);
+        console.log(`🔄 [ULTRA-FAST] Running fallback engines: ${fallbackEngines.join(', ')} (insufficient results)`);
         const fallbackResults = await this.runEnginesInParallel(page, fallbackEngines, query, limit);
         allResults.push(...fallbackResults.results);
         Object.assign(engineResults, fallbackResults.engineResults);
       } else {
-        console.log(`✅ [STRATEGY] Skipping Startpage - fast engines provided sufficient results`);
+        console.log(`✅ [ULTRA-FAST] Skipping Startpage - fast engines provided sufficient results`);
         // Mark Startpage as skipped in debug info
         engineResults.startpage = {
           success: true,
@@ -1186,7 +1186,7 @@ class MultiEngineSearchHandler {
         };
       }
     } catch (error) {
-      console.error(`❌ [STRATEGY] Tiered search failed:`, error);
+      console.error(`❌ [ULTRA-FAST] Tiered search failed:`, error);
       // Fallback to original behavior if strategy fails
       const allEngines: SearchEngine[] = ['duckduckgo', 'startpage', 'bing'];
       const fallbackResults = await this.runEnginesInParallel(page, allEngines, query, limit);
@@ -1198,7 +1198,7 @@ class MultiEngineSearchHandler {
 
     // Deduplicate by URL
     const deduplicationStartTime = Date.now();
-    console.log(`🔄 [TIMING] Starting deduplication at ${deduplicationStartTime}ms`);
+    console.log(`🔄 [ULTRA-FAST] Starting deduplication at ${deduplicationStartTime}ms`);
 
     const uniqueResults = new Map<string, RawSearchLink & { source: SearchEngine }>();
 
@@ -1219,11 +1219,13 @@ class MultiEngineSearchHandler {
     }
 
     const deduplicationTime = Date.now() - deduplicationStartTime;
-    console.log(`🔄 [TIMING] Deduplication completed in ${deduplicationTime}ms - ${uniqueResults.size} unique results`);
+    console.log(
+      `🔄 [ULTRA-FAST] Deduplication completed in ${deduplicationTime}ms - ${uniqueResults.size} unique results`,
+    );
 
     // Apply scoring and sort
     const scoringStartTime = Date.now();
-    console.log(`🎯 [TIMING] Starting scoring and sorting at ${scoringStartTime}ms`);
+    console.log(`🎯 [ULTRA-FAST] Starting scoring and sorting at ${scoringStartTime}ms`);
 
     const scoredResults = Array.from(uniqueResults.values())
       .map((result) => ({
@@ -1239,13 +1241,13 @@ class MultiEngineSearchHandler {
       .slice(0, limit);
 
     const scoringTime = Date.now() - scoringStartTime;
-    console.log(`🎯 [TIMING] Scoring and sorting completed in ${scoringTime}ms`);
+    console.log(`🎯 [ULTRA-FAST] Scoring and sorting completed in ${scoringTime}ms`);
 
     // Use scored order but omit the score field for response schema
     const finalResults = scoredResults.map(({ score: _score, ...rest }) => rest);
 
     const totalTime = Date.now() - searchStartTime;
-    console.log(`🚀 [TIMING] searchMultipleEngines completed in ${totalTime}ms total`);
+    console.log(`⚡ [ULTRA-FAST] searchMultipleEngines completed in ${totalTime}ms total`);
 
     return {
       query,
@@ -1304,16 +1306,18 @@ const CREDIT_COST = 1;
  */
 export async function searchV1(env: CloudflareBindings, params: SearchParams): Promise<SearchResult> {
   const overallStartTime = Date.now();
-  console.log(`🔍 [TIMING] searchV1 started at ${overallStartTime}ms`);
+  console.log(
+    `⚡ [ULTRA-FAST] searchV1 started at ${overallStartTime}ms with minimal hardening and no resource blocking`,
+  );
 
   try {
     const browserStartTime = Date.now();
-    console.log(`🔍 [TIMING] Calling runWithBrowser at ${browserStartTime}ms`);
+    console.log(`⚡ [ULTRA-FAST] Calling runWithBrowser at ${browserStartTime}ms`);
 
     const result = await runWithBrowser(env, async (page) => {
       const handlerStartTime = Date.now();
       console.log(
-        `🔍 [TIMING] Browser acquired, starting MultiEngineSearchHandler at ${handlerStartTime}ms (browser acquisition took ${
+        `⚡ [ULTRA-FAST] Browser acquired, starting ultra-fast search at ${handlerStartTime}ms (browser acquisition took ${
           handlerStartTime - browserStartTime
         }ms)`,
       );
@@ -1323,7 +1327,7 @@ export async function searchV1(env: CloudflareBindings, params: SearchParams): P
 
       const handlerEndTime = Date.now();
       console.log(
-        `🔍 [TIMING] MultiEngineSearchHandler completed at ${handlerEndTime}ms (search execution took ${
+        `⚡ [ULTRA-FAST] Ultra-fast search completed at ${handlerEndTime}ms (search execution took ${
           handlerEndTime - handlerStartTime
         }ms)`,
       );
@@ -1341,7 +1345,7 @@ export async function searchV1(env: CloudflareBindings, params: SearchParams): P
     const elapsed = Date.now() - overallStartTime;
     const sources = [...new Set(result.results.map((r) => r.source))];
 
-    console.log(`🔍 [TIMING] searchV1 completed in ${elapsed}ms total`);
+    console.log(`⚡ [ULTRA-FAST] searchV1 completed in ${elapsed}ms total with ultra-fast optimizations`);
 
     return {
       success: true,

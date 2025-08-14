@@ -304,6 +304,126 @@ export async function hardenPage(page: Page) {
 }
 
 /**
+ * Fast hardening for search operations - optimized for speed over stealth
+ * Reduced overhead compared to hardenPageAdvanced
+ */
+export async function hardenPageFast(page: Page) {
+  const UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+  // Smaller viewport for faster rendering and less DOM processing
+  // Using common laptop resolution that's not as fingerprintable as 1920x1080
+  const commonViewports = [
+    { width: 1366, height: 768 }, // Most common laptop resolution
+    { width: 1280, height: 720 }, // Standard HD
+    { width: 1440, height: 900 }, // MacBook Air
+  ];
+  const viewport = commonViewports[Math.floor(Math.random() * commonViewports.length)];
+
+  // Essential headers to pass basic bot detection
+  await Promise.all([
+    page.setUserAgent(UA),
+    page.setViewport(viewport),
+    page.setExtraHTTPHeaders({
+      Accept:
+        'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Cache-Control': 'max-age=0',
+      'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+      'sec-fetch-dest': 'document',
+      'sec-fetch-mode': 'navigate',
+      'sec-fetch-site': 'none',
+      'sec-fetch-user': '?1',
+      'upgrade-insecure-requests': '1',
+    }),
+  ]);
+
+  // Enhanced JavaScript evasions - critical for modern bot detection
+  await page.evaluateOnNewDocument(() => {
+    // Remove webdriver property
+    Object.defineProperty(navigator, 'webdriver', {
+      get: () => undefined,
+    });
+
+    // Fix navigator.languages (common detection vector)
+    Object.defineProperty(navigator, 'languages', {
+      get: () => ['en-US', 'en'],
+    });
+
+    // Create realistic chrome object if missing
+    const w = window as any;
+    if (!w.chrome) {
+      w.chrome = {
+        runtime: {
+          onConnect: undefined,
+          onMessage: undefined,
+        },
+        loadTimes() {
+          return {
+            requestTime: performance.now() / 1000 - Math.random(),
+            startLoadTime: performance.now() / 1000 - Math.random(),
+            commitLoadTime: performance.now() / 1000 - Math.random(),
+            finishDocumentLoadTime: performance.now() / 1000 - Math.random(),
+            finishLoadTime: performance.now() / 1000 - Math.random(),
+            firstPaintTime: performance.now() / 1000 - Math.random(),
+            firstPaintAfterLoadTime: 0,
+            navigationType: 'Other',
+            wasFetchedViaSpdy: false,
+            wasNpnNegotiated: false,
+            npnNegotiatedProtocol: 'unknown',
+            wasAlternateProtocolAvailable: false,
+            connectionInfo: 'unknown',
+          };
+        },
+        csi() {
+          return {
+            startE: Math.round(performance.now()),
+            onloadT: Math.round(performance.now()),
+            pageT: Math.round(performance.now()),
+            tran: 15,
+          };
+        },
+      };
+    } else {
+      // Hide automation traces in existing chrome object
+      Object.defineProperty(w.chrome, 'runtime', {
+        get: () => undefined,
+      });
+    }
+
+    // Fix permissions API (common detection)
+    const originalQuery = window.navigator.permissions.query;
+    window.navigator.permissions.query = ((parameters: PermissionDescriptor) => {
+      if (parameters.name === 'notifications') {
+        return Promise.resolve({ state: 'default' } as any);
+      }
+      return originalQuery(parameters) as any;
+    }) as any;
+  });
+}
+
+/**
+ * Ultra-minimal hardening for maximum speed - search operations only
+ * Removes all resource blocking and minimal bot detection
+ */
+export async function hardenPageUltraFast(page: Page) {
+  // Only the absolute bare minimum to avoid obvious detection
+  await page.setUserAgent(
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  );
+
+  // No viewport setting - use default
+  // No extra headers - use defaults
+  // No JavaScript modifications - accept risk for speed
+  // No request interception - allow all resources
+
+  console.log('⚡ Ultra-fast mode: No resource blocking, minimal hardening');
+}
+
+/**
  * Add human-like behavior patterns after page load
  */
 // Faster version of addHumanBehavior
@@ -474,7 +594,7 @@ export async function runWithBrowser<T>(
 
     // 2. Prepare page
     page = await browser.newPage();
-    await hardenPage(page);
+    await hardenPageFast(page);
 
     // 3. Execute payload with timeout race
     const result = await Promise.race([
