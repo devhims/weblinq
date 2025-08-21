@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 
 interface BrowserDO {
   id: string;
-  status: 'idle' | 'busy' | 'error';
+  status: 'idle' | 'busy' | 'error' | 'closed';
   lastActivity: number;
   created: number;
   sessionId?: string; // Cached browser session ID for instant access
@@ -52,35 +52,65 @@ export class BrowserManagerDO extends DurableObject<CloudflareBindings> {
     const browserDOs = await this.getBrowserDOs();
     console.log(`BrowserManager: Retrieved ${browserDOs.length} DOs in ${Date.now() - operationStart}ms`);
 
-    // Find an idle DO (including newly recovered ones)
-    const availableDO = browserDOs.find((DO) => DO.status === 'idle');
+    // Priority 1: Find an idle DO (including newly recovered ones)
+    const idleDO = browserDOs.find((DO) => DO.status === 'idle');
 
-    if (availableDO) {
+    if (idleDO) {
       const assignmentStart = Date.now();
       console.log(
-        `BrowserManager: Assigning idle DO: ${availableDO.id} with sessionId: ${availableDO.sessionId || 'pending'}`,
+        `BrowserManager: 🎯 Priority 1 - Assigning idle DO: ${idleDO.id} with sessionId: ${
+          idleDO.sessionId || 'pending'
+        }`,
       );
 
       // OPTIMIZATION: Mark as busy and get session ID concurrently
-      availableDO.status = 'busy';
-      availableDO.lastActivity = Date.now();
+      idleDO.status = 'busy';
+      idleDO.lastActivity = Date.now();
 
       // Start both operations concurrently
-      await this.updateBrowserDO(availableDO);
-
-      // If we need a fresh session ID, wait for it and cache it
+      await this.updateBrowserDO(idleDO);
 
       console.log(`BrowserManager: Assignment completed in ${Date.now() - assignmentStart}ms`);
-      return { id: availableDO.id, sessionId: availableDO.sessionId! };
+      return { id: idleDO.id, sessionId: idleDO.sessionId! };
     }
 
-    // No idle DO available, check capacity atomically
-    console.log('BrowserManager: No idle DOs available, checking capacity for new DO creation');
+    // Priority 2: Find a closed DO and launch new browser for it
+    const closedDO = browserDOs.find((DO) => DO.status === 'closed');
 
-    // 🚨 CRITICAL SECTION: Check-then-act must be atomic to prevent race conditions
+    if (closedDO) {
+      console.log(`BrowserManager: 🎯 Priority 2 - Found closed DO: ${closedDO.id}, launching new browser`);
+
+      try {
+        const newSessionId = await this.launchBrowserForClosedDO(closedDO.id);
+        if (newSessionId) {
+          console.log(`BrowserManager: ✅ Successfully launched browser for closed DO: ${closedDO.id}`);
+
+          // Update the DO status to busy and return it
+          closedDO.status = 'busy';
+          closedDO.sessionId = newSessionId;
+          closedDO.lastActivity = Date.now();
+          await this.updateBrowserDO(closedDO);
+
+          return { id: closedDO.id, sessionId: newSessionId };
+        } else {
+          console.log(`BrowserManager: ❌ Failed to launch browser for closed DO: ${closedDO.id}`);
+          // Mark as error and continue to next priority
+          closedDO.status = 'error';
+          closedDO.errorMessage = 'Failed to launch browser';
+          await this.updateBrowserDO(closedDO);
+        }
+      } catch (error) {
+        console.log(`BrowserManager: ❌ Error launching browser for closed DO: ${closedDO.id}`, error);
+        closedDO.status = 'error';
+        closedDO.errorMessage = `Launch error: ${error}`;
+        await this.updateBrowserDO(closedDO);
+      }
+    }
+
+    // Priority 3: Create new DO if below capacity
     const currentCount = browserDOs.length;
     if (currentCount < this.MAX_BROWSER_DOS) {
-      console.log(`BrowserManager: Creating new DO (${currentCount}/${this.MAX_BROWSER_DOS})`);
+      console.log(`BrowserManager: 🎯 Priority 3 - Creating new DO (${currentCount}/${this.MAX_BROWSER_DOS})`);
       const newDO = await this.createNewBrowserDO();
       if (newDO) {
         console.log(`BrowserManager: ✅ Successfully created new DO: ${newDO.id}`);
@@ -90,12 +120,39 @@ export class BrowserManagerDO extends DurableObject<CloudflareBindings> {
 
     console.log(`BrowserManager: Total operation time: ${Date.now() - operationStart}ms`);
 
-    // At max capacity, use promise-based queue instead of polling
-    console.log(`BrowserManager: At max capacity (${currentCount}/${this.MAX_BROWSER_DOS}), queueing request`);
+    // Priority 4: Queue request if at capacity
+    console.log(
+      `BrowserManager: 🎯 Priority 4 - At max capacity (${currentCount}/${this.MAX_BROWSER_DOS}), queueing request`,
+    );
 
     const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
     return this.queueRequest(requestId);
+  }
+
+  /**
+   * Launch a new browser session for a closed DO
+   */
+  private async launchBrowserForClosedDO(doId: string): Promise<string | null> {
+    try {
+      console.log(`BrowserManager: 🚀 Launching browser for closed DO: ${doId}`);
+
+      const browserDo = this.env.BROWSER_DO.idFromName(doId);
+      const browserStub = this.env.BROWSER_DO.get(browserDo);
+
+      const sessionId = await browserStub.generateSessionId(doId);
+
+      if (sessionId) {
+        console.log(`BrowserManager: ✅ Browser launched successfully for DO: ${doId}, sessionId: ${sessionId}`);
+        return sessionId;
+      } else {
+        console.log(`BrowserManager: ❌ Browser launch returned null for DO: ${doId}`);
+        return null;
+      }
+    } catch (error) {
+      console.log(`BrowserManager: ❌ Failed to launch browser for DO: ${doId}`, error);
+      return null;
+    }
   }
 
   private queueRequest(requestId: string): Promise<{ id: string; sessionId: string }> {
@@ -260,7 +317,11 @@ export class BrowserManagerDO extends DurableObject<CloudflareBindings> {
   }
 
   // Called by Browser DOs to update their status
-  async updateDOStatus(doId: string, status: 'idle' | 'busy' | 'error', errorMessage?: string): Promise<void> {
+  async updateDOStatus(
+    doId: string,
+    status: 'idle' | 'busy' | 'error' | 'closed',
+    errorMessage?: string,
+  ): Promise<void> {
     console.log(`BrowserManager: Updating DO ${doId} status to ${status}`);
     const browserDOs = await this.getBrowserDOs();
     console.log(`BrowserManager: Current tracked DOs: ${browserDOs.length}`);
@@ -511,7 +572,7 @@ export class BrowserManagerDO extends DurableObject<CloudflareBindings> {
     }
   }
 
-  async getDoStatus(doId: string): Promise<'idle' | 'busy' | 'error' | 'unknown'> {
+  async getDoStatus(doId: string): Promise<'idle' | 'busy' | 'error' | 'closed' | 'unknown'> {
     const dos = await this.getBrowserDOs();
     return dos.find((d) => d.id === doId)?.status ?? 'unknown';
   }
@@ -606,7 +667,7 @@ export class BrowserManagerDO extends DurableObject<CloudflareBindings> {
     browserDOs: Array<{
       id: string;
       sessionId: string | null;
-      status: 'idle' | 'busy' | 'error';
+      status: 'idle' | 'busy' | 'error' | 'closed';
       errorMessage: string | null;
       errorCount: number;
       lastActivity: string; // Human readable timestamp

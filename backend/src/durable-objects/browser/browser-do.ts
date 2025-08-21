@@ -111,25 +111,36 @@ export class BrowserDO extends DurableObject<CloudflareBindings> {
     }
 
     if (!sid || !healthy || ageMs > REFRESH_THRESHOLD_MS) {
-      console.log('BrowserDO: 🔄 blue‑green refresh');
-      await this.refreshBlueGreen();
+      console.log('BrowserDO: 🔒 Closing session due to age/staleness');
+      await this.closeAndNotify();
     }
   }
 
   /* ------------------------------------------------------------------------ */
-  /*  Blue‑green refresh + early cleanup                                      */
+  /*  Session closure + manager notification                                  */
   /* ------------------------------------------------------------------------ */
-  private async refreshBlueGreen() {
-    this.previousSessionId = (await this.ctx.storage.get<string>('sessionId')) ?? null;
+  private async closeAndNotify() {
+    const doId = this.doId ?? (await this.ctx.storage.get<string>('doId'));
+
+    if (!doId) {
+      console.log('BrowserDO: ⚠️ No DO ID available for notification');
+      return;
+    }
+
     try {
-      const newSid = await this.createNewBrowserWithRetry();
-      await this.notifyManagerOfSessionId(newSid); // tell manager first
-      console.log('BrowserDO: 🌱 new session ready; scheduling polite cleanup');
-      if (this.previousSessionId) {
-        this.ctx.waitUntil(this.politeCleanupWhenIdle(this.previousSessionId));
+      // Notify manager immediately to mark DO as closed (available for reuse)
+      const managerId = this.env.BROWSER_MANAGER_DO.idFromName('global');
+      const manager = this.env.BROWSER_MANAGER_DO.get(managerId);
+      await manager.updateDOStatus(doId, 'closed', 'Session closed due to age limit');
+      console.log('BrowserDO: 📤 Notified manager to close DO:', doId);
+
+      // Schedule polite cleanup in background - don't block the alarm
+      const currentSessionId = (await this.ctx.storage.get<string>('sessionId')) ?? null;
+      if (currentSessionId) {
+        this.ctx.waitUntil(this.politeCleanupWhenIdle(currentSessionId, doId));
       }
     } catch (err) {
-      console.log('BrowserDO: ❌ blue‑green refresh failed', err);
+      console.log('BrowserDO: ❌ Failed to notify manager of session closure:', err);
     }
   }
 
@@ -137,18 +148,17 @@ export class BrowserDO extends DurableObject<CloudflareBindings> {
    * Wait until Manager marks us *idle* (no Worker attached) OR we timeout,
    * then reconnect to the *old* session and close it to free the slot early.
    */
-  private async politeCleanupWhenIdle(oldSid: string) {
+  private async politeCleanupWhenIdle(oldSid: string, doId: string) {
     const managerId = this.env.BROWSER_MANAGER_DO.idFromName('global');
     const manager = this.env.BROWSER_MANAGER_DO.get(managerId);
     const start = Date.now();
 
-    const doId = this.doId ?? (await this.ctx.storage.get<string>('doId'));
-
+    // doId is now required parameter, so we can use it directly
     while (Date.now() - start < POLITE_CLEANUP_TIMEOUT_MS) {
       try {
-        const status: 'idle' | 'busy' | 'error' | 'unknown' = await manager.getDoStatus(doId!);
+        const status: 'idle' | 'busy' | 'error' | 'closed' | 'unknown' = await manager.getDoStatus(doId);
         console.log('BrowserDO Polite Cleanup: 🔍', status, doId);
-        if (status === 'idle') break;
+        if (status === 'idle' || status === 'closed' || status === 'error') break;
       } catch {
         /* ignore */
       }
@@ -177,7 +187,9 @@ export class BrowserDO extends DurableObject<CloudflareBindings> {
     await this.setDoId(expectedId);
     if (this.sessionId) return this.sessionId; // reuse if still valid
     try {
-      return await this.createNewBrowserWithRetry();
+      const newSessionId = await this.createNewBrowserWithRetry();
+      // Don't notify manager here - the caller (manager) will handle it
+      return newSessionId;
     } catch (err) {
       console.log('BrowserDO: ❌ generateSessionId failed', err);
       return null;
