@@ -185,7 +185,7 @@ export class BrowserDO extends DurableObject<CloudflareBindings> {
 
   async generateSessionId(expectedId: string): Promise<string | null> {
     await this.setDoId(expectedId);
-    if (this.sessionId) return this.sessionId; // reuse if still valid
+    // if (this.sessionId) return this.sessionId; // reuse if still valid
     try {
       const newSessionId = await this.createNewBrowserWithRetry();
       // Don't notify manager here - the caller (manager) will handle it
