@@ -420,7 +420,7 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
       'SEARCH',
       async () => {
         const webDurableObject = getWebDurableObject(c, user.id);
-        return await webDurableObject.searchV1(body, user.id);
+        return await webDurableObject.searchV2(body, user.id);
       },
       {
         query: body.query,

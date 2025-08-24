@@ -19,7 +19,7 @@ const security = [{ bearerAuth: [] }];
 // Input schemas for different web operations
 const searchInputSchema = z.object({
   query: z.string().min(1).max(500),
-  limit: z.number().min(1).max(10).optional().default(5),
+  limit: z.number().min(1).max(20).optional().default(10),
 });
 
 // Output schemas
@@ -30,7 +30,9 @@ const searchOutputSchema = createStandardSuccessSchema(
         title: z.string(),
         url: z.string().url(),
         snippet: z.string(),
-        source: z.enum(['duckduckgo', 'startpage', 'yandex', 'bing']),
+        source: z.enum(['Weblinq Search']), // V2 only uses Weblinq Search
+        favicon: z.string().optional(),
+        publishedDate: z.string().optional(),
       }),
     ),
     metadata: z.object({
@@ -39,6 +41,8 @@ const searchOutputSchema = createStandardSuccessSchema(
       searchTime: z.number(),
       sources: z.array(z.string()),
       timestamp: z.string(),
+      requestId: z.string().optional(),
+      debug: z.record(z.any()).optional(),
     }),
   }),
 );

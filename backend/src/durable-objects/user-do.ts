@@ -14,6 +14,7 @@ import { pdfV1 } from '@/lib/v1/pdf';
 import { scrapeV1 } from '@/lib/v1/scrape';
 import { screenshotV1 } from '@/lib/v1/screenshot';
 import { searchV1 } from '@/lib/v1/search';
+import { searchV2 } from '@/lib/v2/search';
 
 export class WebDurableObject extends DurableObject<CloudflareBindings> {
   private userId: string;
@@ -827,6 +828,19 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
     return this.executeWithCredits(
       'SEARCH',
       () => searchV1(this.env, params),
+      {
+        query: params.query,
+        userId: this.userId,
+        limit: params.limit,
+      },
+      userId,
+    );
+  }
+
+  async searchV2(params: Parameters<typeof searchV2>[1], userId: string): Promise<CreditAwareResult<any>> {
+    return this.executeWithCredits(
+      'SEARCH',
+      () => searchV2(this.env, params),
       {
         query: params.query,
         userId: this.userId,
