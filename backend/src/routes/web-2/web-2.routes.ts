@@ -27,10 +27,10 @@ const searchOutputSchema = createStandardSuccessSchema(
   z.object({
     results: z.array(
       z.object({
+        id: z.string(),
         title: z.string(),
         url: z.string().url(),
         snippet: z.string(),
-        source: z.enum(['Weblinq Search']), // V2 only uses Weblinq Search
         favicon: z.string().optional(),
         publishedDate: z.string().optional(),
       }),
@@ -39,10 +39,9 @@ const searchOutputSchema = createStandardSuccessSchema(
       query: z.string(),
       totalResults: z.number(),
       searchTime: z.number(),
-      sources: z.array(z.string()),
       timestamp: z.string(),
       requestId: z.string().optional(),
-      debug: z.record(z.any()).optional(),
+      // debug: z.record(z.any()).optional(),
     }),
   }),
 );

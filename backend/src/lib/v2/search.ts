@@ -37,10 +37,10 @@ export interface SearchV2Success {
   success: true;
   data: {
     results: Array<{
+      id: string;
       title: string;
       url: string;
       snippet: string;
-      source: 'Weblinq Search'; // Always Weblinq Search for V2
       favicon?: string;
       publishedDate?: string;
     }>;
@@ -48,10 +48,8 @@ export interface SearchV2Success {
       query: string;
       totalResults: number;
       searchTime: number;
-      sources: string[];
       timestamp: string;
       requestId?: string;
-      debug?: Record<string, any>;
     };
   };
   creditsCost: number;
@@ -96,6 +94,7 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
       headers: {
         'User-Agent': 'WebLinq-SearchV2/1.0',
         Accept: 'application/json',
+        Authorization: `Bearer ${env.WEBLINQ_SEARCH_SECRET}`,
       },
       // Add timeout
       signal: AbortSignal.timeout(10000), // 10 second timeout
@@ -114,10 +113,10 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
 
     // Transform Weblinq Search results to our format
     const transformedResults = limitedResults.map((result) => ({
+      id: result.url, // Use URL as ID
       title: result.title,
       url: result.url,
       snippet: result.text,
-      source: 'Weblinq Search' as const,
       favicon: result.favicon,
       publishedDate: result.publishedDate,
     }));
@@ -134,17 +133,16 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
           query: params.query,
           totalResults: transformedResults.length,
           searchTime: apiResponse.searchTime,
-          sources: ['Weblinq Search'],
           timestamp: new Date().toISOString(),
           requestId: apiResponse.requestId,
-          debug: {
-            apiSearchTime: apiResponse.searchTime,
-            totalRequestTime: elapsed,
-            autopromptString: apiResponse.autopromptString,
-            autoDate: apiResponse.autoDate,
-            originalResultsCount: apiResponse.results.length,
-            limitedResultsCount: transformedResults.length,
-          },
+          //   debug: {
+          //     apiSearchTime: apiResponse.searchTime,
+          //     totalRequestTime: elapsed,
+          //     autopromptString: apiResponse.autopromptString,
+          //     autoDate: apiResponse.autoDate,
+          //     originalResultsCount: apiResponse.results.length,
+          //     limitedResultsCount: transformedResults.length,
+          //   },
         },
       },
       creditsCost: CREDIT_COST,
