@@ -33,15 +33,41 @@ export type ScrapeResult = {
   }>;
 };
 
-// Search result types
+// Search result types for V2 API
 export interface SearchResult {
+  id: string;
+  title: string;
+  url: string;
+  snippet: string;
+  favicon?: string;
+  publishedDate?: string;
+}
+
+export interface SearchMetadata {
+  query: string;
+  totalResults: number;
+  searchTime: number;
+  timestamp: string;
+  requestId?: string;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  metadata?: SearchMetadata;
+  // Legacy support for direct properties (for backward compatibility)
+  totalResults?: number;
+  searchTime?: number;
+}
+
+// Legacy V1 Search result types (keeping for backward compatibility)
+export interface SearchResultV1 {
   title: string;
   url: string;
   snippet: string;
   source: 'duckduckgo' | 'startpage' | 'bing' | 'yandex';
 }
 
-export interface SearchMetadata {
+export interface SearchMetadataV1 {
   query: string;
   totalResults: number;
   searchTime: number;
@@ -65,9 +91,9 @@ export interface SearchMetadata {
   };
 }
 
-export interface SearchResponse {
-  results: SearchResult[];
-  metadata?: SearchMetadata;
+export interface SearchResponseV1 {
+  results: SearchResultV1[];
+  metadata?: SearchMetadataV1;
   // Legacy support for direct properties
   totalResults?: number;
   searchTime?: number;

@@ -88,6 +88,9 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
     // Note: Weblinq Search API doesn't seem to have a limit parameter in the example
     // We truncate results on our end based on the limit parameter (max 20)
 
+    console.log(`⚡ [SearchV2] Making API request to: ${searchUrl.toString()}`);
+    const apiStart = Date.now();
+
     // Make API request
     const response = await fetch(searchUrl.toString(), {
       method: 'GET',
@@ -96,8 +99,8 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
         Accept: 'application/json',
         Authorization: `Bearer ${env.WEBLINQ_SEARCH_SECRET}`,
       },
-      // Add timeout
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      // Add timeout - updated from 10s to 15s for faster failures
+      signal: AbortSignal.timeout(15000), // 15 second timeout
     });
 
     if (!response.ok) {
@@ -105,7 +108,9 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
     }
 
     const apiResponse: WeblinqSearchResponse = await response.json();
-    console.log(`✅ [SearchV2] Weblinq Search API responded in ${Date.now() - startTime}ms`);
+    const apiTime = Date.now() - apiStart;
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ [SearchV2] Weblinq Search API responded in ${apiTime}ms (total so far: ${totalTime}ms)`);
 
     // Apply limit if specified (max 20 results)
     const limit = Math.min(params.limit ?? 10, 20);
@@ -124,6 +129,8 @@ export async function searchV2(env: CloudflareBindings, params: SearchParams): P
     const elapsed = Date.now() - startTime;
 
     console.log(`🎯 [SearchV2] Search completed in ${elapsed}ms, found ${transformedResults.length} results`);
+    console.log(`📊 [SearchV2] API response size: ${JSON.stringify(apiResponse).length} characters`);
+    console.log(`📊 [SearchV2] Transformed data size: ${JSON.stringify(transformedResults).length} characters`);
 
     return {
       success: true,

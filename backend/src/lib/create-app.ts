@@ -28,11 +28,10 @@ export default function createApp(): AppOpenAPI {
     return authCors(c, next);
   });
 
-  // Auth instance creation for all routes
-  // In Cloudflare Workers, we need fresh DB connections per request
+  // Auth instance creation with default primary session for cold starts
   app.use('*', (c, next) => {
     if (!c.get('auth')) {
-      const auth = createAuth(c.env, c.executionCtx as ExecutionContext);
+      const auth = createAuth(c.env, c.executionCtx as ExecutionContext, 'first-primary');
       c.set('auth', auth);
     }
     return next();

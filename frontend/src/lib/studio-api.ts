@@ -188,7 +188,8 @@ export interface SearchRequest {
   limit?: number;
 }
 
-export interface SearchResponse {
+// Legacy V1 Search Response (keeping for backward compatibility)
+export interface SearchResponseV1 {
   success: boolean;
   data: {
     results: Array<{
@@ -219,6 +220,29 @@ export interface SearchResponse {
           finalResults: number;
         };
       };
+    };
+  };
+  creditsCost: number;
+}
+
+// V2 Search Response (current)
+export interface SearchResponse {
+  success: boolean;
+  data: {
+    results: Array<{
+      id: string;
+      title: string;
+      url: string;
+      snippet: string;
+      favicon?: string;
+      publishedDate?: string;
+    }>;
+    metadata: {
+      query: string;
+      totalResults: number;
+      searchTime: number;
+      timestamp: string;
+      requestId?: string;
     };
   };
   creditsCost: number;
@@ -563,8 +587,15 @@ export const studioApi = {
       body: JSON.stringify(data),
     }),
 
-  // Search web
+  // Search web (V2 API)
   search: (data: SearchRequest): Promise<SearchResponse> =>
+    apiRequest('/v2/web/search', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Legacy V1 search (keeping for backward compatibility)
+  searchLegacy: (data: SearchRequest): Promise<SearchResponseV1> =>
     apiRequest('/v1/web/search', {
       method: 'POST',
       body: JSON.stringify(data),

@@ -19,3 +19,7 @@ _tests/
 MARKDOWN_PERFORMANCE_TESTING.md
 cloudflare-cache-implementation.md
 README-cache-clearing.md
+d1-notes.md
+d1-read-replication.md
+test-search-performance.js
+guides/

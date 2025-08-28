@@ -18,12 +18,16 @@ import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
  */
 export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
   const auth = c.get('auth');
+  const mwStart = Date.now();
 
   try {
     // Always try to get session - better-auth will handle both cookies and bearer tokens
+    const gsStart = Date.now();
     const session = await auth.api.getSession({
       headers: c.req.raw.headers,
     });
+    const gsMs = Date.now() - gsStart;
+    console.log('⏱️ [AUTH] getSession duration (ms):', gsMs);
 
     if (!session) {
       // Enhanced debug logging for development
@@ -68,7 +72,10 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
       });
     }
 
-    return next();
+    const nextStart = Date.now();
+    await next();
+    const nextMs = Date.now() - nextStart;
+    console.log('⏱️ [AUTH] downstream handler duration (ms):', nextMs);
   } catch (error) {
     // Log auth errors for debugging
     console.error('❌ Auth middleware error:', error);
@@ -76,6 +83,8 @@ export const unifiedAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
     c.set('session', null);
     return next();
   }
+  const mwMs = Date.now() - mwStart;
+  console.log('⏱️ [AUTH] unifiedAuth total duration (ms):', mwMs);
 };
 
 /**
@@ -105,7 +114,7 @@ export const requireAuth: MiddlewareHandler<AppBindings> = async (c, next) => {
     });
   }
 
-  await next();
+  return next();
 };
 
 /**
@@ -166,7 +175,7 @@ export const requireAdmin: MiddlewareHandler<AppBindings> = async (c, next) => {
       sessionId: session.id,
     });
 
-    await next();
+    return next();
   } catch (error) {
     console.error('❌ Error checking admin permissions:', error);
     const errorResponse = createStandardErrorResponse(
@@ -178,5 +187,3 @@ export const requireAdmin: MiddlewareHandler<AppBindings> = async (c, next) => {
     });
   }
 };
-
-export default unifiedAuth;

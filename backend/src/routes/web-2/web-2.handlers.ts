@@ -177,11 +177,17 @@ async function checkCredits(
   env: CloudflareBindings,
   userId: string,
   operation: WebOperation,
+  db?: any,
 ): Promise<{ hasCredits: boolean; balance: number; cost: number }> {
   const cost = CREDIT_COSTS[operation];
 
   try {
-    const credits = await getUserCredits(env, userId);
+    const credits = await getUserCredits(env, userId, db);
+
+    // Add D1 Sessions API observability
+    if (db && typeof db.getRawSession === 'function') {
+      console.log(`🌍 [D1-PERF] Credit check using D1 Sessions API`);
+    }
     return {
       hasCredits: credits.balance >= cost,
       balance: credits.balance,
@@ -202,16 +208,24 @@ async function deductCreditsForOperation(
   userId: string,
   operation: WebOperation,
   metadata?: Record<string, any>,
+  db?: any,
 ): Promise<void> {
   const cost = CREDIT_COSTS[operation];
 
   try {
-    await deductCredits(env, userId, cost, operation.toLowerCase(), {
-      operation,
+    await deductCredits(
+      env,
+      userId,
       cost,
-      timestamp: new Date().toISOString(),
-      ...metadata,
-    });
+      operation.toLowerCase(),
+      {
+        operation,
+        cost,
+        timestamp: new Date().toISOString(),
+        ...metadata,
+      },
+      db,
+    );
     console.log(`✅ Deducted ${cost} credits for ${operation} operation (user: ${userId})`);
   } catch (error) {
     console.error(`❌ Failed to deduct credits for ${operation} operation (user: ${userId}):`, error);
@@ -228,14 +242,31 @@ async function executeWithCache<T>(
   operationFn: () => Promise<any>,
   cacheParams: Record<string, any>,
 ): Promise<CreditAwareResult<T>> {
+  const executeStart = Date.now();
+  console.log(`🚀 [PERF] executeWithCache started at ${executeStart}ms`);
+
   const user = c.get('user')!;
   const userId = user.id;
 
-  // Check if we're in development mode to disable caching
-  const isDevelopment = c.env.NODE_ENV === 'preview' || c.env.NODE_ENV === 'preview';
+  // Get session-aware database for all operations
+  const auth = c.get('auth');
+  const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+  console.log(`📖 [D1-SESSION] Using ${db ? 'session-aware' : 'direct'} database connection`);
 
-  // 2. Check credits before proceeding
-  const creditCheck = await checkCredits(c.env, userId, operation);
+  // [Test] Add D1 read replication observability
+  // if (db && typeof db.logReplicationInfo === 'function') {
+  //   c.executionCtx?.waitUntil(db.logReplicationInfo());
+  // }
+
+  // Check if we're in development mode to disable caching
+  const isDevelopment = c.env.NODE_ENV === 'preview' || c.env.NODE_ENV === 'development';
+
+  // 2. Check credits before proceeding (with D1 Sessions API)
+  const creditStart = Date.now();
+  console.log(`💳 [PERF] Starting credit check at ${creditStart}ms`);
+  const creditCheck = await checkCredits(c.env, userId, operation, db);
+  const creditEnd = Date.now();
+  console.log(`💳 [PERF] Credit check completed in ${creditEnd - creditStart}ms`);
 
   if (!creditCheck.hasCredits) {
     return {
@@ -248,15 +279,24 @@ async function executeWithCache<T>(
   }
 
   // 1. Generate cache key and check cache first (skip in development mode)
+  const cacheKeyStart = Date.now();
+  console.log(`🔑 [PERF] Generating cache key at ${cacheKeyStart}ms`);
   const cacheKey = generateCacheKey(operation, userId, cacheParams);
+  const cacheKeyEnd = Date.now();
+  console.log(`🔑 [PERF] Cache key generated in ${cacheKeyEnd - cacheKeyStart}ms`);
 
   if (!isDevelopment) {
+    const cacheCheckStart = Date.now();
+    console.log(`💾 [PERF] Checking cache at ${cacheCheckStart}ms`);
     const cachedResult = await getCachedResult<T>(cacheKey, operation);
+    const cacheCheckEnd = Date.now();
+    console.log(`💾 [PERF] Cache check completed in ${cacheCheckEnd - cacheCheckStart}ms`);
 
     if (cachedResult) {
+      console.log(`✅ [PERF] Cache HIT - returning cached result`);
       // Update credits remaining with current balance (cache might be stale)
       try {
-        c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams));
+        c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams, db));
         const updatedBalance = creditCheck.balance - creditCheck.cost;
 
         // Return cached result with updated credit information
@@ -280,12 +320,28 @@ async function executeWithCache<T>(
   }
 
   try {
-    console.log(`🚀 Executing ${operation} operation (${isDevelopment ? 'development mode' : 'cache miss'})`);
+    const operationStart = Date.now();
+    console.log(
+      `🚀 [PERF] Executing ${operation} operation at ${operationStart}ms (${
+        isDevelopment ? 'development mode' : 'cache miss'
+      })`,
+    );
 
     // 3. Execute the operation
     const result = await operationFn();
+    const operationEnd = Date.now();
+    console.log(`⚡ [PERF] Operation execution completed in ${operationEnd - operationStart}ms`);
+
+    // Add detailed post-operation timing
+    const postOperationStart = Date.now();
+    console.log(
+      `🔍 [PERF] Post-operation processing starting at ${postOperationStart}ms (gap from operation: ${
+        postOperationStart - operationEnd
+      }ms)`,
+    );
 
     if (!result.success) {
+      console.log(`❌ [PERF] Operation failed - skipping cache and credit deduction`);
       // Don't cache or deduct credits for failed operations
       return {
         success: false,
@@ -296,22 +352,48 @@ async function executeWithCache<T>(
       };
     }
 
-    // 4. Deduct credits for successful operation
-    c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams));
+    const successCheckEnd = Date.now();
+    console.log(`✅ [PERF] Success check completed in ${successCheckEnd - postOperationStart}ms`);
 
+    // 4. Deduct credits for successful operation
+    const creditDeductStart = Date.now();
+    console.log(
+      `💳 [PERF] Starting credit deduction at ${creditDeductStart}ms (gap from success check: ${
+        creditDeductStart - successCheckEnd
+      }ms)`,
+    );
+    c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams, db));
+    const creditDeductEnd = Date.now();
+    console.log(`💳 [PERF] Credit deduction initiated in ${creditDeductEnd - creditDeductStart}ms`);
+
+    const balanceCalcStart = Date.now();
+    console.log(
+      `🧮 [PERF] Starting balance calculation at ${balanceCalcStart}ms (gap from credit deduction: ${
+        balanceCalcStart - creditDeductEnd
+      }ms)`,
+    );
     const updatedBalance = creditCheck.balance - creditCheck.cost;
+    const balanceCalcEnd = Date.now();
+    console.log(`🧮 [PERF] Balance calculation completed in ${balanceCalcEnd - balanceCalcStart}ms`);
 
     // 5. Cache the successful result in background (skip in development mode)
     if (!isDevelopment) {
+      const cacheStoreStart = Date.now();
+      console.log(`💾 [PERF] Starting cache storage at ${cacheStoreStart}ms`);
       try {
         if (c.executionCtx?.waitUntil) {
           c.executionCtx.waitUntil(setCachedResult(cacheKey, operation, result.data));
-          console.log(`✅ Background caching initiated for ${operation}`);
+          const cacheStoreEnd = Date.now();
+          console.log(
+            `✅ [PERF] Background caching initiated in ${cacheStoreEnd - cacheStoreStart}ms for ${operation}`,
+          );
         } else {
           // Fallback: cache asynchronously (non-blocking for user)
           setCachedResult(cacheKey, operation, result.data).catch((error) => {
             console.error(`❌ Background cache operation failed for ${operation}:`, error);
           });
+          const cacheStoreEnd = Date.now();
+          console.log(`✅ [PERF] Async caching initiated in ${cacheStoreEnd - cacheStoreStart}ms for ${operation}`);
         }
       } catch (cacheError) {
         console.error(`❌ Failed to initiate background caching for ${operation}:`, cacheError);
@@ -321,13 +403,27 @@ async function executeWithCache<T>(
       console.log(`🧪 Development mode: Skipping cache storage for ${operation}`);
     }
 
-    return {
+    const finalResponseStart = Date.now();
+    console.log(`📦 [PERF] Starting final response preparation at ${finalResponseStart}ms`);
+
+    const responseData = {
       success: true,
       data: result.data,
       creditsCost: creditCheck.cost,
       creditsRemaining: updatedBalance,
       fromCache: false,
     };
+
+    const finalResponseEnd = Date.now();
+    console.log(`📦 [PERF] Final response prepared in ${finalResponseEnd - finalResponseStart}ms`);
+
+    const totalTimingStart = Date.now();
+    const totalTime = totalTimingStart - executeStart;
+    const totalTimingEnd = Date.now();
+    console.log(`⏱️ [PERF] Total time calculation took ${totalTimingEnd - totalTimingStart}ms`);
+    console.log(`🏁 [PERF] executeWithCache total time: ${totalTime}ms`);
+
+    return responseData;
   } catch (error) {
     // If operation fails, don't deduct credits or cache the result
     console.error(`❌ Operation ${operation} failed:`, error);
@@ -350,19 +446,24 @@ async function logOperationFailure(
   result: CreditAwareResult<any>,
   input: any,
   operationId: string,
+  db?: any,
 ) {
   try {
-    await logError(c.env, {
-      userId: c.get('user')!.id,
-      operation,
-      source: 'web-2_handler',
-      level: 'error',
-      message: result.error || 'Unknown error',
-      context: {
-        input: JSON.stringify(input),
-        operationId,
+    await logError(
+      c.env,
+      {
+        userId: c.get('user')!.id,
+        operation,
+        source: 'web-2_handler',
+        level: 'error',
+        message: result.error || 'Unknown error',
+        context: {
+          input: JSON.stringify(input),
+          operationId,
+        },
       },
-    });
+      db,
+    );
   } catch (logError) {
     console.error('Failed to log operation failure:', logError);
   }
@@ -388,19 +489,23 @@ function handleOperationError(c: any, result: CreditAwareResult<any>, _operation
 /**
  * Log critical errors that should be monitored
  */
-async function logCriticalError(c: any, operation: string, error: unknown) {
+async function logCriticalError(c: any, operation: string, error: unknown, db?: any) {
   try {
     const user = c.get('user');
-    await logError(c.env, {
-      userId: user?.id || 'unknown',
-      operation,
-      source: 'web-2_handler',
-      level: 'critical',
-      message: error instanceof Error ? error.message : 'Unknown critical error',
-      context: {
-        operationId: `critical-${operation}-${Date.now()}`,
+    await logError(
+      c.env,
+      {
+        userId: user?.id || 'unknown',
+        operation,
+        source: 'web-2_handler',
+        level: 'critical',
+        message: error instanceof Error ? error.message : 'Unknown critical error',
+        context: {
+          operationId: `critical-${operation}-${Date.now()}`,
+        },
       },
-    });
+      db,
+    );
   } catch (logError) {
     console.error('Failed to log critical error:', logError);
   }
@@ -411,16 +516,41 @@ async function logCriticalError(c: any, operation: string, error: unknown) {
 /* ========================================================================== */
 
 export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
+  const handlerStart = Date.now();
+  console.log(`🚀 [PERF] V2 Search handler started at ${handlerStart}ms`);
+
+  // Get session-aware database for logging
+  const auth = c.get('auth');
+  const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
+
+    const validationTime = Date.now();
+    console.log(`✅ [PERF] Request validation completed in ${validationTime - handlerStart}ms`);
+
+    // BACK TO ORIGINAL: executeWithCache with detailed performance logging
+    const cacheStart = Date.now();
+    console.log(`💾 [PERF] Starting executeWithCache at ${cacheStart}ms`);
 
     const result: CreditAwareResult<any> = await executeWithCache(
       c,
       'SEARCH',
       async () => {
+        const doStart = Date.now();
+        console.log(`🎯 [PERF] Getting Durable Object at ${doStart}ms`);
+
         const webDurableObject = getWebDurableObject(c, user.id);
-        return await webDurableObject.searchV2(body, user.id);
+        const doGetTime = Date.now();
+        console.log(`📦 [PERF] Durable Object acquired in ${doGetTime - doStart}ms`);
+
+        const searchStart = Date.now();
+        const searchResult = await webDurableObject.searchV2(body, user.id);
+        const searchEnd = Date.now();
+        console.log(`🔍 [PERF] DO.searchV2 completed in ${searchEnd - searchStart}ms`);
+
+        return searchResult;
       },
       {
         query: body.query,
@@ -428,15 +558,37 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
       },
     );
 
+    const cacheEnd = Date.now();
+    console.log(`💾 [PERF] executeWithCache completed in ${cacheEnd - cacheStart}ms`);
+
     if (!result.success) {
-      await logOperationFailure(c, 'search', result, body, `search:${body.query}`);
+      const errorTime = Date.now();
+      console.log(`❌ [PERF] Search failed at ${errorTime}ms (Total: ${errorTime - handlerStart}ms)`);
+
+      await logOperationFailure(c, 'search', result, body, `search:${body.query}`, db);
       return handleOperationError(c, result, 'search', body);
     }
 
-    return c.json(result, HttpStatusCodes.OK);
+    const successTime = Date.now();
+    console.log(`✅ [PERF] V2 Search handler SUCCESS - Total time: ${successTime - handlerStart}ms`);
+
+    // Response preparation timing
+    const responseStart = Date.now();
+    console.log(`📊 [PERF] Response size: ${JSON.stringify(result).length} characters`);
+
+    const jsonResponse = c.json(result, HttpStatusCodes.OK);
+    const responseEnd = Date.now();
+    console.log(`🚀 [PERF] Final JSON response creation took ${responseEnd - responseStart}ms`);
+
+    return jsonResponse;
   } catch (error) {
+    const errorTime = Date.now();
+    console.log(`❌ [PERF] V2 Search handler EXCEPTION - Total time: ${errorTime - handlerStart}ms`);
+
     console.error('Search error:', error);
-    await logCriticalError(c, 'search', error);
+
+    // Background error logging (non-blocking)
+    c.executionCtx?.waitUntil(logCriticalError(c, 'search', error, db));
 
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',

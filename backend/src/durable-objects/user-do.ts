@@ -28,8 +28,8 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
 
   // Constants for concurrent request limits
   private static readonly CONCURRENT_LIMITS = {
-    free: 2,
-    pro: 5,
+    free: 5,
+    pro: 10,
   } as const;
 
   constructor(ctx: DurableObjectState, env: CloudflareBindings) {
@@ -838,16 +838,7 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
   }
 
   async searchV2(params: Parameters<typeof searchV2>[1], userId: string): Promise<CreditAwareResult<any>> {
-    return this.executeWithCredits(
-      'SEARCH',
-      () => searchV2(this.env, params),
-      {
-        query: params.query,
-        userId: this.userId,
-        limit: params.limit,
-      },
-      userId,
-    );
+    return this.executeSearchOnly('SEARCH', () => searchV2(this.env, params), userId);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -870,6 +861,126 @@ export class WebDurableObject extends DurableObject<CloudflareBindings> {
       },
       userId,
     );
+  }
+
+  /**
+   * Optimized execution for search operations only
+   * Skips database initialization, credit checking, and other heavy operations
+   * Focuses purely on concurrent request limiting for maximum performance
+   */
+  private async executeSearchOnly<T>(
+    operation: WebOperation,
+    operationFn: () => Promise<T>,
+    requestUserId?: string,
+  ): Promise<CreditAwareResult<T>> {
+    const perfStart = Date.now();
+    console.log(`🚀 [PERF] executeSearchOnly started for ${operation} at ${perfStart}ms`);
+
+    // 1. Quick user ID verification (only in production)
+    const isProduction = this.env.NODE_ENV === 'production';
+    if (requestUserId && isProduction && (!this.userId || this.userId !== requestUserId)) {
+      console.error(
+        `❌ [PERF] User ID mismatch in ${operation}: expected ${this.userId}, got ${requestUserId} (${
+          Date.now() - perfStart
+        }ms)`,
+      );
+      return {
+        success: false,
+        error: 'Invalid user context',
+      };
+    }
+
+    const userVerifyTime = Date.now();
+    console.log(`✅ [PERF] User verification completed in ${userVerifyTime - perfStart}ms`);
+
+    // 2. Acquire request slot for concurrent limiting (this is the main purpose)
+    const requestId = randomUUID();
+    const slotAcquired = await this.acquireRequestSlot(requestId);
+
+    const slotAcquireTime = Date.now();
+    console.log(
+      `🎯 [PERF] Slot acquisition ${slotAcquired ? 'SUCCESS' : 'FAILED'} in ${slotAcquireTime - userVerifyTime}ms`,
+    );
+
+    if (!slotAcquired) {
+      console.log(`🚫 [PERF] Rate limit exceeded after ${slotAcquireTime - perfStart}ms total`);
+      return {
+        success: false,
+        error: `Rate limit exceeded. You have reached the maximum concurrent requests (${this.maxConcurrentRequests}) for your ${this.userPlan} plan. Please wait for an existing request to complete or upgrade to Pro for higher limits.`,
+      };
+    }
+
+    try {
+      const operationStart = Date.now();
+      console.log(
+        `⚡ [PERF] Starting search operation at ${operationStart}ms (setup took ${operationStart - perfStart}ms)`,
+      );
+
+      // 3. Execute the search operation (no database setup, no credit checking)
+      const result = await operationFn();
+
+      const operationEnd = Date.now();
+      console.log(`🎯 [PERF] Search operation completed in ${operationEnd - operationStart}ms`);
+
+      // Check if the result is already in the expected format
+      if (typeof result === 'object' && result !== null && 'success' in result) {
+        const typedResult = result as any;
+
+        if (typedResult.success) {
+          const totalTime = Date.now() - perfStart;
+          console.log(
+            `✅ [PERF] executeSearchOnly SUCCESS - Total time: ${totalTime}ms (setup: ${
+              operationStart - perfStart
+            }ms, operation: ${operationEnd - operationStart}ms, cleanup: ${Date.now() - operationEnd}ms)`,
+          );
+
+          return {
+            success: true,
+            data: typedResult.data,
+          };
+        } else {
+          const totalTime = Date.now() - perfStart;
+          console.log(`❌ [PERF] executeSearchOnly OPERATION_FAILED - Total time: ${totalTime}ms`);
+
+          return {
+            success: false,
+            error: typedResult.error?.message || typedResult.error || 'Operation failed',
+          };
+        }
+      }
+
+      // For functions that return raw data (no success wrapper)
+      const totalTime = Date.now() - perfStart;
+      console.log(`✅ [PERF] executeSearchOnly SUCCESS (raw data) - Total time: ${totalTime}ms`);
+
+      return {
+        success: true,
+        data: result,
+      };
+    } catch (error) {
+      const totalTime = Date.now() - perfStart;
+      console.log(
+        `❌ [PERF] executeSearchOnly EXCEPTION - Total time: ${totalTime}ms, Error: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Operation failed',
+      };
+    } finally {
+      // Always release the request slot
+      const cleanupStart = Date.now();
+      this.releaseRequestSlot(requestId);
+      const cleanupEnd = Date.now();
+
+      console.log(
+        `🔓 [PERF] Request slot released in ${cleanupEnd - cleanupStart}ms (Total execution: ${
+          cleanupEnd - perfStart
+        }ms)`,
+      );
+    }
   }
 
   /**

@@ -21,6 +21,7 @@ router.post('/system/cleanup-do', handlers.cleanupDo);
 router.post('/system/delete-all-browsers', handlers.deleteAllBrowsers);
 router.post('/system/check-remaining', handlers.checkRemaining);
 router.post('/system/close-browser-session', handlers.closeBrowserSession);
+router.post('/system/test-d1-replication', handlers.testD1Replication);
 router.openapi(routes.updateUserPlan, handlers.updateUserPlan);
 
 export default router;

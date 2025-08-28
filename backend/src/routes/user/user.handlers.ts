@@ -58,9 +58,15 @@ export const getCredits: AppRouteHandler<GetCreditsRoute> = async (c) => {
       return c.json(errorResponse, HttpStatusCodes.UNAUTHORIZED);
     }
 
-    // Get user credits using the environment from context
+    // Get session-aware database for D1 Sessions API performance
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
+    console.log(`💳 [USER-API] Getting credits for user ${user.id} using ${db ? 'session-aware' : 'direct'} database`);
+
+    // Get user credits using the session-aware database
     const env = c.env;
-    const credits = await getUserCredits(env, user.id);
+    const credits = await getUserCredits(env, user.id, db);
 
     return c.json(createStandardSuccessResponse(credits), HttpStatusCodes.OK);
   } catch (error) {
@@ -84,9 +90,17 @@ export const bootstrapCredits: AppRouteHandler<BootstrapCreditsRoute> = async (c
       return c.json(errorResponse, HttpStatusCodes.UNAUTHORIZED);
     }
 
+    // Get session-aware database for D1 Sessions API performance
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
+    console.log(
+      `💳 [USER-API] Bootstrapping credits for user ${user.id} using ${db ? 'session-aware' : 'direct'} database`,
+    );
+
     // Get environment from context and assign initial credits
     const env = c.env;
-    await assignInitialCredits(env, user.id);
+    await assignInitialCredits(env, user.id, db);
 
     return c.json(createStandardSuccessResponse({}), HttpStatusCodes.OK);
   } catch (error) {
@@ -153,9 +167,15 @@ export const verifyEmail: AppRouteHandler<VerifyEmailRoute> = async (c) => {
     const body = c.req.valid('json');
     const { email } = body;
 
-    // Get database connection using the same pattern as other handlers
-    const env = c.env;
-    const db = createDb(env);
+    // Get session-aware database for D1 Sessions API performance
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : createDb(c.env);
+
+    console.log(
+      `📧 [USER-API] Verifying email ${email} using ${
+        auth && typeof auth.getDb === 'function' ? 'session-aware' : 'direct'
+      } database`,
+    );
 
     // Check if user with this email exists
     const existingUser = await db.select().from(user).where(eq(user.email, email)).limit(1);

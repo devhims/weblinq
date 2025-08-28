@@ -19,12 +19,12 @@ import { Polar } from '@polar-sh/sdk';
 import { getTrustedOrigins } from './auth-utils';
 import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from './email';
 
-export function createAuth(env: CloudflareBindings, executionCtx?: ExecutionContext) {
+export function createAuth(env: CloudflareBindings, executionCtx?: ExecutionContext, bookmark?: string) {
   /* ---------- environment detection ---------- */
   const isLocal = env.BETTER_AUTH_URL?.startsWith('http://localhost');
 
-  /* ---------- database ---------- */
-  const db = createDb(env);
+  /* ---------- database with Sessions API ---------- */
+  const db = createDb(env, bookmark);
   const adapter = drizzleAdapter(db, { provider: 'sqlite', schema });
 
   /* ---------- cookie block shared with Next.js ---------- */
@@ -43,7 +43,7 @@ export function createAuth(env: CloudflareBindings, executionCtx?: ExecutionCont
     server: env.POLAR_ENVIRONMENT === 'production' ? 'production' : 'sandbox',
   });
 
-  return betterAuth({
+  const auth = betterAuth({
     /* Where this instance lives */
     baseURL: env.BETTER_AUTH_URL, // e.g. https://api.weblinq.dev or http://localhost:8787
 
@@ -124,9 +124,12 @@ export function createAuth(env: CloudflareBindings, executionCtx?: ExecutionCont
               try {
                 console.log(`🚀 Starting background initialization for user ${user.id} (${user.email})`);
 
+                // Create database instance for initialization tasks
+                const db = createDb(env);
+
                 // Run all initialization tasks in parallel for better performance
                 const [creditsResult, doResult, emailResult] = await Promise.allSettled([
-                  assignInitialCredits(env, user.id),
+                  assignInitialCredits(env, user.id, db),
                   initializeWebDurableObject(env, user.id),
                   sendWelcomeEmail(env, user.email, firstName),
                 ]);
@@ -235,6 +238,12 @@ export function createAuth(env: CloudflareBindings, executionCtx?: ExecutionCont
       }),
     ],
   });
+
+  // Extend auth with D1 Sessions API bookmark functionality
+  return Object.assign(auth, {
+    getBookmark: () => db.getBookmark(),
+    getDb: () => db,
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -258,16 +267,23 @@ async function handleSubscriptionCanceled(env: CloudflareBindings, payload: any)
     const { userId } = await extractUserAndStatus(payload);
     if (!userId) return;
 
+    // Create database instance for webhook handler performance
+    const db = createDb(env);
+
     // Update subscription status + downgrade to free plan (preserve credits)
-    await createOrUpdatePolarSubscription(env, {
-      userId,
-      subscriptionId: payload.data.id,
-      status: 'cancelled', // Normalize status
-      plan: 'free',
-      startedAt: payload.data.startedAt ? new Date(payload.data.startedAt) : new Date(),
-      currentPeriodEnd: payload.data.currentPeriodEnd ? new Date(payload.data.currentPeriodEnd) : undefined,
-      cancelledAt: payload.data.cancelledAt ? new Date(payload.data.cancelledAt) : new Date(), // Use current time if not provided
-    });
+    await createOrUpdatePolarSubscription(
+      env,
+      {
+        userId,
+        subscriptionId: payload.data.id,
+        status: 'cancelled', // Normalize status
+        plan: 'free',
+        startedAt: payload.data.startedAt ? new Date(payload.data.startedAt) : new Date(),
+        currentPeriodEnd: payload.data.currentPeriodEnd ? new Date(payload.data.currentPeriodEnd) : undefined,
+        cancelledAt: payload.data.cancelledAt ? new Date(payload.data.cancelledAt) : new Date(), // Use current time if not provided
+      },
+      db,
+    );
 
     // Notify WebDurableObject of plan change for updated concurrent request limits
     await notifyPlanChange(env, userId, 'free');
@@ -347,25 +363,32 @@ async function handleInitialSubscription(env: CloudflareBindings, payload: any, 
     return;
   }
 
+  // Create database instance for webhook handler performance
+  const db = createDb(env);
+
   // Create subscription record + assign Pro credits (5000)
-  await createOrUpdatePolarSubscription(env, {
-    userId,
-    subscriptionId,
-    status: 'active', // Order exists = subscription is active
-    plan: 'pro',
-    startedAt: new Date(payload.data.createdAt),
-    currentPeriodStart: payload.data.subscription?.currentPeriodStart
-      ? new Date(payload.data.subscription.currentPeriodStart)
-      : undefined,
-    currentPeriodEnd: payload.data.subscription?.currentPeriodEnd
-      ? new Date(payload.data.subscription.currentPeriodEnd)
-      : undefined,
-    cancelledAt: undefined,
-  });
+  await createOrUpdatePolarSubscription(
+    env,
+    {
+      userId,
+      subscriptionId,
+      status: 'active', // Order exists = subscription is active
+      plan: 'pro',
+      startedAt: new Date(payload.data.createdAt),
+      currentPeriodStart: payload.data.subscription?.currentPeriodStart
+        ? new Date(payload.data.subscription.currentPeriodStart)
+        : undefined,
+      currentPeriodEnd: payload.data.subscription?.currentPeriodEnd
+        ? new Date(payload.data.subscription.currentPeriodEnd)
+        : undefined,
+      cancelledAt: undefined,
+    },
+    db,
+  );
 
   // Create payment record for successful subscription
   if (payload.data.amount) {
-    await createPaymentRecordSafely(env, payload, userId);
+    await createPaymentRecordSafely(env, payload, userId, db);
   }
 
   // Notify WebDurableObject of plan change for updated concurrent request limits
@@ -384,12 +407,19 @@ async function handleMonthlyRenewal(env: CloudflareBindings, payload: any, userI
     return;
   }
 
+  // Create database instance for webhook handler performance
+  const db = createDb(env);
+
   // Process monthly credit refill for Pro subscribers
-  await processMonthlyRefill(env, {
-    userId,
-    subscriptionId,
-    orderId: payload.data.id,
-  });
+  await processMonthlyRefill(
+    env,
+    {
+      userId,
+      subscriptionId,
+      orderId: payload.data.id,
+    },
+    db,
+  );
 
   console.log(`🔁 Monthly renewal processed for user ${userId}, subscription ${subscriptionId}`);
 }
@@ -404,26 +434,33 @@ async function handleSubscriptionUpdate(env: CloudflareBindings, payload: any, u
     return;
   }
 
+  // Create database instance for webhook handler performance
+  const db = createDb(env);
+
   // For now, treat updates similar to initial subscriptions
   // In the future, you might want to handle partial credits based on proration
-  await createOrUpdatePolarSubscription(env, {
-    userId,
-    subscriptionId,
-    status: 'active',
-    plan: 'pro',
-    startedAt: new Date(payload.data.createdAt),
-    currentPeriodStart: payload.data.subscription?.currentPeriodStart
-      ? new Date(payload.data.subscription.currentPeriodStart)
-      : undefined,
-    currentPeriodEnd: payload.data.subscription?.currentPeriodEnd
-      ? new Date(payload.data.subscription.currentPeriodEnd)
-      : undefined,
-    cancelledAt: undefined,
-  });
+  await createOrUpdatePolarSubscription(
+    env,
+    {
+      userId,
+      subscriptionId,
+      status: 'active',
+      plan: 'pro',
+      startedAt: new Date(payload.data.createdAt),
+      currentPeriodStart: payload.data.subscription?.currentPeriodStart
+        ? new Date(payload.data.subscription.currentPeriodStart)
+        : undefined,
+      currentPeriodEnd: payload.data.subscription?.currentPeriodEnd
+        ? new Date(payload.data.subscription.currentPeriodEnd)
+        : undefined,
+      cancelledAt: undefined,
+    },
+    db,
+  );
 
   // Create payment record for the update
   if (payload.data.amount) {
-    await createPaymentRecordSafely(env, payload, userId);
+    await createPaymentRecordSafely(env, payload, userId, db);
   }
 
   // Notify WebDurableObject of plan change for updated concurrent request limits
@@ -458,18 +495,22 @@ async function extractUserAndStatus(payload: any) {
   return { userId, status: _status };
 }
 
-async function createPaymentRecordSafely(env: CloudflareBindings, payload: any, userId: string) {
+async function createPaymentRecordSafely(env: CloudflareBindings, payload: any, userId: string, db?: any) {
   try {
     console.log('🔍 Creating payment record for successful subscription...');
-    await createPaymentRecord(env, {
-      paymentId: payload.data.checkoutId || `payment_${payload.data.id}`,
-      userId,
-      amountCents: payload.data.amount, // Polar sends amount in cents
-      currency: payload.data.currency || 'usd',
-      billingCountry: payload.data.customer?.billingAddress?.country,
-      paidAt: new Date(payload.data.startedAt || payload.data.createdAt),
-      type: 'charge',
-    });
+    await createPaymentRecord(
+      env,
+      {
+        paymentId: payload.data.checkoutId || `payment_${payload.data.id}`,
+        userId,
+        amountCents: payload.data.amount, // Polar sends amount in cents
+        currency: payload.data.currency || 'usd',
+        billingCountry: payload.data.customer?.billingAddress?.country,
+        paidAt: new Date(payload.data.startedAt || payload.data.createdAt),
+        type: 'charge',
+      },
+      db,
+    );
   } catch (paymentError) {
     console.error('❌ Failed to create payment record (non-critical):', paymentError);
     // Don't throw - payment record creation failure shouldn't break subscription processing

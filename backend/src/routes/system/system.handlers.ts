@@ -353,6 +353,97 @@ export async function closeBrowserSession(c: Context<AppBindings>) {
 }
 
 /**
+ * Test D1 read replication endpoint - Test and verify D1 read replication behavior
+ */
+export async function testD1Replication(c: Context<AppBindings>) {
+  try {
+    const user = c.get('user')!; // requireAuth ensures user exists
+
+    console.log('🧪 [D1-TEST] Testing read replication for user:', { userId: user.id });
+
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
+    if (!db || typeof db.logReplicationInfo !== 'function') {
+      const errorResponse = createStandardErrorResponse(
+        'D1 Sessions API not available',
+        ERROR_CODES.INTERNAL_SERVER_ERROR,
+      );
+      return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+        'X-Request-ID': errorResponse.error.requestId!,
+      });
+    }
+
+    // Test current session
+    const replicationResults = await db.logReplicationInfo();
+
+    // Normalize results to ensure schema-safe types
+    const normalizedResults = Array.isArray(replicationResults)
+      ? replicationResults.map((r: any) => ({
+          query: String(r.query ?? ''),
+          served_by_region: (r?.served_by_region as string | undefined) ?? 'unknown',
+          served_by_primary: Boolean(r?.served_by_primary),
+        }))
+      : null;
+
+    // Get the starting constraint from the DB session for this request
+    const currentConstraint = typeof db.getStartingConstraint === 'function' ? db.getStartingConstraint() : 'unknown';
+
+    // Derive user location hint from Cloudflare request metadata
+    const cf = (c.req.raw as any)?.cf as any;
+
+    const userRegion = cf?.continent ?? cf?.country ?? 'unknown';
+
+    // Determine primary region from the query that hit primary, if available
+    const primaryRegionFromResults = normalizedResults?.find(
+      (r: any) => r.served_by_primary === true,
+    )?.served_by_region;
+
+    const testResults = {
+      session_info: {
+        session_constraint: currentConstraint,
+        user_region: userRegion,
+        timestamp: new Date().toISOString(),
+      },
+      replication_tests: normalizedResults,
+      analysis: {
+        using_read_replicas: normalizedResults?.some((r: any) => r.served_by_primary === false) || false,
+        primary_region: primaryRegionFromResults || 'unknown',
+        all_queries_from_primary: normalizedResults?.every((r: any) => r.served_by_primary === true) || false,
+      },
+      recommendations: [
+        'D1 intelligently routes to the fastest available database instance',
+        'served_by_primary: true means primary DB is fastest (same/nearby region)',
+        'served_by_primary: false means read replica was used (geographically closer)',
+        'Performance varies based on: geographic location, replica sync status, and load',
+        'Using first-primary ensures consistent fresh data access',
+        'Region switching (APAC ↔ EEUR) indicates D1 optimizing routing in real-time',
+      ],
+    };
+
+    console.log('✅ [D1-TEST] Read replication test completed:', {
+      using_read_replicas: testResults.analysis.using_read_replicas,
+      primary_region: testResults.analysis.primary_region,
+      total_queries_tested: replicationResults?.length || 0,
+    });
+
+    return c.json(
+      createStandardSuccessResponse(testResults, 0), // No credits cost for system monitoring
+      HttpStatusCodes.OK,
+    );
+  } catch (error) {
+    console.error('Test D1 replication error:', error);
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Failed to test D1 replication',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+      'X-Request-ID': errorResponse.error.requestId!,
+    });
+  }
+}
+
+/**
  * Admin update user plan endpoint - Update a user's plan (free/pro) for admin users
  *
  * Usage example:

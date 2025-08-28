@@ -41,9 +41,9 @@ function getCreditAmounts(env: CloudflareBindings) {
 /* 1. Users                                                            */
 /* ------------------------------------------------------------------ */
 
-export async function getUserById(env: CloudflareBindings, userId: string) {
-  const db = createDb(env);
-  const [u] = await db.select().from(user).where(eq(user.id, userId)).limit(1);
+export async function getUserById(env: CloudflareBindings, userId: string, db?: any) {
+  const database = db || createDb(env);
+  const [u] = await database.select().from(user).where(eq(user.id, userId)).limit(1);
   return u ?? null;
 }
 
@@ -61,11 +61,15 @@ interface CreditSnapshot {
  * Assign initial credits to a new user
  * This function should be called during user creation
  */
-export async function assignInitialCredits(env: CloudflareBindings, userId: string): Promise<void> {
-  const db = createDb(env);
+export async function assignInitialCredits(env: CloudflareBindings, userId: string, db?: any): Promise<void> {
+  const database = db || createDb(env);
 
   // Check if user already has credits to prevent duplicate assignment
-  const existingCredits = await db.select().from(creditBalances).where(eq(creditBalances.userId, userId)).limit(1);
+  const existingCredits = await database
+    .select()
+    .from(creditBalances)
+    .where(eq(creditBalances.userId, userId))
+    .limit(1);
 
   if (existingCredits.length > 0) {
     console.log(`User ${userId} already has credits, skipping initial assignment`);
@@ -83,15 +87,21 @@ export async function assignInitialCredits(env: CloudflareBindings, userId: stri
     const creditAmounts = getCreditAmounts(env);
     const freeCreditAmount = creditAmounts.INITIAL_FREE;
 
+    console.log(
+      `💳 [D1-QUERY] Assigning ${freeCreditAmount} initial credits for user ${userId} using ${
+        db ? 'session-aware' : 'new'
+      } database`,
+    );
+
     // 1️⃣ Create initial credit balance row
-    await db.insert(creditBalances).values({
+    await database.insert(creditBalances).values({
       userId,
       plan: 'free',
       balance: freeCreditAmount,
     });
 
     // 2️⃣ Record the initial credit transaction
-    await db.insert(creditTransactions).values({
+    await database.insert(creditTransactions).values({
       id: randomUUID(),
       userId,
       delta: freeCreditAmount,
@@ -106,11 +116,14 @@ export async function assignInitialCredits(env: CloudflareBindings, userId: stri
   }
 }
 
-export async function getUserCredits(env: CloudflareBindings, userId: string): Promise<CreditSnapshot> {
-  const db = createDb(env);
+export async function getUserCredits(env: CloudflareBindings, userId: string, db?: any): Promise<CreditSnapshot> {
+  // Use provided session-aware database or create new one
+  const database = db || createDb(env);
 
-  // Get existing credit balance
-  const [row] = await db.select().from(creditBalances).where(eq(creditBalances.userId, userId)).limit(1);
+  console.log(`💳 [D1-QUERY] Getting credit balance for user ${userId} using ${db ? 'session-aware' : 'new'} database`);
+
+  // Get existing credit balance - with D1 Sessions API for performance
+  const [row] = await database.select().from(creditBalances).where(eq(creditBalances.userId, userId)).limit(1);
 
   if (!row) {
     throw new Error(`No credit balance found for user ${userId}. Credits should be assigned during signup.`);
@@ -129,15 +142,21 @@ export async function deductCredits(
   amount: number,
   operation: string,
   metadata?: unknown,
+  db?: any,
 ) {
-  const db = createDb(env);
+  // Use provided session-aware database or create new one
+  const database = db || createDb(env);
 
-  const credits = await getUserCredits(env, userId);
+  console.log(
+    `💳 [D1-QUERY] Deducting ${amount} credits for user ${userId} using ${db ? 'session-aware' : 'new'} database`,
+  );
+
+  const credits = await getUserCredits(env, userId, database);
   if (credits.balance < amount) throw new Error('Insufficient credits');
 
   // Execute operations sequentially (D1 doesn't support explicit transactions)
   // Insert transaction record
-  await db.insert(creditTransactions).values({
+  await database.insert(creditTransactions).values({
     id: randomUUID(),
     userId,
     delta: -amount,
@@ -146,7 +165,7 @@ export async function deductCredits(
   });
 
   // Update balance
-  await db
+  await database
     .update(creditBalances)
     .set({ balance: sql`${creditBalances.balance} - ${amount}` })
     .where(eq(creditBalances.userId, userId));
@@ -167,13 +186,18 @@ export async function processMonthlyRefill(
     subscriptionId: string;
     orderId: string;
   },
+  db?: any,
 ): Promise<void> {
-  const db = createDb(env);
+  const database = db || createDb(env);
 
-  console.log(`🔄 Processing monthly refill for user ${userId}, subscription ${subscriptionId}`);
+  console.log(
+    `🔄 Processing monthly refill for user ${userId}, subscription ${subscriptionId} using ${
+      db ? 'session-aware' : 'new'
+    } database`,
+  );
 
   // Verify user has Pro plan
-  const credits = await getUserCredits(env, userId);
+  const credits = await getUserCredits(env, userId, database);
   if (credits.plan !== 'pro') {
     console.log(`⚠️ Skipping refill for user ${userId} - not a Pro subscriber (plan: ${credits.plan})`);
     return;
@@ -181,7 +205,7 @@ export async function processMonthlyRefill(
 
   // Check if this specific order has already been processed
   const creditAmounts = getCreditAmounts(env);
-  const existingRefillTransaction = await db
+  const existingRefillTransaction = await database
     .select()
     .from(creditTransactions)
     .where(
@@ -195,7 +219,7 @@ export async function processMonthlyRefill(
     .limit(5);
 
   // Check if any existing transaction is for this specific order
-  const orderAlreadyProcessed = existingRefillTransaction.some((tx) => {
+  const orderAlreadyProcessed = existingRefillTransaction.some((tx: any) => {
     try {
       const metadata = JSON.parse(tx.metadata || '{}');
       return metadata.orderId === orderId;
@@ -214,7 +238,7 @@ export async function processMonthlyRefill(
 
     // Execute operations sequentially (D1 doesn't support explicit transactions)
     // Insert credit transaction for the refill
-    await db.insert(creditTransactions).values({
+    await database.insert(creditTransactions).values({
       id: randomUUID(),
       userId,
       delta: creditAmounts.MONTHLY_PRO_REFILL,
@@ -227,7 +251,7 @@ export async function processMonthlyRefill(
     });
 
     // Update credit balance
-    await db
+    await database
       .update(creditBalances)
       .set({
         balance: sql`${creditBalances.balance} + ${creditAmounts.MONTHLY_PRO_REFILL}`,
@@ -243,17 +267,21 @@ export async function processMonthlyRefill(
 }
 
 /* list 50 most-recent transactions */
-export async function getCreditUsageHistory(env: CloudflareBindings, userId: string, limit = 50) {
-  const db = createDb(env);
+export async function getCreditUsageHistory(env: CloudflareBindings, userId: string, limit = 50, db?: any) {
+  const database = db || createDb(env);
 
-  const rows = await db
+  console.log(
+    `💳 [D1-QUERY] Getting credit usage history for user ${userId} using ${db ? 'session-aware' : 'new'} database`,
+  );
+
+  const rows = await database
     .select()
     .from(creditTransactions)
     .where(eq(creditTransactions.userId, userId))
     .orderBy(desc(creditTransactions.createdAt))
     .limit(limit);
 
-  return rows.map((r) => ({
+  return rows.map((r: any) => ({
     ...r,
     metadata: r.metadata ? JSON.parse(r.metadata) : null,
   }));
@@ -263,10 +291,14 @@ export async function getCreditUsageHistory(env: CloudflareBindings, userId: str
 /* 3. Subscriptions (Polar)                                            */
 /* ------------------------------------------------------------------ */
 
-export async function getActiveSubscription(env: CloudflareBindings, userId: string) {
-  const db = createDb(env);
+export async function getActiveSubscription(env: CloudflareBindings, userId: string, db?: any) {
+  const database = db || createDb(env);
 
-  const [sub] = await db
+  console.log(
+    `📋 [D1-QUERY] Getting active subscription for user ${userId} using ${db ? 'session-aware' : 'new'} database`,
+  );
+
+  const [sub] = await database
     .select()
     .from(subscriptions)
     .where(and(eq(subscriptions.userId, userId), eq(subscriptions.status, 'active')))
@@ -296,11 +328,18 @@ export async function createPaymentRecord(
     paidAt: Date;
     type?: 'charge' | 'refund';
   },
+  db?: any,
 ) {
-  const db = createDb(env);
+  const database = db || createDb(env);
+
+  console.log(
+    `💳 [D1-QUERY] Creating payment record ${paymentId} for user ${userId} using ${
+      db ? 'session-aware' : 'new'
+    } database`,
+  );
 
   try {
-    await db.insert(payments).values({
+    await database.insert(payments).values({
       id: paymentId,
       userId,
       amountCents,
@@ -345,19 +384,22 @@ export async function createOrUpdatePolarSubscription(
     // allow arbitrary extra fields (e.g. polarCustomerId, productId, ...)
     [key: string]: unknown;
   },
+  db?: any,
 ) {
-  const db = createDb(env);
+  const database = db || createDb(env);
 
   // Resolve plan and period start fallbacks
   const resolvedPlan: 'pro' | 'free' = (plan ?? planName ?? 'free') as 'pro' | 'free';
   const resolvedStartedAt: Date = startedAt ?? currentPeriodStart ?? new Date();
 
   console.log(
-    `🔄 Processing subscription ${subscriptionId} for user ${userId}: status=${status}, plan=${resolvedPlan}`,
+    `🔄 Processing subscription ${subscriptionId} for user ${userId}: status=${status}, plan=${resolvedPlan} using ${
+      db ? 'session-aware' : 'new'
+    } database`,
   );
 
   /* 1️⃣ Check if subscription already exists to prevent duplicate credit assignment */
-  const existingSubscription = await db
+  const existingSubscription = await database
     .select()
     .from(subscriptions)
     .where(eq(subscriptions.id, subscriptionId))
@@ -371,7 +413,7 @@ export async function createOrUpdatePolarSubscription(
   );
 
   /* 2️⃣ Get current user credits */
-  const credits = await getUserCredits(env, userId);
+  const credits = await getUserCredits(env, userId, database);
 
   const isUpgrade = resolvedPlan === 'pro' && credits.plan === 'free';
   const isActivation = resolvedPlan === 'pro' && status === 'active' && (isNewSubscription || isStatusChange);
@@ -395,7 +437,7 @@ export async function createOrUpdatePolarSubscription(
 
     console.log(`🔄 Upserting subscription ${subscriptionId} for user ${userId}`);
 
-    await db
+    await database
       .insert(subscriptions)
       .values(subscriptionData)
       .onConflictDoUpdate({
@@ -415,7 +457,7 @@ export async function createOrUpdatePolarSubscription(
       const creditAmounts = getCreditAmounts(env);
 
       // Check if this specific subscription already has credits processed
-      const existingCreditTransaction = await db
+      const existingCreditTransaction = await database
         .select()
         .from(creditTransactions)
         .where(
@@ -428,7 +470,7 @@ export async function createOrUpdatePolarSubscription(
         .orderBy(desc(creditTransactions.createdAt))
         .limit(5);
 
-      const subscriptionAlreadyProcessed = existingCreditTransaction.some((tx) => {
+      const subscriptionAlreadyProcessed = existingCreditTransaction.some((tx: any) => {
         try {
           const metadata = JSON.parse(tx.metadata || '{}');
           return metadata.subscriptionId === subscriptionId;
@@ -443,7 +485,7 @@ export async function createOrUpdatePolarSubscription(
         );
 
         // Insert credit transaction
-        await db.insert(creditTransactions).values({
+        await database.insert(creditTransactions).values({
           id: randomUUID(),
           userId,
           delta: creditAmounts.INITIAL_PRO,
@@ -455,7 +497,7 @@ export async function createOrUpdatePolarSubscription(
         });
 
         // Update credit balance
-        await db
+        await database
           .update(creditBalances)
           .set({
             plan: 'pro',
@@ -476,14 +518,14 @@ export async function createOrUpdatePolarSubscription(
       }
     } else if (isDowngrade && isStatusChange) {
       // Check if this specific subscription cancellation already processed
-      const existingDowngradeTransaction = await db
+      const existingDowngradeTransaction = await database
         .select()
         .from(creditTransactions)
         .where(and(eq(creditTransactions.userId, userId), eq(creditTransactions.reason, 'subscription_cancelled')))
         .orderBy(desc(creditTransactions.createdAt))
         .limit(5);
 
-      const cancellationAlreadyProcessed = existingDowngradeTransaction.some((tx) => {
+      const cancellationAlreadyProcessed = existingDowngradeTransaction.some((tx: any) => {
         try {
           const metadata = JSON.parse(tx.metadata || '{}');
           return metadata.subscriptionId === subscriptionId;
@@ -496,7 +538,7 @@ export async function createOrUpdatePolarSubscription(
         console.log(`🔻 Processing subscription cancellation for user ${userId}`);
 
         // Create transaction record for the downgrade
-        await db.insert(creditTransactions).values({
+        await database.insert(creditTransactions).values({
           id: randomUUID(),
           userId,
           delta: 0, // No credit change, just plan change
@@ -510,7 +552,7 @@ export async function createOrUpdatePolarSubscription(
         });
 
         // Update credit balance to mark plan as free
-        await db.update(creditBalances).set({ plan: 'free' }).where(eq(creditBalances.userId, userId));
+        await database.update(creditBalances).set({ plan: 'free' }).where(eq(creditBalances.userId, userId));
 
         console.log(`✅ Successfully downgraded user ${userId} to free plan (credits preserved)`);
       } else {
@@ -594,8 +636,12 @@ export async function notifyPlanChange(
 /* 4. Dashboard helper                                                 */
 /* ------------------------------------------------------------------ */
 
-export async function getSubscriptionData(env: CloudflareBindings, userId: string) {
-  const [credits, sub] = await Promise.all([getUserCredits(env, userId), getActiveSubscription(env, userId)]);
+export async function getSubscriptionData(env: CloudflareBindings, userId: string, db?: any) {
+  console.log(
+    `📊 [D1-QUERY] Getting subscription data for user ${userId} using ${db ? 'session-aware' : 'new'} database`,
+  );
+
+  const [credits, sub] = await Promise.all([getUserCredits(env, userId, db), getActiveSubscription(env, userId, db)]);
 
   return {
     hasActiveSubscription: !!sub,
@@ -666,8 +712,8 @@ function generateErrorFingerprint(message: string, operation: string, errorCode?
 /**
  * Log an error to the database with comprehensive context
  */
-export async function logError(env: CloudflareBindings, params: ErrorLogParams): Promise<string> {
-  const db = createDb(env);
+export async function logError(env: CloudflareBindings, params: ErrorLogParams, db?: any): Promise<string> {
+  const database = db || createDb(env);
   const errorId = randomUUID();
 
   try {
@@ -675,7 +721,7 @@ export async function logError(env: CloudflareBindings, params: ErrorLogParams):
     const now = new Date();
 
     // Check if we've seen this error pattern before (for occurrence counting)
-    const existingError = await db
+    const existingError = await database
       .select()
       .from(errorLogs)
       .where(eq(errorLogs.fingerprint, fingerprint))
@@ -690,7 +736,7 @@ export async function logError(env: CloudflareBindings, params: ErrorLogParams):
       firstOccurrence = new Date(existingError[0].firstOccurrence);
 
       // Update the existing error's occurrence count and last occurrence
-      await db
+      await database
         .update(errorLogs)
         .set({
           occurrenceCount,
@@ -701,7 +747,7 @@ export async function logError(env: CloudflareBindings, params: ErrorLogParams):
     }
 
     // Create new error log entry
-    await db.insert(errorLogs).values({
+    await database.insert(errorLogs).values({
       id: errorId,
       requestId: params.requestId,
       userId: params.userId,
@@ -748,8 +794,9 @@ export async function getErrorLogs(
     limit?: number;
     offset?: number;
   } = {},
+  db?: any,
 ) {
-  const db = createDb(env);
+  const database = db || createDb(env);
 
   // Apply filters
   const conditions: any[] = [];
@@ -759,7 +806,7 @@ export async function getErrorLogs(
   if (options.operation) conditions.push(eq(errorLogs.operation, options.operation));
   if (options.resolved !== undefined) conditions.push(eq(errorLogs.resolved, options.resolved));
 
-  let baseQuery = db.select().from(errorLogs);
+  let baseQuery = database.select().from(errorLogs);
 
   if (conditions.length > 0) {
     baseQuery = baseQuery.where(and(...conditions)) as any;
@@ -771,7 +818,7 @@ export async function getErrorLogs(
     .offset(options.offset || 0);
 
   // Parse context JSON
-  return errors.map((error) => ({
+  return errors.map((error: any) => ({
     ...error,
     context: error.context ? JSON.parse(error.context) : null,
   }));
@@ -785,10 +832,11 @@ export async function resolveError(
   errorId: string,
   resolvedBy: string,
   resolutionNotes?: string,
+  db?: any,
 ): Promise<void> {
-  const db = createDb(env);
+  const database = db || createDb(env);
 
-  await db
+  await database
     .update(errorLogs)
     .set({
       resolved: true,
@@ -805,8 +853,12 @@ export async function resolveError(
 /**
  * Get error statistics for monitoring dashboard
  */
-export async function getErrorStats(env: CloudflareBindings, timeframe: 'hour' | 'day' | 'week' | 'month' = 'day') {
-  const db = createDb(env);
+export async function getErrorStats(
+  env: CloudflareBindings,
+  timeframe: 'hour' | 'day' | 'week' | 'month' = 'day',
+  db?: any,
+) {
+  const database = db || createDb(env);
 
   const now = new Date();
   const timeframes = {
@@ -819,7 +871,7 @@ export async function getErrorStats(env: CloudflareBindings, timeframe: 'hour' |
   const since = timeframes[timeframe];
 
   // Get total error counts by level
-  const errorsByLevel = await db
+  const errorsByLevel = await database
     .select({
       level: errorLogs.level,
       count: sql<number>`count(*)`.as('count'),
@@ -829,7 +881,7 @@ export async function getErrorStats(env: CloudflareBindings, timeframe: 'hour' |
     .groupBy(errorLogs.level);
 
   // Get top error sources
-  const errorsBySources = await db
+  const errorsBySources = await database
     .select({
       source: errorLogs.source,
       count: sql<number>`count(*)`.as('count'),
@@ -841,7 +893,7 @@ export async function getErrorStats(env: CloudflareBindings, timeframe: 'hour' |
     .limit(10);
 
   // Get most frequent errors by fingerprint
-  const topErrors = await db
+  const topErrors = await database
     .select({
       fingerprint: errorLogs.fingerprint,
       message: errorLogs.message,

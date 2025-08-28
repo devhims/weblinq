@@ -44,6 +44,8 @@ const updateUserPlanInputSchema = z.object({
   }),
 });
 
+const testD1ReplicationInputSchema = z.object({});
+
 /**
  * Standardized output schemas following ApiSuccessResponse<T> format
  */
@@ -154,6 +156,31 @@ const updateUserPlanOutputSchema = createStandardSuccessSchema(
     plan: z.enum(['free', 'pro']),
     updatedBy: z.string(),
     updatedAt: z.string(),
+  }),
+);
+
+const testD1ReplicationOutputSchema = createStandardSuccessSchema(
+  z.object({
+    session_info: z.object({
+      session_constraint: z.string(),
+      user_region: z.string(),
+      timestamp: z.string(),
+    }),
+    replication_tests: z
+      .array(
+        z.object({
+          query: z.string(),
+          served_by_region: z.string(),
+          served_by_primary: z.boolean(),
+        }),
+      )
+      .nullable(),
+    analysis: z.object({
+      using_read_replicas: z.boolean(),
+      primary_region: z.string(),
+      all_queries_from_primary: z.boolean(),
+    }),
+    recommendations: z.array(z.string()),
   }),
 );
 
@@ -327,6 +354,27 @@ export const updateUserPlan = createRoute({
   },
 });
 
+export const testD1Replication = createRoute({
+  path: '/system/test-d1-replication',
+  method: 'post',
+  tags,
+  security,
+  summary: 'Test D1 read replication',
+  description: 'Test and verify D1 read replication behavior with multiple queries',
+  request: {
+    body: jsonContentRequired(testD1ReplicationInputSchema, 'D1 replication test parameters'),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(testD1ReplicationOutputSchema, 'D1 replication test completed successfully'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(testD1ReplicationInputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+  },
+});
+
 export type BrowserStatusRoute = typeof browserStatus;
 export type SessionHealthRoute = typeof sessionHealth;
 export type CreateBrowsersRoute = typeof createBrowsers;
@@ -335,3 +383,4 @@ export type DeleteAllBrowsersRoute = typeof deleteAllBrowsers;
 export type CheckRemainingRoute = typeof checkRemaining;
 export type CloseBrowserSessionRoute = typeof closeBrowserSession;
 export type UpdateUserPlanRoute = typeof updateUserPlan;
+export type TestD1ReplicationRoute = typeof testD1Replication;

@@ -242,11 +242,12 @@ async function checkCredits(
   env: CloudflareBindings,
   userId: string,
   operation: WebOperation,
+  db?: any,
 ): Promise<{ hasCredits: boolean; balance: number; cost: number }> {
   const cost = CREDIT_COSTS[operation];
 
   try {
-    const credits = await getUserCredits(env, userId);
+    const credits = await getUserCredits(env, userId, db);
     return {
       hasCredits: credits.balance >= cost,
       balance: credits.balance,
@@ -267,16 +268,24 @@ async function deductCreditsForOperation(
   userId: string,
   operation: WebOperation,
   metadata?: Record<string, any>,
+  db?: any,
 ): Promise<void> {
   const cost = CREDIT_COSTS[operation];
 
   try {
-    await deductCredits(env, userId, cost, operation.toLowerCase(), {
-      operation,
+    await deductCredits(
+      env,
+      userId,
       cost,
-      timestamp: new Date().toISOString(),
-      ...metadata,
-    });
+      operation.toLowerCase(),
+      {
+        operation,
+        cost,
+        timestamp: new Date().toISOString(),
+        ...metadata,
+      },
+      db,
+    );
     console.log(`✅ Deducted ${cost} credits for ${operation} operation (user: ${userId})`);
   } catch (error) {
     console.error(`❌ Failed to deduct credits for ${operation} operation (user: ${userId}):`, error);
@@ -296,11 +305,16 @@ async function executeWithCache<T>(
   const user = c.get('user')!;
   const userId = user.id;
 
+  // Get session-aware database for all operations
+  const auth = c.get('auth');
+  const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+  console.log(`📖 [D1-SESSION] Using ${db ? 'session-aware' : 'direct'} database connection`);
+
   // Check if we're in development mode to disable caching
   const isDevelopment = c.env.NODE_ENV === 'preview' || c.env.NODE_ENV === 'preview';
 
   // 2. Check credits before proceeding
-  const creditCheck = await checkCredits(c.env, userId, operation);
+  const creditCheck = await checkCredits(c.env, userId, operation, db);
 
   if (!creditCheck.hasCredits) {
     return {
@@ -321,7 +335,7 @@ async function executeWithCache<T>(
     if (cachedResult) {
       // Update credits remaining with current balance (cache might be stale)
       try {
-        c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams));
+        c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams, db));
         const updatedBalance = creditCheck.balance - creditCheck.cost;
 
         // Return cached result with updated credit information
@@ -362,7 +376,7 @@ async function executeWithCache<T>(
     }
 
     // 4. Deduct credits for successful operation
-    c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams));
+    c.executionCtx?.waitUntil(deductCreditsForOperation(c.env, userId, operation, cacheParams, db));
 
     const updatedBalance = creditCheck.balance - creditCheck.cost;
 
@@ -428,7 +442,7 @@ function extractRequestContext(c: any, body?: any) {
 /**
  * Helper to log operation failures from Durable Object results
  */
-async function logOperationFailure(c: any, operation: string, result: any, body?: any, targetUrl?: string) {
+async function logOperationFailure(c: any, operation: string, result: any, body?: any, targetUrl?: string, db?: any) {
   const errorMessage = result.error || `${operation} operation failed`;
   const errorCode = result.error?.includes('Insufficient credits')
     ? 'INSUFFICIENT_CREDITS'
@@ -439,39 +453,47 @@ async function logOperationFailure(c: any, operation: string, result: any, body?
 
   const context = extractRequestContext(c, body);
 
-  await logError(c.env, {
-    ...context,
-    source: 'web_handler',
-    operation,
-    level: 'error',
-    message: errorMessage,
-    statusCode,
-    errorCode,
-    url: targetUrl || context.url,
-    context: {
-      requestBody: body,
-      durableObjectResult: result,
+  await logError(
+    c.env,
+    {
+      ...context,
+      source: 'web_handler',
+      operation,
+      level: 'error',
+      message: errorMessage,
+      statusCode,
+      errorCode,
+      url: targetUrl || context.url,
+      context: {
+        requestBody: body,
+        durableObjectResult: result,
+      },
     },
-  });
+    db,
+  );
 }
 
 /**
  * Helper to log critical errors from try/catch blocks
  */
-async function logCriticalError(c: any, operation: string, error: unknown) {
+async function logCriticalError(c: any, operation: string, error: unknown, db?: any) {
   const errorMessage = error instanceof Error ? error.message : 'Internal server error';
   const context = extractRequestContext(c);
 
-  await logError(c.env, {
-    ...context,
-    source: 'web_handler',
-    operation,
-    level: 'critical',
-    message: errorMessage,
-    error: error instanceof Error ? error : undefined,
-    statusCode: HttpStatusCodes.INTERNAL_SERVER_ERROR,
-    errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
-  });
+  await logError(
+    c.env,
+    {
+      ...context,
+      source: 'web_handler',
+      operation,
+      level: 'critical',
+      message: errorMessage,
+      error: error instanceof Error ? error : undefined,
+      statusCode: HttpStatusCodes.INTERNAL_SERVER_ERROR,
+      errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+    },
+    db,
+  );
 }
 
 /**
@@ -521,6 +543,10 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     const user = c.get('user')!; // requireAuth ensures user exists
     const body = c.req.valid('json');
 
+    // Get session-aware database for logging
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
     const acceptHdr = c.req.header('Accept') ?? '';
     const wantsBase64 = body.base64 === true || acceptHdr.includes('application/json');
     const wantsBinary = !wantsBase64; // binary is the default
@@ -551,7 +577,7 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     );
 
     if (!result.success) {
-      await logOperationFailure(c, 'screenshot', result, body);
+      await logOperationFailure(c, 'screenshot', result, body, undefined, db);
       console.error('📤 Screenshot failed:', result.error);
       return handleOperationError(c, result, 'screenshot', body);
     }
@@ -624,7 +650,10 @@ export const screenshot: AppRouteHandler<ScreenshotRoute> = async (c: any) => {
     return c.json({ ...result, data: { ...result.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Screenshot error:', error);
-    await logCriticalError(c, 'screenshot', error);
+    // Get db instance for error logging (fallback approach)
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+    await logCriticalError(c, 'screenshot', error, db);
 
     const errResp = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
@@ -644,6 +673,10 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
     const user = c.get('user')!;
     const body = c.req.valid('json');
 
+    // Get session-aware database for logging
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
     const result: CreditAwareResult<any> = await executeWithCache(
       c,
       'MARKDOWN',
@@ -658,14 +691,17 @@ export const markdown: AppRouteHandler<MarkdownRoute> = async (c: any) => {
     );
 
     if (!result.success) {
-      await logOperationFailure(c, 'markdown', result, body);
+      await logOperationFailure(c, 'markdown', result, body, undefined, db);
       return handleOperationError(c, result, 'markdown', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Markdown error:', error);
-    await logCriticalError(c, 'markdown', error);
+    // Get db instance for error logging (fallback approach)
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+    await logCriticalError(c, 'markdown', error, db);
 
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
@@ -684,6 +720,10 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
+
+    // Get session-aware database for logging
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
 
     console.log('🤖 AI-powered JSON extraction request:', {
       userId: user.id,
@@ -709,14 +749,17 @@ export const jsonExtraction: AppRouteHandler<JsonExtractionRoute> = async (c: an
     );
 
     if (!result.success) {
-      await logOperationFailure(c, 'json_extraction', result, body);
+      await logOperationFailure(c, 'json_extraction', result, body, undefined, db);
       return handleOperationError(c, result, 'json_extraction', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('JSON extraction error:', error);
-    await logCriticalError(c, 'json_extraction', error);
+    // Get db instance for error logging (fallback approach)
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+    await logCriticalError(c, 'json_extraction', error, db);
 
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
@@ -736,6 +779,10 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
     const user = c.get('user')!;
     const body = c.req.valid('json');
 
+    // Get session-aware database for logging
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
     const result: CreditAwareResult<any> = await executeWithCache(
       c,
       'CONTENT',
@@ -750,14 +797,17 @@ export const content: AppRouteHandler<ContentRoute> = async (c: any) => {
     );
 
     if (!result.success) {
-      await logOperationFailure(c, 'content', result, body);
+      await logOperationFailure(c, 'content', result, body, undefined, db);
       return handleOperationError(c, result, 'content', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Content error:', error);
-    await logCriticalError(c, 'content', error);
+    // Get db instance for error logging (fallback approach)
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+    await logCriticalError(c, 'content', error, db);
 
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
@@ -777,6 +827,10 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
     const user = c.get('user')!;
     const body = c.req.valid('json');
 
+    // Get session-aware database for logging
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
     const result: CreditAwareResult<any> = await executeWithCache(
       c,
       'SCRAPE',
@@ -792,14 +846,17 @@ export const scrape: AppRouteHandler<ScrapeRoute> = async (c: any) => {
     );
 
     if (!result.success) {
-      await logOperationFailure(c, 'scrape', result, body);
+      await logOperationFailure(c, 'scrape', result, body, undefined, db);
       return handleOperationError(c, result, 'scrape', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Scrape error:', error);
-    await logCriticalError(c, 'scrape', error);
+    // Get db instance for error logging (fallback approach)
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+    await logCriticalError(c, 'scrape', error, db);
 
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
@@ -819,6 +876,10 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
     const user = c.get('user')!;
     const body = c.req.valid('json');
 
+    // Get session-aware database for logging
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
     const result: CreditAwareResult<any> = await executeWithCache(
       c,
       'LINKS',
@@ -834,14 +895,17 @@ export const links: AppRouteHandler<LinksRoute> = async (c: any) => {
     );
 
     if (!result.success) {
-      await logOperationFailure(c, 'links', result, body);
+      await logOperationFailure(c, 'links', result, body, undefined, db);
       return handleOperationError(c, result, 'links', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Links error:', error);
-    await logCriticalError(c, 'links', error);
+    // Get db instance for error logging (fallback approach)
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+    await logCriticalError(c, 'links', error, db);
 
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
@@ -862,6 +926,10 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
     const body = c.req.valid('json');
     const _clientIp = c.req.header('CF-Connecting-IP') || 'unknown';
 
+    // Get session-aware database for logging
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
     const result: CreditAwareResult<any> = await executeWithCache(
       c,
       'SEARCH',
@@ -876,14 +944,17 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
     );
 
     if (!result.success) {
-      await logOperationFailure(c, 'search', result, body, `search:${body.query}`);
+      await logOperationFailure(c, 'search', result, body, `search:${body.query}`, db);
       return handleOperationError(c, result, 'search', body);
     }
 
     return c.json(result, HttpStatusCodes.OK);
   } catch (error) {
     console.error('Search error:', error);
-    await logCriticalError(c, 'search', error);
+    // Get db instance for error logging (fallback approach)
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+    await logCriticalError(c, 'search', error, db);
 
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
@@ -902,6 +973,10 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
   try {
     const user = c.get('user')!;
     const body = c.req.valid('json');
+
+    // Get session-aware database for logging
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
 
     const acceptHdr = c.req.header('Accept') ?? '';
     const wantsBase64 = body.base64 === true || acceptHdr.includes('application/json');
@@ -933,7 +1008,7 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     );
 
     if (!result.success) {
-      await logOperationFailure(c, 'pdf', result, body);
+      await logOperationFailure(c, 'pdf', result, body, undefined, db);
       console.error('📤 PDF generation failed:', result.error);
       return handleOperationError(c, result, 'pdf', body);
     }
@@ -1007,7 +1082,10 @@ export const pdf: AppRouteHandler<PdfRoute> = async (c: any) => {
     return c.json({ ...result, data: { ...result.data, permanentUrl, fileId } }, HttpStatusCodes.OK);
   } catch (error) {
     console.error('PDF error:', error);
-    await logCriticalError(c, 'pdf', error);
+    // Get db instance for error logging (fallback approach)
+    const auth = c.get('auth');
+    const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+    await logCriticalError(c, 'pdf', error, db);
 
     const errResp = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',
