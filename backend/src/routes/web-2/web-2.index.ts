@@ -14,4 +14,7 @@ router.use('/web/*', requireAuth);
 // Mount the search route using Durable Object handler
 router.openapi(routes.search, handlers.search);
 
+// Mount the YouTube captions route
+router.openapi(routes.youtubeCaptions, handlers.youtubeCaptions);
+
 export default router;

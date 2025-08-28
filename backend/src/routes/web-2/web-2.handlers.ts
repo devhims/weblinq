@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import * as HttpStatusCodes from 'stoker/http-status-codes';
+import { getSubtitles, getVideoDetails } from 'youtube-caption-extractor';
 
 import type { WebDurableObject } from '@/durable-objects/user-do';
 import type { WebOperation } from '@/lib/constants';
@@ -9,7 +10,7 @@ import { deductCredits, getUserCredits, logError } from '@/db/queries';
 import { CREDIT_COSTS } from '@/lib/constants';
 import { createStandardErrorResponse, ERROR_CODES } from '@/lib/response-utils';
 
-import type { SearchRoute } from './web-2.routes';
+import type { SearchRoute, YoutubeCaptionsRoute } from './web-2.routes';
 
 /* ========================================================================== */
 /*  Cloudflare Cache API Implementation                                      */
@@ -28,6 +29,7 @@ const CACHE_TTL_SECONDS = {
   LINKS: 1 * 60, // 1 minute
   SEARCH: 2 * 60, // 2 minutes
   PDF: 5 * 60, // 5 minutes
+  YOUTUBE_CAPTIONS: 10 * 60, // 10 minutes for YouTube captions
 } as const;
 
 /**
@@ -589,6 +591,121 @@ export const search: AppRouteHandler<SearchRoute> = async (c: any) => {
 
     // Background error logging (non-blocking)
     c.executionCtx?.waitUntil(logCriticalError(c, 'search', error, db));
+
+    const errorResponse = createStandardErrorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+    );
+
+    return c.json(errorResponse, HttpStatusCodes.INTERNAL_SERVER_ERROR);
+  }
+};
+
+export const youtubeCaptions: AppRouteHandler<YoutubeCaptionsRoute> = async (c: any) => {
+  const handlerStart = Date.now();
+  console.log(`🚀 [PERF] YouTube Captions handler started at ${handlerStart}ms`);
+
+  // Get session-aware database for logging
+  const auth = c.get('auth');
+  const db = auth && typeof auth.getDb === 'function' ? auth.getDb() : null;
+
+  try {
+    const body = c.req.valid('json');
+
+    const validationTime = Date.now();
+    console.log(`✅ [PERF] Request validation completed in ${validationTime - handlerStart}ms`);
+
+    // Use executeWithCache for YouTube caption extraction
+    const result: CreditAwareResult<any> = await executeWithCache(
+      c,
+      'YOUTUBE_CAPTIONS',
+      async () => {
+        const extractionStart = Date.now();
+        console.log(`🎯 [PERF] Starting YouTube caption extraction at ${extractionStart}ms`);
+
+        try {
+          let videoDetails;
+          const captions = await getSubtitles({
+            videoID: body.videoId,
+            lang: body.lang || 'en',
+          });
+
+          // Extract video details if requested
+          if (body.includeVideoDetails) {
+            videoDetails = await getVideoDetails({
+              videoID: body.videoId,
+              lang: body.lang || 'en',
+            });
+          }
+
+          const extractionEnd = Date.now();
+          const extractionTime = extractionEnd - extractionStart;
+          console.log(`📝 [PERF] YouTube caption extraction completed in ${extractionTime}ms`);
+
+          return {
+            success: true,
+            data: {
+              videoId: body.videoId,
+              language: body.lang || 'en',
+              captions: captions || [],
+              videoDetails: videoDetails
+                ? {
+                    title: videoDetails.title,
+                    description: videoDetails.description,
+                  }
+                : undefined,
+              metadata: {
+                totalCaptions: captions?.length || 0,
+                extractionTime,
+                timestamp: new Date().toISOString(),
+              },
+            },
+          };
+        } catch (extractionError) {
+          console.error(`❌ YouTube extraction error for video ${body.videoId}:`, extractionError);
+          return {
+            success: false,
+            error: extractionError instanceof Error ? extractionError.message : 'Failed to extract YouTube captions',
+          };
+        }
+      },
+      {
+        videoId: body.videoId,
+        lang: body.lang,
+        includeVideoDetails: body.includeVideoDetails,
+      },
+    );
+
+    if (!result.success) {
+      const errorTime = Date.now();
+      console.log(
+        `❌ [PERF] YouTube captions extraction failed at ${errorTime}ms (Total: ${errorTime - handlerStart}ms)`,
+      );
+
+      await logOperationFailure(c, 'youtube_captions', result, body, `youtube:${body.videoId}`, db);
+      return handleOperationError(c, result, 'youtube_captions', body);
+    }
+
+    const successTime = Date.now();
+    console.log(`✅ [PERF] YouTube Captions handler SUCCESS - Total time: ${successTime - handlerStart}ms`);
+
+    // Response preparation timing
+    const responseStart = Date.now();
+    console.log(`📊 [PERF] Response size: ${JSON.stringify(result).length} characters`);
+
+    const jsonResponse = c.json(result, HttpStatusCodes.OK);
+    const responseEnd = Date.now();
+    console.log(`🚀 [PERF] Final JSON response creation took ${responseEnd - responseStart}ms`);
+
+    return jsonResponse;
+  } catch (error) {
+    const errorTime = Date.now();
+    console.log(`❌ [PERF] YouTube Captions handler EXCEPTION - Total time: ${errorTime - handlerStart}ms`);
+
+    console.error('YouTube captions error:', error);
+
+    // Background error logging (non-blocking)
+    c.executionCtx?.waitUntil(logCriticalError(c, 'youtube_captions', error, db));
 
     const errorResponse = createStandardErrorResponse(
       error instanceof Error ? error.message : 'Internal server error',

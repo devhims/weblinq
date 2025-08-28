@@ -25,6 +25,7 @@ export const CREDIT_COSTS = {
   LINKS: 1,
   SEARCH: 1,
   PDF: 1,
+  YOUTUBE_CAPTIONS: 1, // YouTube caption extraction
 } as const;
 
 export type WebOperation = keyof typeof CREDIT_COSTS;

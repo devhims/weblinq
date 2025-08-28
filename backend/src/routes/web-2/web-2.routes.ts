@@ -22,6 +22,22 @@ const searchInputSchema = z.object({
   limit: z.number().min(1).max(20).optional().default(10),
 });
 
+const youtubeCaptionsInputSchema = z.object({
+  videoId: z.string().min(1).max(100).describe('YouTube video ID'),
+  lang: z
+    .string()
+    .min(2)
+    .max(5)
+    .optional()
+    .default('en')
+    .describe('Language code for subtitles (e.g., "en", "fr", "de")'),
+  includeVideoDetails: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Whether to include video details along with captions'),
+});
+
 // Output schemas
 const searchOutputSchema = createStandardSuccessSchema(
   z.object({
@@ -46,6 +62,31 @@ const searchOutputSchema = createStandardSuccessSchema(
   }),
 );
 
+const youtubeCaptionsOutputSchema = createStandardSuccessSchema(
+  z.object({
+    videoId: z.string(),
+    language: z.string(),
+    captions: z.array(
+      z.object({
+        start: z.string(),
+        dur: z.string(),
+        text: z.string(),
+      }),
+    ),
+    videoDetails: z
+      .object({
+        title: z.string(),
+        description: z.string(),
+      })
+      .optional(),
+    metadata: z.object({
+      totalCaptions: z.number(),
+      extractionTime: z.number(),
+      timestamp: z.string(),
+    }),
+  }),
+);
+
 export const search = createRoute({
   path: '/web/search',
   method: 'post',
@@ -64,5 +105,27 @@ export const search = createRoute({
   },
 });
 
+export const youtubeCaptions = createRoute({
+  path: '/web/yt-captions',
+  method: 'post',
+  tags,
+  security,
+  summary: 'Extract YouTube captions',
+  description: 'Extract captions/subtitles from a YouTube video using video ID',
+  request: {
+    body: jsonContentRequired(youtubeCaptionsInputSchema, 'YouTube caption extraction parameters'),
+  },
+  responses: {
+    [HttpStatusCodes.OK]: jsonContent(youtubeCaptionsOutputSchema, 'Captions extracted successfully'),
+    [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
+      createErrorSchema(youtubeCaptionsInputSchema),
+      'Validation error',
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(StandardErrorSchema, 'Authentication required'),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(StandardErrorSchema, 'Internal server error'),
+  },
+});
+
 // Export all route types for handlers
 export type SearchRoute = typeof search;
+export type YoutubeCaptionsRoute = typeof youtubeCaptions;

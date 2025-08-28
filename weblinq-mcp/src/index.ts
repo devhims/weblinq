@@ -120,60 +120,60 @@ async function makeApiRequestWithBinarySupport(endpoint: string, options: Reques
 // Tool definitions based on the OpenAPI spec
 const tools = [
 	// User tools
-	{
-		name: 'get_user_info',
-		description: 'Get current user information and authentication status',
-		inputSchema: {
-			type: 'object',
-			properties: {},
-		},
-	},
-	{
-		name: 'get_user_credits',
-		description: 'Get user credit balance and plan information',
-		inputSchema: {
-			type: 'object',
-			properties: {},
-		},
-	},
+	// {
+	// 	name: 'get_user_info',
+	// 	description: 'Get current user information and authentication status',
+	// 	inputSchema: {
+	// 		type: 'object',
+	// 		properties: {},
+	// 	},
+	// },
+	// {
+	// 	name: 'get_user_credits',
+	// 	description: 'Get user credit balance and plan information',
+	// 	inputSchema: {
+	// 		type: 'object',
+	// 		properties: {},
+	// 	},
+	// },
 
 	// API Key tools
-	{
-		name: 'create_api_key',
-		description: 'Create a new API key for the authenticated user',
-		inputSchema: {
-			type: 'object',
-			properties: {
-				name: {
-					type: 'string',
-					description: 'Name for the API key',
-				},
-			},
-			required: ['name'],
-		},
-	},
-	{
-		name: 'list_api_keys',
-		description: 'List all API keys for the authenticated user',
-		inputSchema: {
-			type: 'object',
-			properties: {},
-		},
-	},
-	{
-		name: 'delete_api_key',
-		description: 'Delete an API key',
-		inputSchema: {
-			type: 'object',
-			properties: {
-				id: {
-					type: 'string',
-					description: 'API key ID to delete',
-				},
-			},
-			required: ['id'],
-		},
-	},
+	// {
+	// 	name: 'create_api_key',
+	// 	description: 'Create a new API key for the authenticated user',
+	// 	inputSchema: {
+	// 		type: 'object',
+	// 		properties: {
+	// 			name: {
+	// 				type: 'string',
+	// 				description: 'Name for the API key',
+	// 			},
+	// 		},
+	// 		required: ['name'],
+	// 	},
+	// },
+	// {
+	// 	name: 'list_api_keys',
+	// 	description: 'List all API keys for the authenticated user',
+	// 	inputSchema: {
+	// 		type: 'object',
+	// 		properties: {},
+	// 	},
+	// },
+	// {
+	// 	name: 'delete_api_key',
+	// 	description: 'Delete an API key',
+	// 	inputSchema: {
+	// 		type: 'object',
+	// 		properties: {
+	// 			id: {
+	// 				type: 'string',
+	// 				description: 'API key ID to delete',
+	// 			},
+	// 		},
+	// 		required: ['id'],
+	// 	},
+	// },
 
 	// Web scraping tools
 	{
@@ -382,7 +382,7 @@ const tools = [
 	},
 	{
 		name: 'web_search',
-		description: 'Perform a web search using Google',
+		description: 'Perform a web search using Weblinq Search API',
 		inputSchema: {
 			type: 'object',
 			properties: {
@@ -430,47 +430,73 @@ const tools = [
 		},
 	},
 
+	// YouTube tools
+	{
+		name: 'extract_youtube_captions',
+		description: 'Extract captions/subtitles from a YouTube video given the video ID',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				videoId: {
+					type: 'string',
+					description: 'YouTube video ID (e.g., "dQw4w9WgXcQ")',
+				},
+				lang: {
+					type: 'string',
+					description: 'Language code for subtitles (e.g., "en", "fr", "de")',
+					default: 'en',
+				},
+				includeVideoDetails: {
+					type: 'boolean',
+					description: 'Whether to include video title and description',
+					default: true,
+				},
+			},
+			required: ['videoId'],
+		},
+	},
+
 	// File management tools
-	{
-		name: 'list_files',
-		description: 'List files uploaded by the user',
-		inputSchema: {
-			type: 'object',
-			properties: {
-				type: {
-					type: 'string',
-					description: 'Filter by file type',
-				},
-				limit: {
-					type: 'integer',
-					minimum: 1,
-					maximum: 100,
-					default: 20,
-					description: 'Number of files to return',
-				},
-				offset: {
-					type: 'integer',
-					minimum: 0,
-					default: 0,
-					description: 'Number of files to skip',
-				},
-			},
-		},
-	},
-	{
-		name: 'delete_file',
-		description: 'Delete a file by ID',
-		inputSchema: {
-			type: 'object',
-			properties: {
-				id: {
-					type: 'string',
-					description: 'File ID to delete',
-				},
-			},
-			required: ['id'],
-		},
-	},
+	// {
+	// 	name: 'list_files',
+	// 	description: 'List files uploaded by the user',
+	// 	inputSchema: {
+	// 		type: 'object',
+	// 		properties: {
+	// 			type: {
+	// 				type: 'string',
+	// 				description: 'Filter by file type',
+	// 			},
+	// 			limit: {
+	// 				type: 'integer',
+	// 				minimum: 1,
+	// 				maximum: 100,
+	// 				default: 20,
+	// 				description: 'Number of files to return',
+	// 			},
+	// 			offset: {
+	// 				type: 'integer',
+	// 				minimum: 0,
+	// 				default: 0,
+	// 				description: 'Number of files to skip',
+	// 			},
+	// 		},
+	// 	},
+	// },
+	// {
+	// 	name: 'delete_file',
+	// 	description: 'Delete a file by ID',
+	// 	inputSchema: {
+	// 		type: 'object',
+	// 		properties: {
+	// 			id: {
+	// 				type: 'string',
+	// 				description: 'File ID to delete',
+	// 			},
+	// 		},
+	// 		required: ['id'],
+	// 	},
+	// },
 ];
 
 // Zod schemas for tool argument validation and coercion
@@ -483,17 +509,17 @@ const tools = [
 // - Maintainable schema definitions that stay in sync with tool definitions
 const ToolSchemas = {
 	// User tools
-	get_user_info: z.object({}),
-	get_user_credits: z.object({}),
+	// get_user_info: z.object({}),
+	// get_user_credits: z.object({}),
 
 	// API Key tools
-	create_api_key: z.object({
-		name: z.string(),
-	}),
-	list_api_keys: z.object({}),
-	delete_api_key: z.object({
-		id: z.string(),
-	}),
+	// create_api_key: z.object({
+	// 	name: z.string(),
+	// }),
+	// list_api_keys: z.object({}),
+	// delete_api_key: z.object({
+	// 	id: z.string(),
+	// }),
 
 	// Web scraping tools
 	screenshot: z.object({
@@ -576,16 +602,21 @@ const ToolSchemas = {
 		waitTime: z.coerce.number().int().min(0).max(5000).default(0),
 		format: z.enum(['A4', 'letter']).default('A4'),
 	}),
+	extract_youtube_captions: z.object({
+		videoId: z.string().min(1).max(100),
+		lang: z.string().min(2).max(5).default('en'),
+		includeVideoDetails: z.coerce.boolean().default(true),
+	}),
 
 	// File management tools
-	list_files: z.object({
-		type: z.string().optional(),
-		limit: z.coerce.number().int().min(1).max(100).default(20),
-		offset: z.coerce.number().int().min(0).default(0),
-	}),
-	delete_file: z.object({
-		id: z.string(),
-	}),
+	// list_files: z.object({
+	// 	type: z.string().optional(),
+	// 	limit: z.coerce.number().int().min(1).max(100).default(20),
+	// 	offset: z.coerce.number().int().min(0).default(0),
+	// }),
+	// delete_file: z.object({
+	// 	id: z.string(),
+	// }),
 } as const;
 
 // TypeScript types derived from Zod schemas
@@ -620,38 +651,38 @@ async function executeTool(name: string, args: any, apiKey: string) {
 
 		switch (name) {
 			// User tools
-			case 'get_user_info':
-				return await makeApiRequest('/v1/user/me', {
-					method: 'GET',
-					apiKey,
-				});
+			// case 'get_user_info':
+			// 	return await makeApiRequest('/v1/user/me', {
+			// 		method: 'GET',
+			// 		apiKey,
+			// 	});
 
-			case 'get_user_credits':
-				return await makeApiRequest('/v1/user/credits', {
-					method: 'GET',
-					apiKey,
-				});
+			// case 'get_user_credits':
+			// 	return await makeApiRequest('/v1/user/credits', {
+			// 		method: 'GET',
+			// 		apiKey,
+			// 	});
 
-			// API Key tools
-			case 'create_api_key':
-				return await makeApiRequest('/v1/api-keys/create', {
-					method: 'POST',
-					body: JSON.stringify(coercedArgs),
-					apiKey,
-				});
+			// // API Key tools
+			// case 'create_api_key':
+			// 	return await makeApiRequest('/v1/api-keys/create', {
+			// 		method: 'POST',
+			// 		body: JSON.stringify(coercedArgs),
+			// 		apiKey,
+			// 	});
 
-			case 'list_api_keys':
-				return await makeApiRequest('/v1/api-keys/list', {
-					method: 'GET',
-					apiKey,
-				});
+			// case 'list_api_keys':
+			// 	return await makeApiRequest('/v1/api-keys/list', {
+			// 		method: 'GET',
+			// 		apiKey,
+			// 	});
 
-			case 'delete_api_key':
-				const { id } = coercedArgs;
-				return await makeApiRequest(`/v1/api-keys/${id}`, {
-					method: 'DELETE',
-					apiKey,
-				});
+			// case 'delete_api_key':
+			// 	const { id } = coercedArgs;
+			// 	return await makeApiRequest(`/v1/api-keys/${id}`, {
+			// 		method: 'DELETE',
+			// 		apiKey,
+			// 	});
 
 			// Web scraping tools
 			case 'screenshot':
@@ -697,7 +728,7 @@ async function executeTool(name: string, args: any, apiKey: string) {
 				});
 
 			case 'web_search':
-				return await makeApiRequest('/v1/web/search', {
+				return await makeApiRequest('/v2/web/search', {
 					method: 'POST',
 					body: JSON.stringify(coercedArgs),
 					apiKey,
@@ -710,24 +741,31 @@ async function executeTool(name: string, args: any, apiKey: string) {
 					apiKey,
 				});
 
-			// File management tools
-			case 'list_files':
-				const queryParams = new URLSearchParams();
-				if (coercedArgs.type) queryParams.append('type', coercedArgs.type);
-				if (coercedArgs.limit) queryParams.append('limit', coercedArgs.limit.toString());
-				if (coercedArgs.offset) queryParams.append('offset', coercedArgs.offset.toString());
-
-				return await makeApiRequest(`/v1/files/list?${queryParams}`, {
-					method: 'GET',
-					apiKey,
-				});
-
-			case 'delete_file':
-				return await makeApiRequest('/v1/files/delete', {
+			case 'extract_youtube_captions':
+				return await makeApiRequest('/v2/web/yt-captions', {
 					method: 'POST',
-					body: JSON.stringify({ fileId: coercedArgs.id }),
+					body: JSON.stringify(coercedArgs),
 					apiKey,
 				});
+
+			// File management tools
+			// case 'list_files':
+			// 	const queryParams = new URLSearchParams();
+			// 	if (coercedArgs.type) queryParams.append('type', coercedArgs.type);
+			// 	if (coercedArgs.limit) queryParams.append('limit', coercedArgs.limit.toString());
+			// 	if (coercedArgs.offset) queryParams.append('offset', coercedArgs.offset.toString());
+
+			// 	return await makeApiRequest(`/v1/files/list?${queryParams}`, {
+			// 		method: 'GET',
+			// 		apiKey,
+			// 	});
+
+			// case 'delete_file':
+			// 	return await makeApiRequest('/v1/files/delete', {
+			// 		method: 'POST',
+			// 		body: JSON.stringify({ fileId: coercedArgs.id }),
+			// 		apiKey,
+			// 	});
 
 			default:
 				throw new Error(`Unknown tool: ${name}`);
@@ -825,6 +863,38 @@ function handleMCPRequest(request: any, apiKey: string) {
 									}${
 										result.data.permanentUrl ? `\n- Permanent URL: ${result.data.permanentUrl}` : ''
 									}\n\nBase64 PDF data: ${result.data.pdf.substring(0, 100)}...`,
+								},
+							],
+						});
+					} else if (name === 'extract_youtube_captions' && result?.success && result.data?.captions) {
+						// Special formatting for YouTube captions - now shows ALL captions
+						const captions = result.data.captions;
+						const totalCaptions = captions.length;
+						const language = result.data.language;
+						const videoId = result.data.videoId;
+
+						let formattedText = `YouTube Captions Extracted:\n`;
+						formattedText += `• Video ID: ${videoId}\n`;
+						formattedText += `• Language: ${language}\n`;
+						formattedText += `• Total Captions: ${totalCaptions}\n`;
+						formattedText += `• Credits Used: ${result.creditsCost || 1}\n\n`;
+
+						if (result.data.videoDetails) {
+							formattedText += `Video Details:\n`;
+							formattedText += `• Title: ${result.data.videoDetails.title}\n`;
+							formattedText += `• Description: ${result.data.videoDetails.description}\n\n`;
+						}
+
+						formattedText += `Captions:\n`;
+						captions.forEach((caption: any, index: number) => {
+							formattedText += `${index + 1}. [${caption.start}s] ${caption.text}\n`;
+						});
+
+						return createMCPResponse(id, {
+							content: [
+								{
+									type: 'text',
+									text: formattedText,
 								},
 							],
 						});

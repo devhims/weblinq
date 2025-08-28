@@ -22,6 +22,7 @@
     "@polar-sh/sdk": "^0.34.3",
     "@scalar/hono-api-reference": "^0.9.1",
     "better-auth": "^1.2.8",
+    "debug": "^4.4.1",
     "dotenv": "^16.5.0",
     "dotenv-expand": "^12.0.2",
     "drizzle-orm": "^0.43.1",
@@ -40,6 +41,7 @@
     "stoker": "^1.4.2",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
+    "youtube-caption-extractor": "^1.9.1",
     "zod": "^3.25.28"
   },
   "devDependencies": {
