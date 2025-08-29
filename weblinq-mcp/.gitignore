@@ -170,3 +170,6 @@ dist
 
 .dev.vars
 .wrangler/
+
+MCP_PROTOCOL_EXPLANATION.md
+DURABLE_OBJECT_MIGRATION.md

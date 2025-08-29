@@ -776,9 +776,52 @@ async function executeTool(name: string, args: any, apiKey: string) {
 	}
 }
 
+// Session management removed for optimal performance
+// WebLinq operates statelessly - each request is independent
+
+// Validate Origin header for security (prevents DNS rebinding attacks)
+function validateOrigin(request: Request): boolean {
+	const origin = request.headers.get('origin');
+	const host = request.headers.get('host');
+
+	// Allow same-origin requests
+	if (origin && host) {
+		try {
+			const originUrl = new URL(origin);
+			return originUrl.host === host;
+		} catch {
+			return false;
+		}
+	}
+
+	// Allow requests without origin (direct API calls)
+	return !origin;
+}
+
+// TypeScript interfaces for MCP protocol
+interface MCPRequest {
+	jsonrpc: '2.0';
+	id: string | number | null;
+	method: string;
+	params?: Record<string, any>;
+}
+
+interface MCPResponse {
+	jsonrpc: '2.0';
+	id: string | number | null;
+	result?: any;
+	error?: {
+		code: number;
+		message: string;
+		data?: any;
+	};
+}
+
+// Session management removed - operating statelessly for optimal performance
+
 // MCP Protocol Implementation
-function createMCPResponse(id: string | number | null, result?: any, error?: { code: number; message: string }) {
-	const response: any = {
+function createMCPResponse(id: string | number | null, result?: any, error?: { code: number; message: string; data?: any }): MCPResponse {
+	const response: MCPResponse = {
 		jsonrpc: '2.0',
 		id,
 	};
@@ -792,15 +835,17 @@ function createMCPResponse(id: string | number | null, result?: any, error?: { c
 	return response;
 }
 
-function handleMCPRequest(request: any, apiKey: string) {
+function handleMCPRequest(request: MCPRequest, apiKey: string): Promise<MCPResponse> | MCPResponse {
 	const { method, params, id } = request;
 
 	switch (method) {
 		case 'initialize':
 			return createMCPResponse(id, {
-				protocolVersion: '2024-11-05',
+				protocolVersion: '2025-03-26',
 				capabilities: {
-					tools: {},
+					tools: {
+						listChanged: false, // We don't currently emit list change notifications
+					},
 				},
 				serverInfo: {
 					name: 'weblinq-mcp',
@@ -812,7 +857,14 @@ function handleMCPRequest(request: any, apiKey: string) {
 			return createMCPResponse(id, { tools });
 
 		case 'tools/call':
-			const { name, arguments: args } = params;
+			if (!params || typeof params !== 'object') {
+				return createMCPResponse(id, undefined, {
+					code: -32602,
+					message: 'Invalid params: params object required',
+				});
+			}
+
+			const { name, arguments: args } = params as { name: string; arguments?: any };
 
 			// Check if API key is provided for tool execution
 			if (!apiKey) {
@@ -931,17 +983,34 @@ app.get('/', (c) => {
 		status: 'ok',
 		message: 'WebLinq MCP Server',
 		version: '1.0.0',
+		protocolVersion: '2025-03-26',
+		transport: 'Streamable HTTP',
 		endpoints: {
-			tools: '/tools',
-			call: '/call',
-			mcp_http: '/mcp',
-			mcp_sse: '/sse',
+			mcp: '/mcp (POST: requests, GET: SSE streams, DELETE: session termination)',
+			legacy_sse: '/sse (deprecated HTTP+SSE transport)',
+			tools: '/tools (backward compatibility)',
+			call: '/call (backward compatibility)',
+		},
+		features: {
+			statelessOperation: true,
+			serverInitiatedStreams: true,
+			originValidation: true,
+			protocolVersionNegotiation: true,
+			highPerformance: true,
 		},
 	});
 });
 
+// Session management removed for performance - operating statelessly
+
 /* ---------------------------------------------------------
-   SSE for Cursor / mcp-remote
+   LEGACY SSE Transport (Deprecated - for backward compatibility)
+   
+   The endpoints below implement the deprecated HTTP+SSE transport
+   from MCP protocol version 2024-11-05. They are maintained for
+   backward compatibility with existing clients using mcp-remote.
+   
+   New clients should use the Streamable HTTP Transport at /mcp
    --------------------------------------------------------- */
 
 /* 1.  Server-→-client stream (GET /sse) */
@@ -989,16 +1058,46 @@ app.post('/sse', async (c) => {
 	}
 });
 
-// HTTP MCP endpoint
-app.post('/mcp', requireApiKey, async (c) => {
+// Modern Streamable HTTP Transport endpoint
+app.post('/mcp', async (c) => {
 	try {
+		// Validate Origin header for security
+		if (!validateOrigin(c.req.raw)) {
+			return c.json({ error: 'Invalid origin' }, 403);
+		}
+
+		// Extract and validate MCP protocol version
+		const protocolVersion = c.req.header('mcp-protocol-version') || '2025-03-26';
+		if (!['2024-11-05', '2025-03-26'].includes(protocolVersion)) {
+			return new Response('Unsupported protocol version', { status: 400 });
+		}
+
+		// Parse request
 		const request = await c.req.json();
-		const apiKey = c.get('apiKey') as string;
+
+		// Optional session ID (for client tracking, but not enforced)
+		const sessionId = c.req.header('mcp-session-id');
+
+		// Extract API key (optional for initialize/tools.list)
+		const authHeader = c.req.header('authorization');
+		const apiKey = authHeader?.replace(/^Bearer\s*/i, '') || c.req.query('apiKey') || '';
+
+		// For tool calls, require API key
+		if (request.method === 'tools/call' && !apiKey) {
+			return c.json(
+				createMCPResponse(request.id, undefined, {
+					code: -32602,
+					message: 'API key required for tool execution',
+				}),
+				400
+			);
+		}
 
 		const response = await handleMCPRequest(request, apiKey);
+
 		return c.json(response);
 	} catch (error) {
-		console.error('MCP HTTP error:', error);
+		console.error('MCP Streamable HTTP error:', error);
 		return c.json(
 			createMCPResponse(null, undefined, {
 				code: -32603,
@@ -1007,6 +1106,80 @@ app.post('/mcp', requireApiKey, async (c) => {
 			500
 		);
 	}
+});
+
+// Optional: Support server-initiated SSE streams (GET /mcp)
+app.get('/mcp', async (c) => {
+	try {
+		// Validate Origin header for security
+		if (!validateOrigin(c.req.raw)) {
+			return new Response('Invalid origin', { status: 403 });
+		}
+
+		// Check if client accepts SSE
+		const acceptHeader = c.req.header('accept') || '';
+		if (!acceptHeader.includes('text/event-stream')) {
+			return new Response('Method not allowed', { status: 405 });
+		}
+
+		// Implement server-initiated SSE streams for modern MCP transport
+		// This allows real-time updates and notifications to clients
+		const { readable, writable } = new TransformStream();
+		const writer = writable.getWriter();
+		const enc = new TextEncoder();
+
+		// Send initial capabilities and tool list
+		const initialData = {
+			type: 'capabilities',
+			capabilities: {
+				tools: {},
+				resources: {},
+				prompts: {},
+			},
+			tools: tools.map((tool) => ({
+				name: tool.name,
+				description: tool.description,
+			})),
+		};
+
+		writer
+			.write(enc.encode(`event: initialize\ndata: ${JSON.stringify(initialData)}\n\n`))
+			.catch((err) => console.error('SSE initialize write:', err));
+
+		// Keep-alive every 30 seconds
+		const keepAlive = setInterval(() => {
+			writer.write(enc.encode(': keep-alive\n\n')).catch((err) => console.error('SSE keep-alive:', err));
+		}, 30_000);
+
+		// Clean up on disconnect
+		const cleanup = () => {
+			clearInterval(keepAlive);
+			writer.close().catch((err) => console.error('SSE cleanup:', err));
+		};
+
+		// Handle client disconnect
+		c.req.raw.signal?.addEventListener('abort', cleanup);
+
+		return new Response(readable, {
+			headers: {
+				'Content-Type': 'text/event-stream',
+				'Cache-Control': 'no-cache',
+				Connection: 'keep-alive',
+				'Access-Control-Allow-Origin': '*',
+				'Access-Control-Allow-Headers': 'Authorization, MCP-Session-Id, MCP-Protocol-Version',
+			},
+		});
+	} catch (error) {
+		console.error('MCP SSE error:', error);
+		return new Response('Internal error', { status: 500 });
+	}
+});
+
+// Optional session termination endpoint (no-op for stateless operation)
+app.delete('/mcp', async (c) => {
+	// MCP protocol allows session termination, but we operate statelessly
+	// so this is just a courtesy response
+	return new Response('OK', { status: 200 });
 });
 
 // List available tools (backward compatibility)
