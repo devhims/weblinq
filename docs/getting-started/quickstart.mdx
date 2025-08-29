@@ -1,15 +1,286 @@
 ---
 title: 'Quickstart Guide'
-description: 'Get started with WebLinq API in under 5 minutes'
+description: 'Get started with WebLinq in under 5 minutes - choose between MCP integration or direct API access'
 ---
 
-Get your first API response in minutes with this step-by-step guide.
+<Tabs>
+<Tab title="MCP Integration (Recommended)">
+
+The **Model Context Protocol (MCP)** provides seamless integration with AI applications like Claude Desktop, Cursor, and VS Code. This is the easiest way to use WebLinq tools.
 
 <Steps>
 <Step title="Get your API key">
   1. [Sign up for WebLinq](https://weblinq.dev/sign-up) - it's free to start
-  2. Go to [API Keys](https://weblinq.dev/dashboard/api-keys) in your dashboard
-  3. Click "Create API Key" and give it a name
+  2. Go to [API Keys](https://weblinq.dev/dashboard/api-keys) tab in your dashboard
+  3. Generate a new API key.
+  
+  <Warning>
+  Copy your API key immediately - you won't see it again after generation.
+  </Warning>
+</Step>
+
+<Step title="Configure your MCP client">
+  WebLinq works with any MCP-compatible application. Choose your preferred client and add the configuration:
+
+  <Accordion title="Claude Desktop">
+  Edit your `claude_desktop_config.json` file:
+
+```json
+{
+  "mcpServers": {
+    "weblinq": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@latest",
+        "https://mcp.weblinq.dev/mcp",
+        "--header",
+        "Authorization:Bearer your_api_key_here"
+      ]
+    }
+  }
+}
+```
+
+  </Accordion>
+
+  <Accordion title="Cursor / VS Code">
+  Add to your MCP settings in `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "weblinq": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@latest",
+        "https://mcp.weblinq.dev/mcp",
+        "--header",
+        "Authorization:Bearer your_api_key_here"
+      ]
+    }
+  }
+}
+```
+
+  </Accordion>
+
+  <Accordion title="LM Studio">
+  Configure in LM Studio's MCP settings (`mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "weblinq": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@latest",
+        "https://mcp.weblinq.dev/mcp",
+        "--header",
+        "Authorization:Bearer your_api_key_here"
+      ]
+    }
+  }
+}
+```
+
+**Perfect for**: Research with local models, extracting documentation, analyzing websites.
+
+  </Accordion>
+
+  <Accordion title="BoltAI (macOS)">
+  Import configuration or manually add to BoltAI settings:
+
+```json
+{
+  "mcpServers": {
+    "weblinq": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@latest",
+        "https://mcp.weblinq.dev/mcp",
+        "--header",
+        "Authorization:Bearer your_api_key_here"
+      ]
+    }
+  }
+}
+```
+
+**Perfect for**: Quick web research, screenshot capture, content extraction across apps.
+
+  </Accordion>
+
+  <Accordion title="TypingMind">
+  Enable WebLinq as a plugin in TypingMind settings:
+
+```json
+{
+  "mcpServers": {
+    "weblinq": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote@latest",
+        "https://mcp.weblinq.dev/mcp",
+        "--header",
+        "Authorization:Bearer your_api_key_here"
+      ]
+    }
+  }
+}
+```
+
+**Perfect for**: Content creation, market research, competitive analysis.
+
+  </Accordion>
+
+  <Accordion title="MCPOmni-Connect (CLI)">
+  Connect via command line interface for automation:
+
+```bash
+npx mcpomni-connect \
+  --server https://mcp.weblinq.dev/mcp \
+  --header "Authorization:Bearer your_api_key_here" \
+  --model openai/gpt-4
+```
+
+**Perfect for**: Automation scripts, batch processing, command-line workflows.
+
+  </Accordion>
+
+  <Accordion title="Postman (Testing)">
+  Test WebLinq MCP tools directly in Postman for debugging:
+
+```http
+POST https://mcp.weblinq.dev/mcp
+Authorization: Bearer your_api_key_here
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "screenshot",
+    "arguments": {
+      "url": "https://example.com"
+    }
+  }
+}
+```
+
+**Perfect for**: API testing, debugging tool calls, validating responses.
+
+  </Accordion>
+
+  <Tip>
+  Replace `your_api_key_here` with your actual API key from the dashboard.
+  </Tip>
+</Step>
+
+<Step title="Start using WebLinq tools">
+  Start using WebLinq tools naturally in conversation with your MCP client:
+  
+  <CodeGroup>
+  ```text Claude Desktop - Website Cloning
+  "Take a screenshot of https://stripe.com/pricing and extract the pricing table data. Then help me create a similar pricing page for my SaaS product."
+  
+  "Analyze the design patterns on https://linear.app and generate HTML/CSS code to recreate their dashboard layout."
+  
+  "Extract all the feature descriptions from https://notion.so and help me write compelling copy for my productivity app."
+  ```
+  
+  ```text Cursor/VS Code - Development
+  "Screenshot https://github.com/vercel/next.js and extract the README content. Help me create a similar project structure and documentation."
+  
+  "Scrape the API documentation from https://docs.stripe.com/api and generate TypeScript interfaces for the payment endpoints."
+  
+  "Extract the component library from https://ui.shadcn.com and help me implement similar components in my React project."
+  ```
+  
+  ```text LM Studio - Research & Analysis
+  "Search for recent developments in AI agents and summarize the top 5 trends with sources."
+  
+  "Extract content from 3 competitor websites and create a feature comparison matrix."
+  
+  "Take screenshots of mobile app landing pages and analyze their conversion optimization strategies."
+  ```
+  
+  ```text TypingMind - Content Creation
+  "Extract the blog structure from https://blog.openai.com and help me create an editorial calendar with similar topics for my AI startup."
+  
+  "Screenshot successful product hunt launches and analyze their presentation patterns to improve my upcoming launch."
+  
+  "Scrape testimonials from SaaS websites and help me craft compelling social proof for my landing page."
+  ```
+  
+  ```text CLI/Automation - Batch Operations
+  "Extract pricing data from 10 competitor websites and generate a competitive analysis report."
+  
+  "Take screenshots of all pages in my sitemap and create a visual site audit."
+  
+  "Monitor 5 industry blogs daily and extract new article summaries into a digest."
+  ```
+  </CodeGroup>
+
+**Available tools:**
+
+- **screenshot** - Capture high-quality webpage screenshots
+- **extract_markdown** - Convert any webpage to clean markdown
+- **ai_extract** - Extract structured data using AI (pricing tables, features, etc.)
+- **web_search** - Search the internet for real-time information
+- **scrape_elements** - Extract specific elements using CSS selectors
+- **generate_pdf** - Create PDF documents from web pages
+- **extract_links** - Get all internal and external links
+- **extract_youtube_captions** - Get video transcripts and subtitles
+
+</Step>
+</Steps>
+
+### MCP Troubleshooting
+
+<AccordionGroup>
+<Accordion title="Authentication Issues" icon="key">
+  Common authentication problems and solutions:
+  
+  - Ensure the `--header` argument includes `Authorization:Bearer your_api_key_here`
+  - Replace `your_api_key_here` with your actual API key
+  - Check your configuration file syntax is valid JSON
+  - Restart your MCP client after configuration changes
+</Accordion>
+
+<Accordion title="Transport Details" icon="link">
+  WebLinq uses the modern **Streamable HTTP Transport**: - **Endpoint**:
+  `https://mcp.weblinq.dev/mcp` - **Protocol**: MCP version 2025-03-26 -
+  **Bridge Tool**: `mcp-remote` handles the connection - **Legacy Support**:
+  `/sse` endpoint available for compatibility
+</Accordion>
+
+<Accordion title="Common Issues" icon="wrench">
+  Troubleshooting tips:
+  
+  **Tools not appearing**: Check your config file syntax and restart your MCP client
+  
+  **API key errors**: Test with `curl -H "Authorization: Bearer YOUR_KEY" https://api.weblinq.dev/v1/web/markdown`
+  
+  **Connection timeouts**: Check internet connection and firewall settings
+</Accordion>
+</AccordionGroup>
+
+</Tab>
+<Tab title="Direct API Access">
+
+Use WebLinq's REST API directly for custom integrations and applications.
+
+<Steps>
+<Step title="Get your API key">
+  1. [Sign up for WebLinq](https://weblinq.dev/sign-up) - it's free to start
+  2. Go to [API Keys](https://weblinq.dev/dashboard/api-keys) tab in your dashboard
+  3. Generate a new API key.
   
   <Warning>
   Copy your API key immediately - you won't see it again after creation.
@@ -101,14 +372,17 @@ print(data['data']['markdown'])
     <Card title="Search Web" icon="globe" href="/api-reference/web/search-the-web">
     Search the internet
     </Card>
-    <Card title="Generate PDF" icon="file-pdf" href="/api-reference/web/generate-pdf-from-a-web-page">
+    <Card title="Generate PDF" icon="download" href="/api-reference/web/generate-pdf-from-a-web-page">
     Create PDF documents
     </Card>
   </CardGroup>
 </Step>
 </Steps>
 
-## Quick tips
+</Tab>
+</Tabs>
+
+## General Tips
 
 <AccordionGroup>
 <Accordion title="Rate limits" icon="gauge">
@@ -142,8 +416,38 @@ print(data['data']['markdown'])
 </Accordion>
 </AccordionGroup>
 
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Explore All Tools" icon="list" href="/api-reference/overview">
+    Browse complete API reference with all available endpoints
+  </Card>
+  <Card
+    title="Learn MCP Protocol"
+    icon="book"
+    href="https://modelcontextprotocol.io"
+  >
+    Deep dive into Model Context Protocol fundamentals
+  </Card>
+  <Card title="Security Guide" icon="shield" href="/guides/security">
+    Best practices for secure WebLinq integration
+  </Card>
+  <Card title="Use Case Examples" icon="lightbulb" href="/guides/examples">
+    Real-world examples and implementation patterns
+  </Card>
+</CardGroup>
+
 ## Need help?
 
-<Card title="Get Support" icon="envelope" href="mailto:support@weblinq.dev">
-  Email us for technical support and questions
-</Card>
+<CardGroup cols={2}>
+  <Card title="Get Support" icon="mail" href="mailto:support@weblinq.dev">
+    Email us for technical support and questions
+  </Card>
+  <Card
+    title="MCP Community"
+    icon="users"
+    href="https://github.com/modelcontextprotocol"
+  >
+    Join the Model Context Protocol community
+  </Card>
+</CardGroup>
