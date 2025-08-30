@@ -17,6 +17,7 @@ import type {
   JsonExtractionRequest,
   SearchRequest,
   PdfRequest,
+  YouTubeCaptionsRequest,
 } from '@/lib/studio-api';
 import { ApiResult } from '../types';
 import { filterMainContent } from '../utils/mainContent';
@@ -82,7 +83,20 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   /* ———————————————————————————————————————————
      Simplified state management with nuqs + utilities
   ——————————————————————————————————————————— */
-  const { url, setUrl, query, setQuery, limit, setLimit, endpoint, action, getApiPayload, params } = useStudioParams();
+  const {
+    url,
+    setUrl,
+    videoId,
+    setVideoId,
+    query,
+    setQuery,
+    limit,
+    setLimit,
+    endpoint,
+    action,
+    getApiPayload,
+    params,
+  } = useStudioParams();
 
   /* ———————————————————————————————————————————
      Loading state and button status
@@ -172,10 +186,19 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
     }
   }, [url]); // Only depend on URL changes, not submitError changes
 
+  // Clear error when YouTube video ID changes
+  useEffect(() => {
+    if (submitError && endpoint === 'youtube') {
+      console.log('Clearing submitError because YouTube video ID changed'); // Debug log
+      setSubmitError(null);
+    }
+  }, [videoId, endpoint]); // Depend on videoId and endpoint changes
+
   /* ———————————————————————————————————————————
-     Helpers to update URL state from inputs
+     Helpers to update state from inputs
   ——————————————————————————————————————————— */
   const onUrlChange = (v: string) => setUrl(v.trim() === '' ? null : v);
+  const onVideoIdChange = (v: string) => setVideoId(v.trim() === '' ? null : v);
   const onQueryChange = (v: string) => setQuery(v.trim() === '' ? null : v);
   const onLimitChange = (v: string) => {
     if (v.trim() === '') {
@@ -230,8 +253,24 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
 
     console.log('handleApiCall called with:', { endpoint, url, action }); // Debug log
 
-    // Validate URL before proceeding (only for non-search endpoints)
-    if (endpoint !== 'search') {
+    // Validate input before proceeding
+    if (endpoint === 'youtube') {
+      // For YouTube, validate video ID
+      const currentVideoId = videoId || '';
+      if (!currentVideoId.trim()) {
+        setSubmitError('YouTube Video ID is required');
+        showStatusBriefly('error');
+        return;
+      }
+      // Basic YouTube video ID validation (11 characters, alphanumeric + hyphens + underscores)
+      const videoIdRegex = /^[a-zA-Z0-9_-]{11}$/;
+      if (!videoIdRegex.test(currentVideoId.trim())) {
+        setSubmitError('Please enter a valid YouTube video ID (11 characters)');
+        showStatusBriefly('error');
+        return;
+      }
+    } else if (endpoint !== 'search') {
+      // For other endpoints, validate URL
       const currentUrl = url || '';
       console.log('Validating URL:', currentUrl); // Debug log
       const urlValidationError = validateUrl(currentUrl);
@@ -288,13 +327,19 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
                   const dataField = (el as any).data;
                   return {
                     selector: el.selector,
-                    results: Array.isArray(dataField) ? dataField : dataField ? [dataField] : [],
+                    results: Array.isArray(dataField)
+                      ? dataField
+                      : dataField
+                        ? [dataField]
+                        : [],
                   };
                 }),
               };
 
               const onlyMainContent = params.onlyMainContent ?? false;
-              const finalData = onlyMainContent ? filterMainContent(transformed) : transformed;
+              const finalData = onlyMainContent
+                ? filterMainContent(transformed)
+                : transformed;
               results.push({ type: 'elements', data: finalData });
             }
 
@@ -302,13 +347,16 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
             const includeMarkdown = params.includeMarkdown ?? false;
 
             if (includeMarkdown) {
-              const md = await studioApi.markdown({ url: (payload as ScrapeRequest).url });
+              const md = await studioApi.markdown({
+                url: (payload as ScrapeRequest).url,
+              });
               if (md?.success && md.data?.markdown) {
                 results.push({ type: 'markdown', data: md.data.markdown });
               }
             }
 
-            if (results.length === 0) throw new Error('Failed to scrape elements: No data received');
+            if (results.length === 0)
+              throw new Error('Failed to scrape elements: No data received');
             if (results.length === 1) onApiResult(results[0].data, null);
             else onApiResult({ combinedResults: results }, null);
             showStatusBriefly('success');
@@ -349,7 +397,9 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
           }
 
           case 'visual/screenshot': {
-            const res = await studioApi.screenshot(payload as ScreenshotRequest);
+            const res = await studioApi.screenshot(
+              payload as ScreenshotRequest,
+            );
             if (res?.success && res.data?.image) {
               onApiResult({ image: res.data.image, data: res.data }, null);
               showStatusBriefly('success');
@@ -372,18 +422,38 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
 
           case 'structured/json':
           case 'structured/text': {
-            const res = await studioApi.jsonExtraction(payload as JsonExtractionRequest);
+            const res = await studioApi.jsonExtraction(
+              payload as JsonExtractionRequest,
+            );
             if (res) {
               onApiResult(res, null);
               showStatusBriefly('success');
             } else {
-              throw new Error(`Failed to extract ${actionKey === 'structured/text' ? 'text analysis' : 'JSON'}`);
+              throw new Error(
+                `Failed to extract ${actionKey === 'structured/text' ? 'text analysis' : 'JSON'}`,
+              );
+            }
+            break;
+          }
+
+          case 'youtube/captions': {
+            const res = await studioApi.youtubeCaptions(
+              payload as YouTubeCaptionsRequest,
+            );
+            if (res?.success && res.data) {
+              onApiResult(res.data, null);
+              showStatusBriefly('success');
+            } else {
+              throw new Error('Failed to extract YouTube captions');
             }
             break;
           }
 
           default:
-            onApiResult({ message: `${action} operation completed successfully` }, null);
+            onApiResult(
+              { message: `${action} operation completed successfully` },
+              null,
+            );
             showStatusBriefly('success');
         }
       } catch (err: any) {
@@ -406,7 +476,10 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
       <div className="space-y-2">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2 space-y-2">
-            <Label htmlFor="search-query" className="text-sm sm:text-base font-medium">
+            <Label
+              htmlFor="search-query"
+              className="text-sm sm:text-base font-medium"
+            >
               Search Query
             </Label>
             <Input
@@ -425,7 +498,10 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
           </div>
 
           <div className="flex flex-col space-y-2">
-            <Label htmlFor="search-limit" className="text-sm sm:text-base font-medium">
+            <Label
+              htmlFor="search-limit"
+              className="text-sm sm:text-base font-medium"
+            >
               Results (1-10)
             </Label>
             <div className="flex space-x-2">
@@ -458,6 +534,66 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
   // Debug logging before render
   console.log('About to render URL input with submitError:', submitError);
 
+  // Special handling for YouTube endpoint
+  if (endpoint === 'youtube') {
+    return (
+      <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label
+              htmlFor="youtube-video-id"
+              className="text-sm sm:text-base font-medium"
+            >
+              YouTube Video ID
+            </Label>
+            <Input
+              id="youtube-video-id"
+              value={videoId ?? ''}
+              onChange={(e) => onVideoIdChange(e.target.value)}
+              placeholder="Enter YouTube video ID (e.g., dQw4w9WgXcQ)"
+              className={`text-sm sm:text-base h-9 ${submitError ? 'border-red-500' : ''}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleApiCall();
+                }
+              }}
+            />
+            {submitError && (
+              <p className="text-red-500 text-xs mt-1">{submitError}</p>
+            )}
+          </div>
+
+          <div className="flex flex-col space-y-2">
+            <Label
+              htmlFor="youtube-lang"
+              className="text-sm sm:text-base font-medium"
+            >
+              Language (Optional)
+            </Label>
+            <div className="flex space-x-2">
+              <Input
+                id="youtube-lang"
+                value={query ?? ''}
+                onChange={(e) => onQueryChange(e.target.value)}
+                placeholder="en"
+                className="text-sm sm:text-base h-9"
+              />
+              <Button
+                onClick={handleApiCall}
+                type="button"
+                className="h-9 px-4 text-sm"
+                disabled={loading || !(videoId ?? '').trim()}
+              >
+                {getButtonContent(false)}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex space-x-2">
@@ -475,7 +611,9 @@ export function UrlInput({ onApiResult, onLoadingChange }: UrlInputProps) {
               }
             }}
           />
-          {submitError && <p className="text-red-500 text-xs mt-1">{submitError}</p>}
+          {submitError && (
+            <p className="text-red-500 text-xs mt-1">{submitError}</p>
+          )}
         </div>
         <Button
           onClick={handleApiCall}

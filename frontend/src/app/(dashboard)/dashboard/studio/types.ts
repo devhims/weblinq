@@ -43,6 +43,26 @@ export interface SearchResult {
   publishedDate?: string;
 }
 
+// JsonExtraction result type (imported from studio-api but re-exported here for convenience)
+export interface JsonExtractionResult {
+  success: boolean;
+  data: {
+    extracted?: Record<string, unknown>;
+    text?: string;
+    metadata: {
+      url: string;
+      timestamp: string;
+      model: string;
+      responseType: 'json' | 'text';
+      extractionType: 'prompt' | 'schema';
+      fieldsExtracted?: number;
+      inputTokens?: number;
+      outputTokens?: number;
+    };
+  };
+  creditsCost: number;
+}
+
 export interface SearchMetadata {
   query: string;
   totalResults: number;
@@ -100,12 +120,38 @@ export interface SearchResponseV1 {
   sources?: string[];
 }
 
+// YouTube result types
+export type YouTubeCaption = {
+  start: string;
+  dur: string;
+  text: string;
+};
+
+export type YouTubeVideoDetails = {
+  title: string;
+  description: string;
+};
+
+export type YouTubeCaptionsResult = {
+  videoId: string;
+  language: string;
+  captions: YouTubeCaption[];
+  videoDetails?: YouTubeVideoDetails;
+  metadata: {
+    totalCaptions: number;
+    extractionTime: number;
+    timestamp: string;
+  };
+};
+
 export type ApiResult =
   | string
   | ScreenshotResult
   | ScrapeResult
   | LinksResult
   | SearchResponse
-  | { [key: string]: any }
-  | Array<any>
+  | YouTubeCaptionsResult
+  | JsonExtractionResult
+  | { [key: string]: unknown }
+  | unknown[]
   | null;

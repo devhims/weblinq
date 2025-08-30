@@ -1,9 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Globe, Settings, FileText, SlidersVerticalIcon, Zap } from 'lucide-react';
+import {
+  Globe,
+  FileText,
+  SlidersVerticalIcon,
+  Zap,
+  Youtube,
+} from 'lucide-react';
 import { UrlInput } from './UrlInput';
 import { EndpointSelector } from './EndpointSelector';
 import { EndpointActions } from './EndpointActions';
@@ -12,7 +17,6 @@ import { ApiResult } from '../types';
 import { useStudioParams } from '../hooks/useStudioParams';
 import { isVercelPreview, isPreviewAuthenticated } from '@/lib/utils';
 import PreviewAuthModal from '@/components/auth/PreviewAuthModal';
-import { API_ENDPOINTS } from '../endpoints';
 import { Badge } from '@/components/ui/badge';
 
 // This component is responsible for all client-side interactivity of the Studio
@@ -23,7 +27,9 @@ export default function StudioClientContainer() {
 
   // Local UI state -----------------------------------------------------------
   const [error, setError] = useState<string | null>(null);
-  const [endpointResults, setEndpointResults] = useState<Record<string, ApiResult>>({});
+  const [endpointResults, setEndpointResults] = useState<
+    Record<string, ApiResult>
+  >({});
   const [loading, setLoading] = useState(false);
   const [showPreviewAuth, setShowPreviewAuth] = useState(false);
 
@@ -49,16 +55,27 @@ export default function StudioClientContainer() {
   return (
     <>
       <div className="flex flex-col gap-6 w-full">
-        {/* URL Input Section */}
+        {/* Input Section */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              URL Input
+              {endpoint === 'youtube' ? (
+                <Youtube className="h-5 w-5" />
+              ) : endpoint === 'search' ? (
+                <Globe className="h-5 w-5" />
+              ) : (
+                <Globe className="h-5 w-5" />
+              )}
+              {endpoint === 'youtube' || endpoint === 'search'
+                ? ''
+                : 'URL Input'}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <UrlInput onApiResult={handleApiResult} onLoadingChange={setLoading} />
+            <UrlInput
+              onApiResult={handleApiResult}
+              onLoadingChange={setLoading}
+            />
           </CardContent>
         </Card>
 
@@ -102,7 +119,9 @@ export default function StudioClientContainer() {
       </div>
 
       {/* Preview Authentication Modal */}
-      {showPreviewAuth && <PreviewAuthModal onAuthenticated={() => setShowPreviewAuth(false)} />}
+      {showPreviewAuth && (
+        <PreviewAuthModal onAuthenticated={() => setShowPreviewAuth(false)} />
+      )}
     </>
   );
 }

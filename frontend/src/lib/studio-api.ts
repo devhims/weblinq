@@ -255,6 +255,12 @@ export interface PdfRequest {
   base64?: boolean;
 }
 
+export interface YouTubeCaptionsRequest {
+  videoId: string;
+  lang?: string;
+  includeVideoDetails?: boolean;
+}
+
 export interface PdfResponse {
   success: boolean;
   data: {
@@ -266,6 +272,29 @@ export interface PdfResponse {
     };
     permanentUrl?: string; // Permanent R2 storage URL for the PDF
     fileId?: string; // Unique file ID for tracking
+  };
+  creditsCost: number;
+}
+
+export interface YouTubeCaptionsResponse {
+  success: boolean;
+  data: {
+    videoId: string;
+    language: string;
+    captions: Array<{
+      start: string;
+      dur: string;
+      text: string;
+    }>;
+    videoDetails?: {
+      title: string;
+      description: string;
+    };
+    metadata: {
+      totalCaptions: number;
+      extractionTime: number;
+      timestamp: string;
+    };
   };
   creditsCost: number;
 }
@@ -597,6 +626,15 @@ export const studioApi = {
   // Legacy V1 search (keeping for backward compatibility)
   searchLegacy: (data: SearchRequest): Promise<SearchResponseV1> =>
     apiRequest('/v1/web/search', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Extract YouTube captions
+  youtubeCaptions: (
+    data: YouTubeCaptionsRequest,
+  ): Promise<YouTubeCaptionsResponse> =>
+    apiRequest('/v2/web/yt-captions', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

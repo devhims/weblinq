@@ -56,7 +56,8 @@ export type EndpointAction =
   | 'structured/json'
   | 'structured/text'
   | 'search/web'
-  | 'visual/pdf';
+  | 'visual/pdf'
+  | 'youtube/captions';
 
 /* ──────────────────────────────────────────────────────────────
    Individual request schemas
@@ -199,6 +200,29 @@ export const PdfRequestSchema = z.object({
     .describe('Return base64 string instead of binary data'),
 });
 
+export const YouTubeCaptionsRequestSchema = z.object({
+  videoId: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(
+      /^[a-zA-Z0-9_-]{11}$/,
+      'Must be a valid 11-character YouTube video ID',
+    ),
+  lang: z
+    .string()
+    .min(2)
+    .max(5)
+    .optional()
+    .default('en')
+    .describe('Language code for subtitles (e.g., "en", "fr", "de")'),
+  includeVideoDetails: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Whether to include video details along with captions'),
+});
+
 /* ──────────────────────────────────────────────────────────────
    Mapping between endpoint/action and schema
 ──────────────────────────────────────────────────────────────── */
@@ -212,4 +236,5 @@ export const endpointActionSchemas: Record<EndpointAction, z.ZodTypeAny> = {
   'structured/text': JsonExtractionRequestSchema,
   'search/web': SearchRequestSchema,
   'visual/pdf': PdfRequestSchema,
+  'youtube/captions': YouTubeCaptionsRequestSchema,
 };

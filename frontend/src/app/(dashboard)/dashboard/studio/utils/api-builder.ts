@@ -10,6 +10,7 @@ import type {
   JsonExtractionRequest,
   SearchRequest,
   PdfRequest,
+  YouTubeCaptionsRequest,
 } from '@/lib/studio-api';
 
 import { endpointActionSchemas } from '@/lib/studio-schemas';
@@ -25,7 +26,8 @@ type ApiPayload =
   | ScrapeRequest
   | JsonExtractionRequest
   | SearchRequest
-  | PdfRequest;
+  | PdfRequest
+  | YouTubeCaptionsRequest;
 
 // Type definitions for each endpoint/action combo
 export type EndpointAction =
@@ -37,7 +39,8 @@ export type EndpointAction =
   | 'visual/pdf'
   | 'structured/json'
   | 'structured/text'
-  | 'search/web';
+  | 'search/web'
+  | 'youtube/captions';
 
 // Main API payload builder - reads all params and transforms based on action
 export function buildApiPayloadFromParams(params: StudioParams): {
@@ -50,7 +53,7 @@ export function buildApiPayloadFromParams(params: StudioParams): {
   const actionKey = `${endpoint}/${action}` as EndpointAction;
 
   // Validate required params early
-  if (!params.url && endpoint !== 'search') {
+  if (!params.url && endpoint !== 'search' && endpoint !== 'youtube') {
     return {
       action: actionKey,
       payload: {} as ApiPayload,
@@ -62,6 +65,13 @@ export function buildApiPayloadFromParams(params: StudioParams): {
       action: actionKey,
       payload: {} as ApiPayload,
       error: 'Search query is required',
+    };
+  }
+  if (!params.videoId && endpoint === 'youtube') {
+    return {
+      action: actionKey,
+      payload: {} as ApiPayload,
+      error: 'YouTube video ID is required',
     };
   }
 
@@ -197,6 +207,13 @@ export function buildApiPayloadFromParams(params: StudioParams): {
 
       'search/web': (p) =>
         ({ query: p.query!, limit: p.limit ?? 10 }) as SearchRequest,
+
+      'youtube/captions': (p) =>
+        ({
+          videoId: p.videoId!, // Video ID parameter for YouTube
+          lang: p.query || 'en', // Query parameter contains the language
+          includeVideoDetails: true, // Always include video details for better UX
+        }) as YouTubeCaptionsRequest,
     } as const;
 
     if (!builders[actionKey]) {
@@ -266,6 +283,7 @@ export function getAllowedParamsForAction(
     'scrape/links': [],
     'search/web': [],
     'visual/pdf': [],
+    'youtube/captions': ['query'], // Query parameter used for language selection
   };
 
   // Combine schema params with UI-specific params

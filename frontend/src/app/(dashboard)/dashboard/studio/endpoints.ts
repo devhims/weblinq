@@ -9,7 +9,14 @@
  *   initialization" error without relying on an extra helper file.
  */
 
-import { Code, Camera, FileJson, Search, LucideIcon } from 'lucide-react';
+import {
+  Code,
+  Camera,
+  FileJson,
+  Search,
+  Youtube,
+  LucideIcon,
+} from 'lucide-react';
 
 // Note: We intentionally do NOT re-export IDs and types here anymore.
 // Consumers should import from '../constants' for identifier data.
@@ -32,6 +39,7 @@ import {
 import { ScreenshotActions, PdfActions } from './components/VisualActions';
 import { JsonActions } from './components/StructuredActions';
 import { SearchActions } from './components/SearchActions';
+import { YouTubeCaptionsActions } from './components/YouTubeActions';
 
 /* -------------------------------------------------------------
  * Types (improved with better type safety)
@@ -101,7 +109,7 @@ export const API_ENDPOINTS = [
       {
         id: 'screenshot',
         name: 'Screenshot',
-        description: 'Capture a screenshot of a webpage',
+        description: 'Capture screenshot of a webpage',
         Component: ScreenshotActions,
       },
       {
@@ -143,6 +151,20 @@ export const API_ENDPOINTS = [
         name: 'Web Search',
         description: 'Search for information across the web',
         Component: SearchActions,
+      },
+    ],
+  },
+  {
+    id: 'youtube',
+    name: 'YouTube',
+    icon: Youtube,
+    description: 'Extract content and data from YouTube videos',
+    subActions: [
+      {
+        id: 'captions',
+        name: 'Captions',
+        description: 'Extract captions/subtitles from YouTube videos',
+        Component: YouTubeCaptionsActions,
       },
     ],
   },

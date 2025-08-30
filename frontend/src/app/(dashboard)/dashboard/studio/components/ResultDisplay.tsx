@@ -2,12 +2,11 @@
 
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Globe,
   FileText,
-  FileDown,
   Download,
-  Link as LinkIcon,
   ChevronDown,
   ChevronRight,
   Info,
@@ -17,6 +16,16 @@ import {
   ClipboardIcon,
   MessageSquareText,
   AlertCircle,
+  Youtube,
+  ExternalLink,
+  BarChart3,
+  Search,
+  X,
+  Play,
+  Clock,
+  CheckCircle,
+  Copy,
+  LinkIcon,
 } from 'lucide-react';
 import {
   ApiResult,
@@ -24,6 +33,7 @@ import {
   ScrapeResult,
   LinksResult,
   SearchResponse,
+  YouTubeCaptionsResult,
 } from '../types';
 import { useState, useEffect } from 'react';
 import {
@@ -335,7 +345,7 @@ export function ResultDisplay({
   if (result && typeof result === 'object' && 'combinedResults' in result) {
     return (
       <CombinedResultsDisplay
-        results={result.combinedResults}
+        results={(result as any).combinedResults as CombinedResult[]}
         fullPage={fullPage}
         isMobile={isMobile}
       />
@@ -665,6 +675,32 @@ export function ResultDisplay({
         'results' in result
       ) {
         return <SearchResultDisplay result={result as SearchResponse} />;
+      }
+      // Fallback for unexpected result format
+      return (
+        <div className="bg-card p-3 sm:p-4 rounded-md border h-full w-full flex flex-col">
+          <div className="flex-1 overflow-y-auto">
+            <pre className="whitespace-pre-wrap break-words text-xs sm:text-sm">
+              {JSON.stringify(result, null, 2)}
+            </pre>
+          </div>
+        </div>
+      );
+
+    case 'youtube':
+    case 'captions':
+      console.log('YouTube captions result data:', result);
+      // Type guard to ensure we have a proper YouTubeCaptionsResult
+      if (
+        result &&
+        typeof result === 'object' &&
+        !Array.isArray(result) &&
+        'captions' in result &&
+        'videoId' in result
+      ) {
+        return (
+          <YouTubeCaptionsDisplay result={result as YouTubeCaptionsResult} />
+        );
       }
       // Fallback for unexpected result format
       return (
@@ -1106,6 +1142,402 @@ function ScrapeResultDisplay({ result }: ScrapeResultDisplayProps) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+interface YouTubeCaptionsDisplayProps {
+  result: YouTubeCaptionsResult;
+}
+
+function YouTubeCaptionsDisplay({ result }: YouTubeCaptionsDisplayProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredCaptions, setFilteredCaptions] = useState(result.captions);
+  const [selectedCaption, setSelectedCaption] = useState<number | null>(null);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+
+  // Filter captions based on search term
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredCaptions(result.captions);
+    } else {
+      const filtered = result.captions.filter((caption) =>
+        caption.text.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
+      setFilteredCaptions(filtered);
+    }
+  }, [searchTerm, result.captions]);
+
+  // Clear copied text after 2 seconds
+  useEffect(() => {
+    if (copiedText) {
+      const timer = setTimeout(() => setCopiedText(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copiedText]);
+
+  const formatTime = (start: string) => {
+    const seconds = parseFloat(start);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  // Calculate gap between consecutive captions
+  const getCaptionGap = (currentIndex: number) => {
+    if (currentIndex === 0) return null;
+
+    const currentCaption = filteredCaptions[currentIndex];
+    const previousCaption = filteredCaptions[currentIndex - 1];
+
+    const currentStart = parseFloat(currentCaption.start);
+    const previousStart = parseFloat(previousCaption.start);
+    const previousDuration = parseFloat(previousCaption.dur || '0');
+
+    const previousEndTime = previousStart + previousDuration;
+    const gap = currentStart - previousEndTime;
+
+    // Only show gaps that are significant (more than 1 second)
+    if (gap > 1) {
+      return {
+        duration: gap,
+        startTime: previousEndTime,
+        endTime: currentStart,
+      };
+    }
+
+    return null;
+  };
+
+  const getYouTubeUrl = (videoId: string, time?: string) => {
+    const baseUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    if (time) {
+      return `${baseUrl}&t=${Math.floor(parseFloat(time))}s`;
+    }
+    return baseUrl;
+  };
+
+  const copyWithFeedback = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedText(label);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  };
+
+  const copyAsText = () => {
+    const text = filteredCaptions
+      .map((c) => `[${formatTime(c.start)}] ${c.text}`)
+      .join('\n\n');
+    copyWithFeedback(text, 'Text copied!');
+  };
+
+  const copyAsSRT = () => {
+    let srtContent = '';
+    filteredCaptions.forEach((caption, index) => {
+      const startTime = parseFloat(caption.start);
+      const endTime = startTime + (caption.dur ? parseFloat(caption.dur) : 5); // Default 5 seconds if no duration
+
+      const formatSRTTime = (seconds: number) => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 1000);
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+      };
+
+      srtContent += `${index + 1}\n`;
+      srtContent += `${formatSRTTime(startTime)} --> ${formatSRTTime(endTime)}\n`;
+      srtContent += `${caption.text}\n\n`;
+    });
+
+    copyWithFeedback(srtContent, 'SRT copied!');
+  };
+
+  const highlightSearchTerm = (text: string, searchTerm: string) => {
+    if (!searchTerm.trim()) return text;
+
+    const regex = new RegExp(
+      `(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`,
+      'gi',
+    );
+    const parts = text.split(regex);
+
+    return parts.map((part, index) =>
+      regex.test(part) ? (
+        <mark
+          key={index}
+          className="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded"
+        >
+          {part}
+        </mark>
+      ) : (
+        part
+      ),
+    );
+  };
+
+  return (
+    <div className="bg-card p-4 sm:p-6 rounded-lg border shadow-sm overflow-hidden w-full relative flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-red-50 dark:bg-red-950 rounded-lg">
+            <Youtube className="h-5 w-5 sm:h-6 sm:w-6 text-red-500" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">
+              YouTube Captions
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Interactive Transcript
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <a
+            href={getYouTubeUrl(result.videoId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950 dark:hover:bg-blue-900 rounded-md transition-colors"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Watch Video
+          </a>
+          <CopyButton content={JSON.stringify(result, null, 2)} inline />
+        </div>
+      </div>
+
+      {/* Transcript Stats - Moved to top */}
+      <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
+        <h4 className="font-semibold text-sm mb-3 text-foreground flex items-center gap-2">
+          <BarChart3 className="h-4 w-4" />
+          Transcript Stats
+        </h4>
+        <div className="grid grid-cols-3 gap-6">
+          <div className="text-center">
+            <div className="text-xl font-bold text-primary">
+              {result.metadata.totalCaptions}
+            </div>
+            <div className="text-xs text-muted-foreground">Total Captions</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-bold text-primary">
+              {result.language.toUpperCase()}
+            </div>
+            <div className="text-xs text-muted-foreground">Language</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl font-mono font-semibold text-primary rounded">
+              {result.videoId}
+            </div>
+            <div className="text-xs text-muted-foreground">Video ID</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Video Details */}
+      {result.videoDetails && (
+        <div className="mb-6 p-4 bg-muted/30 rounded-lg border border-border">
+          <h4 className="font-semibold text-sm mb-3 text-foreground flex items-center gap-2">
+            <Info className="h-4 w-4 text-primary" />
+            Video Information
+          </h4>
+          <div className="space-y-3">
+            <div>
+              <h5 className="text-md font-bold text-foreground mb-1">Title</h5>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {result.videoDetails.title}
+              </p>
+            </div>
+            {result.videoDetails.description && (
+              <div>
+                <h5 className="text-md font-bold text-foreground mb-1">
+                  Description
+                </h5>
+                <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                  {result.videoDetails.description}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Search */}
+      {result.captions.length > 0 && (
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search through captions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 text-sm bg-background border-muted focus:border-primary"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {searchTerm && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Found {filteredCaptions.length} caption
+              {filteredCaptions.length !== 1 ? 's' : ''} matching "{searchTerm}"
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Captions List */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="space-y-3">
+          {filteredCaptions.length > 0 ? (
+            filteredCaptions.map((caption, index) => {
+              const gap = getCaptionGap(index);
+              return (
+                <div key={`caption-container-${index}`}>
+                  {/* Gap Indicator */}
+                  {gap && (
+                    <div className="flex items-center justify-center py-2">
+                      <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/30 rounded-full text-xs text-amber-700 dark:text-amber-300">
+                        <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                        <span className="font-medium">
+                          {gap.duration.toFixed(1)}s gap
+                        </span>
+                        <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Caption */}
+                  <div
+                    className={`group p-4 rounded-lg border transition-all duration-200 cursor-pointer ${
+                      selectedCaption === index
+                        ? 'bg-primary/5 border-primary/30 shadow-sm'
+                        : 'bg-card hover:bg-muted/30 border-border hover:border-muted-foreground/20'
+                    }`}
+                    onClick={() =>
+                      setSelectedCaption(
+                        selectedCaption === index ? null : index,
+                      )
+                    }
+                  >
+                    <div className="flex items-start gap-4">
+                      <a
+                        href={getYouTubeUrl(result.videoId, caption.start)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-shrink-0 mt-0.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-md transition-colors group-hover:bg-primary/15">
+                          <Play className="h-3 w-3 text-primary" />
+                          <span className="text-xs font-mono font-medium text-primary">
+                            {formatTime(caption.start)}
+                          </span>
+                        </div>
+                      </a>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-relaxed text-foreground">
+                          {searchTerm.trim()
+                            ? highlightSearchTerm(caption.text, searchTerm)
+                            : caption.text}
+                        </p>
+                        {caption.dur && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              {parseFloat(caption.dur).toFixed(1)}s duration
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {selectedCaption === index && (
+                        <div className="flex-shrink-0">
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-12">
+              <div className="p-4 bg-muted/30 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <Youtube className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                {searchTerm ? 'No matching captions' : 'No captions available'}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                {searchTerm
+                  ? `No captions found matching "${searchTerm}". Try a different search term.`
+                  : "This video doesn't have captions available, or they couldn't be extracted."}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer with copy options */}
+      {filteredCaptions.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {filteredCaptions.length}
+                </span>
+                {filteredCaptions.length !== result.metadata.totalCaptions && (
+                  <span> of {result.metadata.totalCaptions}</span>
+                )}{' '}
+                caption{filteredCaptions.length !== 1 ? 's' : ''}
+                {searchTerm && ` matching "${searchTerm}"`}
+              </div>
+              {copiedText && (
+                <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                  <CheckCircle className="h-3 w-3" />
+                  <span className="text-xs font-medium">{copiedText}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyAsText}
+                className="text-xs flex items-center gap-2"
+                disabled={!!copiedText}
+              >
+                <Copy className="h-3 w-3" />
+                Copy Text
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyAsSRT}
+                className="text-xs flex items-center gap-2"
+                disabled={!!copiedText}
+              >
+                <FileText className="h-3 w-3" />
+                Copy SRT
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,10 @@
-export const ENDPOINT_IDS = ['scrape', 'visual', 'structured', 'search'] as const;
+export const ENDPOINT_IDS = [
+  'scrape',
+  'visual',
+  'structured',
+  'search',
+  'youtube',
+] as const;
 
 export type EndpointId = (typeof ENDPOINT_IDS)[number];
 
@@ -16,6 +22,8 @@ export const ACTION_IDS = [
   'text',
   // Search
   'web',
+  // YouTube
+  'captions',
 ] as const;
 
 export type ActionId = (typeof ACTION_IDS)[number];

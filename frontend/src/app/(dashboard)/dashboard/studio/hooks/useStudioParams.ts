@@ -82,6 +82,9 @@ export const studioParsers = {
   endpoint: endpointParser,
   action: actionParser,
 
+  // YouTube parameters
+  videoId: parseAsString,
+
   // Search parameters
   query: parseAsString.withDefault(''),
   limit: parseAsInteger,
@@ -136,6 +139,7 @@ export function useStudioParams() {
   // Convenience destructuring (back-compat names)
   const {
     url,
+    videoId,
     query,
     limit,
     endpoint,
@@ -151,6 +155,7 @@ export function useStudioParams() {
 
   // Back-compat setter helpers ------------------------------------------------
   const setUrl = (v: string | null) => void setParams({ url: v });
+  const setVideoId = (v: string | null) => void setParams({ videoId: v });
   const setQuery = (v: string | null) => void setParams({ query: v });
   const setLimit = (v: number | null) => void setParams({ limit: v });
   const setEndpoint = (v: EndpointId | null) => void setParams({ endpoint: v });
@@ -229,6 +234,8 @@ export function useStudioParams() {
     // Core state
     url,
     setUrl,
+    videoId,
+    setVideoId,
     query,
     setQuery,
     limit,
